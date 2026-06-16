@@ -98,7 +98,7 @@ export function AdminIndexShell({
               { borderColor: theme.text },
               pressed && styles.pressed,
             ]}>
-            <AppIcon color={theme.text} name="plus" size={36} />
+            <AppIcon color="#FFFFFF" name="plus" size={36} />
           </Pressable>
 
           <ThemedView style={[styles.bottomBar, { borderTopColor: theme.backgroundSelected }]}>
@@ -219,6 +219,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     alignItems: 'center',
+    backgroundColor: '#000000',
     borderRadius: Spacing.two,
     borderWidth: 2,
     bottom: BottomTabInset + 104,
