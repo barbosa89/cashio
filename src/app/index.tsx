@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -49,8 +49,8 @@ function transactionMatchesTag(transaction: Transaction, tag: Tag | null) {
 
 export default function HomeScreen() {
   const theme = useTheme();
+  const navigation = useNavigation<{ openDrawer: () => void }>();
   const { categories, tags, transactions } = useCashioData();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -80,11 +80,6 @@ export default function HomeScreen() {
 
   const hasActiveFilters = !!search.trim() || !!selectedCategory || !!selectedTag;
 
-  function goToAdmin(section: 'categories' | 'tags') {
-    setIsMenuOpen(false);
-    router.push({ pathname: '/explore', params: { section } });
-  }
-
   function clearFilters() {
     setSearch('');
     setSelectedCategoryId(null);
@@ -96,7 +91,7 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={[styles.phoneSurface, { borderColor: theme.backgroundSelected }]}>
           <ThemedView style={styles.header}>
-            <IconButton label="Abrir menú" onPress={() => setIsMenuOpen(true)}>
+            <IconButton label="Abrir menú" onPress={() => navigation.openDrawer()}>
               <AppIcon color={theme.text} name="menu" size={30} />
             </IconButton>
 
@@ -158,13 +153,6 @@ export default function HomeScreen() {
         </ThemedView>
       </SafeAreaView>
 
-      <MenuModal
-        isVisible={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        onGoToCategories={() => goToAdmin('categories')}
-        onGoToTags={() => goToAdmin('tags')}
-      />
-
       <FilterModal
         categories={categories}
         isVisible={isFilterOpen}
@@ -209,34 +197,6 @@ function TransactionRow({ transaction }: { transaction: Transaction }) {
         {transaction.transaction_date}
       </ThemedText>
     </ThemedView>
-  );
-}
-
-function MenuModal({
-  isVisible,
-  onClose,
-  onGoToCategories,
-  onGoToTags,
-}: {
-  isVisible: boolean;
-  onClose: () => void;
-  onGoToCategories: () => void;
-  onGoToTags: () => void;
-}) {
-  return (
-    <Modal animationType="fade" transparent visible={isVisible} onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable onPress={(event) => event.stopPropagation()}>
-          <ThemedView type="backgroundElement" style={styles.menuPanel}>
-            <ThemedText type="subtitle" style={styles.panelTitle}>
-              Menú
-            </ThemedText>
-            <MenuButton label="Categorías" onPress={onGoToCategories} />
-            <MenuButton label="Tags" onPress={onGoToTags} />
-          </ThemedView>
-        </Pressable>
-      </Pressable>
-    </Modal>
   );
 }
 
@@ -511,12 +471,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     padding: Spacing.three,
     paddingTop: Spacing.six,
-  },
-  menuPanel: {
-    borderRadius: Spacing.two,
-    gap: Spacing.three,
-    maxWidth: 300,
-    padding: Spacing.three,
   },
   filterPanel: {
     alignSelf: 'center',
