@@ -1,42 +1,49 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppIcon } from '@/components/app-icon';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useCashioData } from '@/hooks/use-cashio-data';
-import { useTheme } from '@/hooks/use-theme';
-import { CashioValidationError } from '@/lib/cashio-repository';
-import type { Tag } from '@/lib/database';
+import { AppIcon } from "@/components/app-icon";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { useCashioData } from "@/hooks/use-cashio-data";
+import { useTheme } from "@/hooks/use-theme";
+import { CashioValidationError } from "@/lib/cashio-repository";
+import type { Tag } from "@/lib/database";
 
 export function TagEditor({ tag }: { tag?: Tag }) {
   const theme = useTheme();
   const { addTag, editTag, isLoading } = useCashioData();
-  const [description, setDescription] = useState(tag?.description ?? '');
-  const [message, setMessage] = useState('');
+  const [description, setDescription] = useState(tag?.description ?? "");
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    setDescription(tag?.description ?? '');
+    setDescription(tag?.description ?? "");
   }, [tag]);
 
   async function handleSave() {
-    setMessage('');
+    setMessage("");
     try {
       if (tag) {
         await editTag(tag.id, { description });
       } else {
         await addTag({ description });
       }
-      router.replace('/tags');
+      router.replace("/tags");
     } catch (error) {
       if (error instanceof CashioValidationError) {
         setMessage(error.message);
         return;
       }
-      setMessage('No se pudo guardar el tag.');
+      setMessage("No se pudo guardar el tag.");
     }
   }
 
@@ -45,30 +52,37 @@ export function TagEditor({ tag }: { tag?: Tag }) {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
-        style={styles.scrollView}>
+        style={styles.scrollView}
+      >
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
             <Pressable
               accessibilityLabel="Volver a tags"
-              onPress={() => router.replace('/tags')}
-              style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
+              onPress={() => router.replace("/tags")}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <ThemedView
+                style={[styles.backButton, { borderColor: theme.text }]}
+              >
                 <AppIcon color={theme.text} name="arrow-left" size={22} />
               </ThemedView>
             </Pressable>
             <ThemedText type="title" style={styles.title}>
-              {tag ? 'Editar tag' : 'Nuevo tag'}
+              {tag ? "Editar tag" : "Nuevo tag"}
             </ThemedText>
           </View>
 
-          <ThemedView type="backgroundElement" style={styles.panel}>
+          <View style={styles.panel}>
             <View style={styles.field}>
               <ThemedText type="smallBold">Nombre</ThemedText>
               <TextInput
                 onChangeText={setDescription}
                 placeholder="Nombre"
                 placeholderTextColor={theme.textSecondary}
-                style={[styles.input, { borderColor: theme.backgroundSelected, color: theme.text }]}
+                style={[
+                  styles.input,
+                  { borderColor: theme.backgroundSelected, color: theme.text },
+                ]}
                 value={description}
               />
             </View>
@@ -82,12 +96,18 @@ export function TagEditor({ tag }: { tag?: Tag }) {
             <Pressable
               disabled={isLoading}
               onPress={handleSave}
-              style={({ pressed }) => [pressed && styles.pressed, isLoading && styles.disabled]}>
+              style={({ pressed }) => [
+                pressed && styles.pressed,
+                isLoading && styles.disabled,
+              ]}
+            >
               <ThemedView type="backgroundSelected" style={styles.saveButton}>
-                <ThemedText type="smallBold">{tag ? 'Guardar cambios' : 'Crear tag'}</ThemedText>
+                <ThemedText type="smallBold">
+                  {tag ? "Guardar cambios" : "Crear tag"}
+                </ThemedText>
               </ThemedView>
             </Pressable>
-          </ThemedView>
+          </View>
         </SafeAreaView>
       </ScrollView>
     </ThemedView>
@@ -102,27 +122,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingBottom: BottomTabInset + Spacing.five,
   },
   safeArea: {
     gap: Spacing.four,
     maxWidth: MaxContentWidth,
     paddingHorizontal: Spacing.four,
-    width: '100%',
+    width: "100%",
   },
   header: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: Spacing.two,
-    paddingTop: Platform.OS === 'web' ? Spacing.five : Spacing.three,
+    paddingTop: Platform.OS === "web" ? Spacing.five : Spacing.three,
   },
   backButton: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 16,
     borderWidth: 2,
     height: 32,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 32,
   },
   title: {
@@ -147,7 +167,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   saveButton: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
