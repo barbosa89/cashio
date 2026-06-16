@@ -1,5 +1,5 @@
 import { router, useNavigation, type Href } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -30,7 +30,6 @@ export function AdminIndexShell({
 }) {
   const navigation = useNavigation<{ openDrawer: () => void }>();
   const theme = useTheme();
-  const [chartMessage, setChartMessage] = useState('');
 
   return (
     <ThemedView style={styles.container}>
@@ -67,6 +66,14 @@ export function AdminIndexShell({
           </ThemedView>
 
           <ThemedView style={[styles.titleRow, { borderBottomColor: theme.backgroundSelected }]}>
+            <Pressable
+              accessibilityLabel="Volver al índice de transacciones"
+              onPress={() => router.replace('/')}
+              style={({ pressed }) => pressed && styles.pressed}>
+              <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
+                <AppIcon color={theme.text} name="arrow-left" size={22} />
+              </ThemedView>
+            </Pressable>
             <ThemedText type="subtitle" style={styles.title}>
               {title}
             </ThemedText>
@@ -84,12 +91,6 @@ export function AdminIndexShell({
             )}
           </ScrollView>
 
-          {!!chartMessage && (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.inlineMessage}>
-              {chartMessage}
-            </ThemedText>
-          )}
-
           <Pressable
             accessibilityLabel={ctaLabel}
             onPress={() => router.push(ctaHref)}
@@ -100,25 +101,6 @@ export function AdminIndexShell({
             ]}>
             <AppIcon color="#FFFFFF" name="plus" size={36} />
           </Pressable>
-
-          <ThemedView style={[styles.bottomBar, { borderTopColor: theme.backgroundSelected }]}>
-            <Pressable
-              accessibilityLabel="Listado"
-              style={({ pressed }) => pressed && styles.pressed}
-              onPress={() => undefined}>
-              <ThemedView type="backgroundSelected" style={styles.iconButton}>
-                <AppIcon color={theme.text} name="list" size={34} />
-              </ThemedView>
-            </Pressable>
-            <Pressable
-              accessibilityLabel="Gráficas"
-              style={({ pressed }) => pressed && styles.pressed}
-              onPress={() => setChartMessage('Las gráficas se implementarán en una siguiente etapa.')}>
-              <ThemedView style={styles.iconButton}>
-                <AppIcon color={theme.text} name="bar-chart-2" size={34} />
-              </ThemedView>
-            </Pressable>
-          </ThemedView>
         </ThemedView>
       </SafeAreaView>
     </ThemedView>
@@ -189,10 +171,21 @@ const styles = StyleSheet.create({
     width: 48,
   },
   titleRow: {
+    alignItems: 'center',
     borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.two,
     marginHorizontal: Spacing.three,
     paddingBottom: Spacing.two,
     paddingTop: Spacing.three,
+  },
+  backButton: {
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 2,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
   },
   title: {
     fontSize: 24,
@@ -203,7 +196,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     gap: Spacing.two,
-    paddingBottom: BottomTabInset + 152,
+    paddingBottom: BottomTabInset + 96,
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.three,
   },
@@ -212,32 +205,18 @@ const styles = StyleSheet.create({
     minHeight: 240,
     justifyContent: 'center',
   },
-  inlineMessage: {
-    paddingBottom: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    textAlign: 'center',
-  },
   fab: {
     alignItems: 'center',
     backgroundColor: '#000000',
     borderRadius: Spacing.two,
     borderWidth: 2,
-    bottom: BottomTabInset + 104,
+    bottom: BottomTabInset + Spacing.three,
     height: 48,
     justifyContent: 'center',
     position: 'absolute',
     right: Spacing.three,
     width: 64,
     zIndex: 2,
-  },
-  bottomBar: {
-    alignItems: 'center',
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingBottom: BottomTabInset + Spacing.three,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
   },
   pressed: {
     opacity: 0.7,
