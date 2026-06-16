@@ -79,6 +79,17 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
     setMessage('No se pudo completar la acción.');
   }
 
+  function resetForm() {
+    setTransactionType('expense');
+    setAmount('');
+    setDescription('');
+    setSelectedCategoryId(null);
+    setSelectedTagIds([]);
+    setCategorySearch('');
+    setTagSearch('');
+    setTransactionDate(new Date().toISOString().slice(0, 10));
+  }
+
   async function handleCreateCategory() {
     try {
       const created = await addCategory({ description: categorySearch, type: transactionType });
@@ -124,13 +135,7 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
         categoryId: selectedCategoryId ?? 0,
         tagIds: selectedTagIds,
       });
-      setAmount('');
-      setDescription('');
-      setSelectedCategoryId(null);
-      setSelectedTagIds([]);
-      setCategorySearch('');
-      setTagSearch('');
-      setTransactionDate(new Date().toISOString().slice(0, 10));
+      resetForm();
       setMessage('Transacción guardada.');
       onSaved?.();
     } catch (error) {

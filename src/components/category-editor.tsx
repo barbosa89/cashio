@@ -41,6 +41,13 @@ export function CategoryEditor({ category }: { category?: Category }) {
     setCategoryType(category?.type ?? "both");
   }, [category]);
 
+  function resetForm() {
+    setDescription("");
+    setCategoryType("both");
+    setIsTypeOpen(false);
+    setMessage("");
+  }
+
   async function handleSave() {
     setMessage("");
     try {
@@ -52,6 +59,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
       } else {
         await addCategory({ description, type: categoryType ?? "both" });
       }
+      resetForm();
       router.replace("/categories");
     } catch (error) {
       if (error instanceof CashioValidationError) {

@@ -29,6 +29,11 @@ export function TagEditor({ tag }: { tag?: Tag }) {
     setDescription(tag?.description ?? "");
   }, [tag]);
 
+  function resetForm() {
+    setDescription("");
+    setMessage("");
+  }
+
   async function handleSave() {
     setMessage("");
     try {
@@ -37,6 +42,7 @@ export function TagEditor({ tag }: { tag?: Tag }) {
       } else {
         await addTag({ description });
       }
+      resetForm();
       router.replace("/tags");
     } catch (error) {
       if (error instanceof CashioValidationError) {
