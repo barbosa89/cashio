@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 
-import { DarkTheme, DefaultTheme, router, ThemeProvider, useGlobalSearchParams, usePathname } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, ThemeProvider, usePathname } from 'expo-router';
 import { Drawer, DrawerContentScrollView, type DrawerContentComponentProps } from 'expo-router/drawer';
 import { useFonts } from 'expo-font';
 import { SQLiteProvider } from 'expo-sqlite';
@@ -42,7 +42,12 @@ export default function TabLayout() {
             overlayColor: 'rgba(0, 0, 0, 0.45)',
           }}>
           <Drawer.Screen name="index" options={{ title: 'Inicio' }} />
-          <Drawer.Screen name="explore" options={{ title: 'Administrar' }} />
+          <Drawer.Screen name="categories" options={{ title: 'Categorías' }} />
+          <Drawer.Screen name="tags" options={{ title: 'Tags' }} />
+          <Drawer.Screen
+            name="explore"
+            options={{ drawerItemStyle: { display: 'none' }, title: 'Administrar' }}
+          />
           <Drawer.Screen
             name="new-transaction"
             options={{ drawerItemStyle: { display: 'none' }, title: 'Nueva transacción' }}
@@ -55,21 +60,12 @@ export default function TabLayout() {
 
 function CashioDrawerContent(props: DrawerContentComponentProps) {
   const pathname = usePathname();
-  const params = useGlobalSearchParams<{ section?: string }>();
   const theme = useTheme();
 
-  function navigateTo(pathname: '/', section?: never): void;
-  function navigateTo(pathname: '/explore', section: 'categories' | 'tags'): void;
-  function navigateTo(path: '/' | '/explore', section?: 'categories' | 'tags') {
+  function navigateTo(path: '/' | '/categories' | '/tags') {
     props.navigation.closeDrawer();
-    if (path === '/explore') {
-      router.push({ pathname: path, params: { section } });
-      return;
-    }
     router.push(path);
   }
-
-  const activeSection = pathname === '/explore' ? params.section : null;
 
   return (
     <DrawerContentScrollView
@@ -98,16 +94,16 @@ function CashioDrawerContent(props: DrawerContentComponentProps) {
         onPress={() => navigateTo('/')}
       />
       <DrawerMenuItem
-        active={activeSection === 'categories'}
+        active={pathname.startsWith('/categories')}
         icon="folder"
         label="Categorías"
-        onPress={() => navigateTo('/explore', 'categories')}
+        onPress={() => navigateTo('/categories')}
       />
       <DrawerMenuItem
-        active={activeSection === 'tags'}
+        active={pathname.startsWith('/tags')}
         icon="tag"
         label="Tags"
-        onPress={() => navigateTo('/explore', 'tags')}
+        onPress={() => navigateTo('/tags')}
       />
     </DrawerContentScrollView>
   );
