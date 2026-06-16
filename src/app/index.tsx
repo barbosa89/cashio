@@ -130,7 +130,18 @@ export default function HomeScreen() {
             </ThemedText>
           )}
 
-          <ThemedView style={styles.bottomBar}>
+          <Pressable
+            accessibilityLabel="Agregar registro"
+            onPress={() => router.push('/new-transaction')}
+            style={({ pressed }) => [
+              styles.fab,
+              { borderColor: theme.text },
+              pressed && styles.pressed,
+            ]}>
+            <AppIcon color={theme.text} name="plus" size={36} />
+          </Pressable>
+
+          <ThemedView style={[styles.bottomBar, { borderTopColor: theme.backgroundSelected }]}>
             <IconButton label="Listado de registros" selected onPress={() => undefined}>
               <AppIcon color={theme.text} name="list" size={34} />
             </IconButton>
@@ -139,16 +150,6 @@ export default function HomeScreen() {
               onPress={() => setChartMessage('Las gráficas se implementarán en una siguiente etapa.')}>
               <AppIcon color={theme.text} name="bar-chart-2" size={34} />
             </IconButton>
-            <Pressable
-              accessibilityLabel="Agregar registro"
-              onPress={() => router.push('/new-transaction')}
-              style={({ pressed }) => [
-                styles.fab,
-                { borderColor: theme.text },
-                pressed && styles.pressed,
-              ]}>
-              <AppIcon color={theme.text} name="plus" size={36} />
-            </Pressable>
           </ThemedView>
         </ThemedView>
       </SafeAreaView>
@@ -356,6 +357,7 @@ const styles = StyleSheet.create({
     borderWidth: Platform.OS === 'web' ? 1 : 0,
     flex: 1,
     maxWidth: 430,
+    position: 'relative',
     width: '100%',
   },
   header: {
@@ -396,7 +398,7 @@ const styles = StyleSheet.create({
   listContent: {
     gap: Spacing.four,
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
+    paddingBottom: BottomTabInset + 152,
   },
   transactionRow: {
     alignItems: 'flex-start',
@@ -431,6 +433,7 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     alignItems: 'center',
+    borderTopWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingBottom: BottomTabInset + Spacing.three,
@@ -442,9 +445,13 @@ const styles = StyleSheet.create({
     borderColor: '#0B3444',
     borderRadius: Spacing.two,
     borderWidth: 2,
+    bottom: BottomTabInset + 104,
     height: 48,
     justifyContent: 'center',
+    position: 'absolute',
+    right: Spacing.three,
     width: 64,
+    zIndex: 2,
   },
   inlineMessage: {
     paddingHorizontal: Spacing.three,
