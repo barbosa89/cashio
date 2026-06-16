@@ -1,49 +1,64 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    View,
+} from "react-native";
+import DropDownPicker from "react-native-dropdown-picker";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useCashioData } from '@/hooks/use-cashio-data';
-import { useTheme } from '@/hooks/use-theme';
-import { CashioValidationError } from '@/lib/cashio-repository';
-import type { Category, CategoryType } from '@/lib/database';
+import { AppIcon } from "@/components/app-icon";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { useCashioData } from "@/hooks/use-cashio-data";
+import { useTheme } from "@/hooks/use-theme";
+import { CashioValidationError } from "@/lib/cashio-repository";
+import type { Category, CategoryType } from "@/lib/database";
 
 const CATEGORY_TYPE_OPTIONS: Array<{ label: string; value: CategoryType }> = [
-  { label: 'Ingreso', value: 'income' },
-  { label: 'Egreso', value: 'expense' },
-  { label: 'Ambas', value: 'both' },
+  { label: "Ingreso", value: "income" },
+  { label: "Egreso", value: "expense" },
+  { label: "Ambas", value: "both" },
 ];
 
 export function CategoryEditor({ category }: { category?: Category }) {
   const theme = useTheme();
   const { addCategory, editCategory, isLoading } = useCashioData();
-  const [description, setDescription] = useState(category?.description ?? '');
-  const [categoryType, setCategoryType] = useState<CategoryType>(category?.type ?? 'both');
-  const [message, setMessage] = useState('');
+  const [description, setDescription] = useState(category?.description ?? "");
+  const [categoryType, setCategoryType] = useState<CategoryType | null>(
+    category?.type ?? "both",
+  );
+  const [isTypeOpen, setIsTypeOpen] = useState(false);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    setDescription(category?.description ?? '');
-    setCategoryType(category?.type ?? 'both');
+    setDescription(category?.description ?? "");
+    setCategoryType(category?.type ?? "both");
   }, [category]);
 
   async function handleSave() {
-    setMessage('');
+    setMessage("");
     try {
       if (category) {
-        await editCategory(category.id, { description, type: categoryType });
+        await editCategory(category.id, {
+          description,
+          type: categoryType ?? "both",
+        });
       } else {
-        await addCategory({ description, type: categoryType });
+        await addCategory({ description, type: categoryType ?? "both" });
       }
-      router.replace('/categories');
+      router.replace("/categories");
     } catch (error) {
       if (error instanceof CashioValidationError) {
         setMessage(error.message);
         return;
       }
-      setMessage('No se pudo guardar la categoría.');
+      setMessage("No se pudo guardar la categoría.");
     }
   }
 
@@ -52,51 +67,87 @@ export function CategoryEditor({ category }: { category?: Category }) {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
-        style={styles.scrollView}>
+        style={styles.scrollView}
+      >
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
-            <Pressable onPress={() => router.replace('/categories')} style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.backButton}>
-                <ThemedText type="smallBold">Volver</ThemedText>
+            <Pressable
+              accessibilityLabel="Volver a categorías"
+              onPress={() => router.replace("/categories")}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
+                <AppIcon color={theme.text} name="arrow-left" size={22} />
               </ThemedView>
             </Pressable>
             <ThemedText type="title" style={styles.title}>
-              {category ? 'Editar categoría' : 'Nueva categoría'}
+              {category ? "Editar categoría" : "Nueva categoría"}
             </ThemedText>
           </View>
 
-          <ThemedView type="backgroundElement" style={styles.panel}>
+          <View style={styles.panel}>
             <View style={styles.field}>
               <ThemedText type="smallBold">Nombre</ThemedText>
               <TextInput
                 onChangeText={setDescription}
                 placeholder="Nombre"
                 placeholderTextColor={theme.textSecondary}
-                style={[styles.input, { borderColor: theme.backgroundSelected, color: theme.text }]}
+                style={[
+                  styles.input,
+                  { borderColor: theme.backgroundSelected, color: theme.text },
+                ]}
                 value={description}
               />
             </View>
 
-            <View style={styles.field}>
+            <View style={[styles.field, styles.fieldWithDropdown]}>
               <ThemedText type="smallBold">Tipo</ThemedText>
-              <View style={styles.typeGrid}>
-                {CATEGORY_TYPE_OPTIONS.map((option) => (
-                  <Pressable
-                    key={option.value}
-                    onPress={() => setCategoryType(option.value)}
-                    style={({ pressed }) => [styles.typeOption, pressed && styles.pressed]}>
-                    <ThemedView
-                      type={categoryType === option.value ? 'backgroundSelected' : 'background'}
-                      style={styles.typeOptionInner}>
-                      <ThemedText
-                        type="smallBold"
-                        themeColor={categoryType === option.value ? 'text' : 'textSecondary'}>
-                        {option.label}
-                      </ThemedText>
-                    </ThemedView>
-                  </Pressable>
-                ))}
-              </View>
+              <DropDownPicker<CategoryType>
+                ArrowDownIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="chevron-down" size={22} />
+                  </View>
+                )}
+                ArrowUpIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="chevron-up" size={22} />
+                  </View>
+                )}
+                TickIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="check" size={20} />
+                  </View>
+                )}
+                dropDownContainerStyle={[
+                  styles.dropdownMenu,
+                  {
+                    backgroundColor: theme.background,
+                    borderColor: theme.backgroundSelected,
+                  },
+                ]}
+                items={CATEGORY_TYPE_OPTIONS}
+                labelStyle={styles.dropdownLabel}
+                listItemContainerStyle={styles.dropdownItem}
+                listItemLabelStyle={{ color: theme.text }}
+                listMode="SCROLLVIEW"
+                open={isTypeOpen}
+                placeholder="Selecciona un tipo"
+                placeholderStyle={{ color: theme.textSecondary }}
+                selectedItemContainerStyle={{
+                  backgroundColor: theme.backgroundSelected,
+                }}
+                setOpen={setIsTypeOpen}
+                setValue={setCategoryType}
+                style={[
+                  styles.dropdown,
+                  {
+                    backgroundColor: theme.background,
+                    borderColor: theme.backgroundSelected,
+                  },
+                ]}
+                textStyle={{ color: theme.text }}
+                value={categoryType}
+              />
             </View>
 
             {!!message && (
@@ -108,12 +159,18 @@ export function CategoryEditor({ category }: { category?: Category }) {
             <Pressable
               disabled={isLoading}
               onPress={handleSave}
-              style={({ pressed }) => [pressed && styles.pressed, isLoading && styles.disabled]}>
+              style={({ pressed }) => [
+                pressed && styles.pressed,
+                isLoading && styles.disabled,
+              ]}
+            >
               <ThemedView type="backgroundSelected" style={styles.saveButton}>
-                <ThemedText type="smallBold">{category ? 'Guardar cambios' : 'Crear categoría'}</ThemedText>
+                <ThemedText type="smallBold">
+                  {category ? "Guardar cambios" : "Crear categoría"}
+                </ThemedText>
               </ThemedView>
             </Pressable>
-          </ThemedView>
+          </View>
         </SafeAreaView>
       </ScrollView>
     </ThemedView>
@@ -128,29 +185,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingBottom: BottomTabInset + Spacing.five,
   },
   safeArea: {
     gap: Spacing.four,
     maxWidth: MaxContentWidth,
     paddingHorizontal: Spacing.four,
-    width: '100%',
+    width: "100%",
   },
   header: {
-    gap: Spacing.three,
-    paddingTop: Platform.OS === 'web' ? Spacing.five : Spacing.three,
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.two,
+    paddingTop: Platform.OS === "web" ? Spacing.five : Spacing.three,
   },
   backButton: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 2,
+    height: 32,
+    justifyContent: "center",
+    width: 32,
   },
   title: {
-    fontSize: 36,
-    lineHeight: 42,
+    flex: 1,
+    fontSize: 32,
+    lineHeight: 38,
   },
   panel: {
     borderRadius: Spacing.two,
@@ -160,6 +221,9 @@ const styles = StyleSheet.create({
   field: {
     gap: Spacing.two,
   },
+  fieldWithDropdown: {
+    zIndex: 10,
+  },
   input: {
     borderRadius: Spacing.two,
     borderWidth: 1,
@@ -168,23 +232,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-  },
-  typeOption: {
-    flexGrow: 1,
-    minWidth: 96,
-  },
-  typeOptionInner: {
-    alignItems: 'center',
+  dropdown: {
     borderRadius: Spacing.two,
+    borderWidth: 1,
+    minHeight: 44,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+  },
+  dropdownLabel: {
+    fontWeight: "700",
+  },
+  dropdownMenu: {
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+  },
+  dropdownItem: {
+    minHeight: 44,
   },
   saveButton: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
