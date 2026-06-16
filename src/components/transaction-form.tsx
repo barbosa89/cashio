@@ -146,8 +146,21 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
     }
   }
 
+  function closeDropdowns() {
+    setIsCategoryOpen(false);
+    setIsTagsOpen(false);
+  }
+
   return (
     <ThemedView type="backgroundElement" style={styles.panel}>
+      {(isCategoryOpen || isTagsOpen) && (
+        <Pressable
+          accessibilityLabel="Cerrar selector"
+          onPress={closeDropdowns}
+          style={styles.dropdownBackdrop}
+        />
+      )}
+
       <ThemedView type="backgroundSelected" style={styles.segmentedControl}>
         <SegmentButton
           active={transactionType === 'expense'}
@@ -245,6 +258,7 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           selectedItemContainerStyle={{
             backgroundColor: theme.backgroundSelected,
           }}
+          selectedItemLabelStyle={{ color: theme.text, fontWeight: '700' }}
           setOpen={setIsCategoryOpen}
           setValue={setSelectedCategoryId}
           style={[
@@ -283,8 +297,11 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
               <AppIcon color={theme.text} name="check" size={20} />
             </View>
           )}
-          badgeStyle={styles.dropdownBadge}
-          badgeTextStyle={{ color: theme.text }}
+          badgeStyle={[
+            styles.dropdownBadge,
+            { backgroundColor: theme.backgroundSelected },
+          ]}
+          badgeTextStyle={[styles.dropdownBadgeText, { color: theme.text }]}
           dropDownContainerStyle={[
             styles.dropdownMenu,
             {
@@ -321,6 +338,7 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           selectedItemContainerStyle={{
             backgroundColor: theme.backgroundSelected,
           }}
+          selectedItemLabelStyle={{ color: theme.text, fontWeight: '700' }}
           setOpen={setIsTagsOpen}
           setValue={setSelectedTagIds}
           style={[
@@ -332,6 +350,7 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           ]}
           textStyle={{ color: theme.text }}
           value={selectedTagIds}
+          showBadgeDot={false}
           zIndex={isTagsOpen ? 3000 : 1000}
           zIndexInverse={1000}
         />
@@ -421,6 +440,15 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     gap: Spacing.three,
     padding: Spacing.three,
+    position: 'relative',
+  },
+  dropdownBackdrop: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 20,
   },
   segmentedControl: {
     borderRadius: Spacing.two,
@@ -474,6 +502,10 @@ const styles = StyleSheet.create({
   },
   dropdownBadge: {
     borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.two,
+  },
+  dropdownBadgeText: {
+    fontWeight: '700',
   },
   actionButton: {
     alignItems: 'center',

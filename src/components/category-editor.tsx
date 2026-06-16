@@ -94,6 +94,14 @@ export function CategoryEditor({ category }: { category?: Category }) {
           </View>
 
           <View style={styles.panel}>
+            {isTypeOpen && (
+              <Pressable
+                accessibilityLabel="Cerrar selector"
+                onPress={() => setIsTypeOpen(false)}
+                style={styles.dropdownBackdrop}
+              />
+            )}
+
             <View style={styles.field}>
               <ThemedText type="smallBold">Nombre</ThemedText>
               <TextInput
@@ -108,7 +116,13 @@ export function CategoryEditor({ category }: { category?: Category }) {
               />
             </View>
 
-            <View style={[styles.field, styles.fieldWithDropdown]}>
+            <View
+              style={[
+                styles.field,
+                styles.fieldWithDropdown,
+                { zIndex: isTypeOpen ? 30 : 10 },
+              ]}
+            >
               <ThemedText type="smallBold">Tipo</ThemedText>
               <DropDownPicker<CategoryType>
                 ArrowDownIconComponent={({ style }) => (
@@ -144,6 +158,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
                 selectedItemContainerStyle={{
                   backgroundColor: theme.backgroundSelected,
                 }}
+                selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
                 setOpen={setIsTypeOpen}
                 setValue={setCategoryType}
                 style={[
@@ -155,6 +170,8 @@ export function CategoryEditor({ category }: { category?: Category }) {
                 ]}
                 textStyle={{ color: theme.text }}
                 value={categoryType}
+                zIndex={isTypeOpen ? 3000 : 1000}
+                zIndexInverse={1000}
               />
             </View>
 
@@ -225,12 +242,21 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     gap: Spacing.three,
     padding: Spacing.three,
+    position: "relative",
+  },
+  dropdownBackdrop: {
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 20,
   },
   field: {
     gap: Spacing.two,
   },
   fieldWithDropdown: {
-    zIndex: 10,
+    position: "relative",
   },
   input: {
     borderRadius: Spacing.two,
