@@ -21,19 +21,13 @@ function normalize(value: string) {
   return value.trim().toLocaleLowerCase();
 }
 
-function transactionMatchesSearch(transaction: Transaction, search: string) {
+function transactionMatchesDescriptionSearch(transaction: Transaction, search: string) {
   const needle = normalize(search);
   if (!needle) {
     return true;
   }
 
-  return [
-    transaction.category_description,
-    transaction.description ?? '',
-    transaction.tags,
-    transaction.transaction_date,
-    String(transaction.amount),
-  ].some((value) => normalize(value).includes(needle));
+  return normalize(transaction.description ?? '').includes(needle);
 }
 
 function transactionMatchesTag(transaction: Transaction, tag: Tag | null) {
@@ -52,7 +46,7 @@ export default function HomeScreen() {
   const navigation = useNavigation<{ openDrawer: () => void }>();
   const { categories, tags, transactions } = useCashioData();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [descriptionSearch, setDescriptionSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
   const [chartMessage, setChartMessage] = useState('');
@@ -71,17 +65,34 @@ export default function HomeScreen() {
     () =>
       transactions.filter(
         (transaction) =>
-          transactionMatchesSearch(transaction, search) &&
+          transactionMatchesDescriptionSearch(transaction, descriptionSearch) &&
           (!selectedCategory || transaction.category_id === selectedCategory.id) &&
           transactionMatchesTag(transaction, selectedTag)
       ),
-    [search, selectedCategory, selectedTag, transactions]
+    [descriptionSearch, selectedCategory, selectedTag, transactions]
   );
 
-  const hasActiveFilters = !!search.trim() || !!selectedCategory || !!selectedTag;
+  const summary = useMemo(
+    () =>
+      filteredTransactions.reduce(
+        (totals, transaction) => {
+          if (transaction.type === 'income') {
+            totals.income += transaction.amount;
+          } else {
+            totals.expense += transaction.amount;
+          }
+
+          totals.balance = totals.income - totals.expense;
+          return totals;
+        },
+        { balance: 0, expense: 0, income: 0 }
+      ),
+    [filteredTransactions]
+  );
+
+  const hasActiveFilters = !!selectedCategory || !!selectedTag;
 
   function clearFilters() {
-    setSearch('');
     setSelectedCategoryId(null);
     setSelectedTagId(null);
   }
@@ -96,6 +107,16 @@ export default function HomeScreen() {
             </IconButton>
 
             <View style={styles.headerActions}>
+              <ThemedView type="backgroundSelected" style={styles.searchWrap}>
+                <TextInput
+                  accessibilityLabel="Buscar transacciones por descripción"
+                  onChangeText={setDescriptionSearch}
+                  placeholder="Buscar"
+                  placeholderTextColor={theme.text}
+                  style={[styles.searchInput, { color: theme.text }]}
+                  value={descriptionSearch}
+                />
+              </ThemedView>
               <IconButton label="Filtrar" selected={hasActiveFilters} onPress={() => setIsFilterOpen(true)}>
                 <AppIcon color={theme.text} name="filter" size={30} />
               </IconButton>
@@ -106,6 +127,8 @@ export default function HomeScreen() {
               </ThemedView>
             </View>
           </ThemedView>
+
+          <BalanceSummary balance={summary.balance} expense={summary.expense} income={summary.income} />
 
           <ScrollView contentContainerStyle={styles.listContent} style={styles.list}>
             {filteredTransactions.length === 0 ? (
@@ -159,14 +182,11 @@ export default function HomeScreen() {
         isVisible={isFilterOpen}
         onClear={clearFilters}
         onClose={() => setIsFilterOpen(false)}
-        search={search}
         selectedCategoryId={selectedCategoryId}
         selectedTagId={selectedTagId}
-        setSearch={setSearch}
         setSelectedCategoryId={setSelectedCategoryId}
         setSelectedTagId={setSelectedTagId}
         tags={tags}
-        themeTextSecondary={theme.textSecondary}
       />
     </ThemedView>
   );
@@ -201,32 +221,57 @@ function TransactionRow({ transaction }: { transaction: Transaction }) {
   );
 }
 
+function BalanceSummary({
+  balance,
+  expense,
+  income,
+}: {
+  balance: number;
+  expense: number;
+  income: number;
+}) {
+  return (
+    <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
+      <View style={styles.summaryMainRow}>
+        <ThemedText type="subtitle" style={styles.summaryTitle}>
+          Saldo
+        </ThemedText>
+        <ThemedText type="subtitle" style={styles.summaryAmount}>
+          $ {formatMoney(balance)}
+        </ThemedText>
+      </View>
+      <View style={styles.summaryDetailRow}>
+        <ThemedText type="smallBold" style={styles.summaryDetail}>
+          Ingresos: $ {formatMoney(income)}
+        </ThemedText>
+        <ThemedText type="smallBold" style={styles.summaryDetail}>
+          Egresos: $ {formatMoney(expense)}
+        </ThemedText>
+      </View>
+    </ThemedView>
+  );
+}
+
 function FilterModal({
   categories,
   isVisible,
   onClear,
   onClose,
-  search,
   selectedCategoryId,
   selectedTagId,
-  setSearch,
   setSelectedCategoryId,
   setSelectedTagId,
   tags,
-  themeTextSecondary,
 }: {
   categories: Category[];
   isVisible: boolean;
   onClear: () => void;
   onClose: () => void;
-  search: string;
   selectedCategoryId: number | null;
   selectedTagId: number | null;
-  setSearch: (value: string) => void;
   setSelectedCategoryId: (value: number | null) => void;
   setSelectedTagId: (value: number | null) => void;
   tags: Tag[];
-  themeTextSecondary: string;
 }) {
   return (
     <Modal animationType="slide" transparent visible={isVisible} onRequestClose={onClose}>
@@ -236,13 +281,6 @@ function FilterModal({
             <ThemedText type="subtitle" style={styles.panelTitle}>
               Filtros
             </ThemedText>
-            <TextInput
-              onChangeText={setSearch}
-              placeholder="Buscar por texto"
-              placeholderTextColor={themeTextSecondary}
-              style={styles.filterInput}
-              value={search}
-            />
 
             <ThemedText type="smallBold">Categorías</ThemedText>
             <View style={styles.chipWrap}>
@@ -363,6 +401,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     flexDirection: 'row',
+    gap: Spacing.two,
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.four,
@@ -370,7 +409,27 @@ const styles = StyleSheet.create({
   headerActions: {
     alignItems: 'center',
     flexDirection: 'row',
+    flex: 1,
     gap: Spacing.two,
+    justifyContent: 'space-between',
+    minWidth: 0,
+  },
+  searchWrap: {
+    alignItems: 'center',
+    borderRadius: Spacing.two,
+    flex: 1,
+    height: 38,
+    justifyContent: 'center',
+    minWidth: 0,
+    paddingHorizontal: Spacing.three,
+  },
+  searchInput: {
+    fontSize: 18,
+    fontWeight: '700',
+    minWidth: 0,
+    paddingVertical: 0,
+    textAlign: 'center',
+    width: '100%',
   },
   avatar: {
     alignItems: 'center',
@@ -393,7 +452,7 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
-    marginTop: Spacing.four,
+    marginTop: Spacing.three,
   },
   listContent: {
     gap: Spacing.four,
@@ -430,6 +489,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: Spacing.half,
     width: 30,
+  },
+  summaryPanel: {
+    borderRadius: Spacing.two,
+    gap: Spacing.half,
+    marginHorizontal: Spacing.three,
+    marginTop: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+  },
+  summaryMainRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  summaryTitle: {
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  summaryAmount: {
+    fontSize: 20,
+    lineHeight: 24,
+    textAlign: 'right',
+  },
+  summaryDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  summaryDetail: {
+    flexShrink: 1,
+    fontSize: 12,
+    lineHeight: 16,
   },
   bottomBar: {
     alignItems: 'center',
@@ -496,15 +587,6 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
-  },
-  filterInput: {
-    borderColor: '#C8CBD0',
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-    fontSize: 16,
-    minHeight: 44,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
   },
   chipWrap: {
     flexDirection: 'row',
