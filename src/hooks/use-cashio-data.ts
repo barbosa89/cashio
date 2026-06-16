@@ -1,5 +1,6 @@
+import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import {
   createCategory,
@@ -38,9 +39,11 @@ export function useCashioData() {
     setIsLoading(false);
   }, [db]);
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+    }, [refresh])
+  );
 
   const addCategory = useCallback(
     async (input: SaveCategoryInput) => {
