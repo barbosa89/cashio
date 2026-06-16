@@ -21,6 +21,14 @@ function normalize(value: string) {
   return value.trim().toLocaleLowerCase();
 }
 
+function getCurrentMonthPrefix() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+
+  return `${year}-${month}-`;
+}
+
 function transactionMatchesDescriptionSearch(transaction: Transaction, search: string) {
   const needle = normalize(search);
   if (!needle) {
@@ -50,6 +58,7 @@ export default function HomeScreen() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
   const [chartMessage, setChartMessage] = useState('');
+  const currentMonthPrefix = getCurrentMonthPrefix();
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === selectedCategoryId) ?? null,
@@ -74,8 +83,12 @@ export default function HomeScreen() {
 
   const summary = useMemo(
     () =>
-      filteredTransactions.reduce(
+      transactions.reduce(
         (totals, transaction) => {
+          if (!transaction.transaction_date.startsWith(currentMonthPrefix)) {
+            return totals;
+          }
+
           if (transaction.type === 'income') {
             totals.income += transaction.amount;
           } else {
@@ -87,7 +100,7 @@ export default function HomeScreen() {
         },
         { balance: 0, expense: 0, income: 0 }
       ),
-    [filteredTransactions]
+    [currentMonthPrefix, transactions]
   );
 
   const hasActiveFilters = !!selectedCategory || !!selectedTag;
