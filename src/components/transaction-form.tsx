@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import DropDownPicker from 'react-native-dropdown-picker';
 
+import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -12,10 +14,6 @@ import type { Category, TransactionType } from '@/lib/database';
 type TransactionFormProps = {
   onSaved?: () => void;
 };
-
-function matchesSearch(value: string, search: string) {
-  return value.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
-}
 
 function canUseCategory(category: Category, transactionType: TransactionType) {
   return category.type === null || category.type === 'both' || category.type === transactionType;
@@ -32,20 +30,25 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
   const [tagSearch, setTagSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isTagsOpen, setIsTagsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const availableCategories = useMemo(
     () =>
-      categories.filter(
-        (category) => canUseCategory(category, transactionType) && matchesSearch(category.description, categorySearch)
-      ),
-    [categories, categorySearch, transactionType]
+      categories.filter((category) => canUseCategory(category, transactionType)),
+    [categories, transactionType]
   );
 
-  const visibleTags = useMemo(
-    () => tags.filter((tag) => matchesSearch(tag.description, tagSearch)),
-    [tags, tagSearch]
+  const categoryItems = useMemo(
+    () => availableCategories.map((category) => ({ label: category.description, value: category.id })),
+    [availableCategories]
+  );
+
+  const tagItems = useMemo(
+    () => tags.map((tag) => ({ label: tag.description, value: tag.id })),
+    [tags]
   );
 
   const categorySearchMatchesExisting = useMemo(
@@ -87,6 +90,8 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
     setSelectedTagIds([]);
     setCategorySearch('');
     setTagSearch('');
+    setIsCategoryOpen(false);
+    setIsTagsOpen(false);
     setTransactionDate(new Date().toISOString().slice(0, 10));
   }
 
@@ -96,6 +101,7 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
       if (created) {
         setSelectedCategoryId(created.id);
         setCategorySearch('');
+        setIsCategoryOpen(false);
         setMessage(`Categoría "${created.description}" creada.`);
       }
     } catch (error) {
@@ -109,17 +115,12 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
       if (created) {
         setSelectedTagIds((current) => [...current, created.id]);
         setTagSearch('');
+        setIsTagsOpen(false);
         setMessage(`Tag "${created.description}" creado.`);
       }
     } catch (error) {
       handleError(error);
     }
-  }
-
-  function toggleTag(tagId: number) {
-    setSelectedTagIds((current) =>
-      current.includes(tagId) ? current.filter((id) => id !== tagId) : [...current, tagId]
-    );
   }
 
   async function handleSaveTransaction() {
@@ -192,47 +193,148 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
         />
       </Field>
 
-      <Field label="Categoría">
-        <TextInput
-          onChangeText={setCategorySearch}
-          placeholder="Buscar o crear"
-          placeholderTextColor={theme.textSecondary}
-          style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
-          value={categorySearch}
+      <Field
+        label="Categoría"
+        style={[styles.dropdownField, { zIndex: isCategoryOpen ? 30 : 10 }]}>
+        <DropDownPicker<number>
+          ArrowDownIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="chevron-down" size={22} />
+            </View>
+          )}
+          ArrowUpIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="chevron-up" size={22} />
+            </View>
+          )}
+          TickIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="check" size={20} />
+            </View>
+          )}
+          dropDownContainerStyle={[
+            styles.dropdownMenu,
+            {
+              backgroundColor: theme.background,
+              borderColor: theme.backgroundSelected,
+            },
+          ]}
+          items={categoryItems}
+          labelStyle={styles.dropdownLabel}
+          listItemContainerStyle={styles.dropdownItem}
+          listItemLabelStyle={{ color: theme.text }}
+          listMode="SCROLLVIEW"
+          maxHeight={220}
+          onChangeSearchText={setCategorySearch}
+          onOpen={() => setIsTagsOpen(false)}
+          onSelectItem={() => setCategorySearch('')}
+          open={isCategoryOpen}
+          placeholder="Buscar o seleccionar"
+          placeholderStyle={{ color: theme.textSecondary }}
+          searchPlaceholder="Buscar o crear"
+          searchPlaceholderTextColor={theme.textSecondary}
+          searchable
+          searchTextInputProps={{ value: categorySearch }}
+          searchTextInputStyle={[
+            styles.dropdownSearchInput,
+            {
+              borderColor: theme.backgroundSelected,
+              color: theme.text,
+            },
+          ]}
+          selectedItemContainerStyle={{
+            backgroundColor: theme.backgroundSelected,
+          }}
+          setOpen={setIsCategoryOpen}
+          setValue={setSelectedCategoryId}
+          style={[
+            styles.dropdown,
+            {
+              backgroundColor: theme.background,
+              borderColor: theme.backgroundSelected,
+            },
+          ]}
+          textStyle={{ color: theme.text }}
+          value={selectedCategoryId}
+          zIndex={isCategoryOpen ? 3000 : 1000}
+          zIndexInverse={1000}
         />
-        <View style={styles.chipWrap}>
-          {availableCategories.map((category) => (
-            <Chip
-              key={category.id}
-              label={category.description}
-              selected={selectedCategoryId === category.id}
-              onPress={() => setSelectedCategoryId(category.id)}
-            />
-          ))}
-        </View>
         {!!categorySearch.trim() && !categorySearchMatchesExisting && (
           <ActionButton label={`Crear "${categorySearch.trim()}"`} onPress={handleCreateCategory} />
         )}
       </Field>
 
-      <Field label="Tags">
-        <TextInput
-          onChangeText={setTagSearch}
-          placeholder="Buscar o crear"
-          placeholderTextColor={theme.textSecondary}
-          style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
-          value={tagSearch}
+      <Field
+        label="Tags"
+        style={[styles.dropdownField, { zIndex: isTagsOpen ? 30 : 10 }]}>
+        <DropDownPicker<number>
+          ArrowDownIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="chevron-down" size={22} />
+            </View>
+          )}
+          ArrowUpIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="chevron-up" size={22} />
+            </View>
+          )}
+          TickIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="check" size={20} />
+            </View>
+          )}
+          badgeStyle={styles.dropdownBadge}
+          badgeTextStyle={{ color: theme.text }}
+          dropDownContainerStyle={[
+            styles.dropdownMenu,
+            {
+              backgroundColor: theme.background,
+              borderColor: theme.backgroundSelected,
+            },
+          ]}
+          items={tagItems}
+          labelStyle={styles.dropdownLabel}
+          listItemContainerStyle={styles.dropdownItem}
+          listItemLabelStyle={{ color: theme.text }}
+          listMode="SCROLLVIEW"
+          maxHeight={220}
+          mode="BADGE"
+          multiple
+          multipleText={`${selectedTagIds.length} tags seleccionados`}
+          onChangeSearchText={setTagSearch}
+          onOpen={() => setIsCategoryOpen(false)}
+          onSelectItem={() => setTagSearch('')}
+          open={isTagsOpen}
+          placeholder="Buscar o seleccionar"
+          placeholderStyle={{ color: theme.textSecondary }}
+          searchPlaceholder="Buscar o crear"
+          searchPlaceholderTextColor={theme.textSecondary}
+          searchable
+          searchTextInputProps={{ value: tagSearch }}
+          searchTextInputStyle={[
+            styles.dropdownSearchInput,
+            {
+              borderColor: theme.backgroundSelected,
+              color: theme.text,
+            },
+          ]}
+          selectedItemContainerStyle={{
+            backgroundColor: theme.backgroundSelected,
+          }}
+          setOpen={setIsTagsOpen}
+          setValue={setSelectedTagIds}
+          style={[
+            styles.dropdown,
+            {
+              backgroundColor: theme.background,
+              borderColor: theme.backgroundSelected,
+            },
+          ]}
+          textStyle={{ color: theme.text }}
+          value={selectedTagIds}
+          zIndex={isTagsOpen ? 3000 : 1000}
+          zIndexInverse={1000}
         />
-        <View style={styles.chipWrap}>
-          {visibleTags.map((tag) => (
-            <Chip
-              key={tag.id}
-              label={tag.description}
-              selected={selectedTagIds.includes(tag.id)}
-              onPress={() => toggleTag(tag.id)}
-            />
-          ))}
-        </View>
         {!!tagSearch.trim() && !tagSearchMatchesExisting && (
           <ActionButton label={`Crear "${tagSearch.trim()}"`} onPress={handleCreateTag} />
         )}
@@ -254,9 +356,17 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  children,
+  style,
+}: {
+  label: string;
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, style]}>
       <ThemedText type="smallBold">{label}</ThemedText>
       {children}
     </View>
@@ -276,26 +386,6 @@ function SegmentButton({
     <Pressable onPress={onPress} style={({ pressed }) => [styles.segmentButton, pressed && styles.pressed]}>
       <ThemedView type={active ? 'background' : 'backgroundSelected'} style={styles.segmentButtonInner}>
         <ThemedText type="smallBold" themeColor={active ? 'text' : 'textSecondary'}>
-          {label}
-        </ThemedText>
-      </ThemedView>
-    </Pressable>
-  );
-}
-
-function Chip({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView type={selected ? 'backgroundSelected' : 'background'} style={styles.chip}>
-        <ThemedText type="smallBold" themeColor={selected ? 'text' : 'textSecondary'}>
           {label}
         </ThemedText>
       </ThemedView>
@@ -349,6 +439,9 @@ const styles = StyleSheet.create({
   field: {
     gap: Spacing.two,
   },
+  dropdownField: {
+    position: 'relative',
+  },
   input: {
     borderRadius: Spacing.two,
     borderWidth: 1,
@@ -357,15 +450,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
-  chipWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-  },
-  chip: {
+  dropdown: {
     borderRadius: Spacing.two,
+    borderWidth: 1,
+    minHeight: 44,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+  },
+  dropdownLabel: {
+    fontWeight: '700',
+  },
+  dropdownMenu: {
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+  },
+  dropdownItem: {
+    minHeight: 44,
+  },
+  dropdownSearchInput: {
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    fontSize: 16,
+    minHeight: 40,
+  },
+  dropdownBadge: {
+    borderRadius: Spacing.two,
   },
   actionButton: {
     alignItems: 'center',
