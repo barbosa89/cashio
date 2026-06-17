@@ -1,9 +1,10 @@
 import { router, useNavigation } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CartesianChart, HorizontalBar, Line, Pie, PolarChart } from 'victory-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
@@ -18,7 +19,23 @@ type VisibleMonth = {
   year: number;
 };
 
+type ActiveView = 'list' | 'charts';
+
+type DailyChartPoint = {
+  balance: number;
+  day: number;
+  expense: number;
+  income: number;
+};
+
+type CategoryChartPoint = {
+  amount: number;
+  color: string;
+  label: string;
+};
+
 const MONTH_SWIPE_THRESHOLD = 72;
+const CHART_CATEGORY_COLORS = ['#f97316', '#3b82f6', '#10b981', '#ef4444', '#a855f7', '#14b8a6', '#eab308'];
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat('es-CO', {
@@ -63,6 +80,102 @@ function formatMonthLabel(visibleMonth: VisibleMonth) {
   return `${month.charAt(0).toLocaleUpperCase()}${month.slice(1)} ${visibleMonth.year}`;
 }
 
+function getDaysInMonth(visibleMonth: VisibleMonth) {
+  return new Date(visibleMonth.year, visibleMonth.month, 0).getDate();
+}
+
+function getTransactionDay(transaction: Transaction) {
+  return Number(transaction.transaction_date.slice(8, 10));
+}
+
+function buildDailyChartData(monthTransactions: Transaction[], visibleMonth: VisibleMonth): DailyChartPoint[] {
+  const days = Array.from({ length: getDaysInMonth(visibleMonth) }, (_, index) => ({
+    balance: 0,
+    day: index + 1,
+    expense: 0,
+    income: 0,
+  }));
+
+  for (const transaction of monthTransactions) {
+    const dayIndex = getTransactionDay(transaction) - 1;
+    const point = days[dayIndex];
+
+    if (!point) {
+      continue;
+    }
+
+    if (transaction.type === 'income') {
+      point.income += transaction.amount;
+    } else {
+      point.expense += transaction.amount;
+    }
+  }
+
+  let runningBalance = 0;
+  return days.map((point) => {
+    runningBalance += point.income - point.expense;
+
+    return {
+      ...point,
+      balance: runningBalance,
+    };
+  });
+}
+
+function groupByCategory(monthTransactions: Transaction[], type: Transaction['type']): CategoryChartPoint[] {
+  const totals = new Map<string, number>();
+
+  for (const transaction of monthTransactions) {
+    if (transaction.type !== type) {
+      continue;
+    }
+
+    totals.set(
+      transaction.category_description,
+      (totals.get(transaction.category_description) ?? 0) + transaction.amount
+    );
+  }
+
+  return [...totals.entries()]
+    .map(([label, amount]) => ({ amount, label }))
+    .sort((left, right) => right.amount - left.amount)
+    .map((metric, index) => ({
+      ...metric,
+      color: CHART_CATEGORY_COLORS[index % CHART_CATEGORY_COLORS.length],
+    }));
+}
+
+function getTopCategoriesWithOther(categoryData: CategoryChartPoint[], limit: number): CategoryChartPoint[] {
+  if (categoryData.length <= limit) {
+    return categoryData;
+  }
+
+  const topCategories = categoryData.slice(0, limit);
+  const otherAmount = categoryData.slice(limit).reduce((total, category) => total + category.amount, 0);
+
+  return [
+    ...topCategories,
+    {
+      amount: otherAmount,
+      color: CHART_CATEGORY_COLORS[limit % CHART_CATEGORY_COLORS.length],
+      label: 'Otros',
+    },
+  ];
+}
+
+function getChartDomain(values: number[]): [number, number] {
+  const min = Math.min(0, ...values);
+  const max = Math.max(0, ...values);
+
+  if (min === max) {
+    return [min - 1, max + 1];
+  }
+
+  const padding = Math.max((max - min) * 0.1, 1);
+
+  return [Math.floor(min - padding), Math.ceil(max + padding)];
+}
+
 function transactionMatchesDescriptionSearch(transaction: Transaction, search: string) {
   const needle = normalize(search);
   if (!needle) {
@@ -93,7 +206,8 @@ export default function HomeScreen() {
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<number[]>([]);
   const [visibleMonth, setVisibleMonth] = useState<VisibleMonth>(() => getCurrentMonth());
-  const [chartMessage, setChartMessage] = useState('');
+  const [activeView, setActiveView] = useState<ActiveView>('list');
+  const [inlineMessage, setInlineMessage] = useState('');
   const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
   const visibleMonthLabel = formatMonthLabel(visibleMonth);
   const selectedTransactionIdSet = useMemo(() => new Set(selectedTransactionIds), [selectedTransactionIds]);
@@ -110,26 +224,26 @@ export default function HomeScreen() {
     [tags, selectedTagId]
   );
 
+  const monthlyTransactions = useMemo(
+    () => transactions.filter((transaction) => transaction.transaction_date.startsWith(visibleMonthPrefix)),
+    [transactions, visibleMonthPrefix]
+  );
+
   const filteredTransactions = useMemo(
     () =>
-      transactions.filter(
+      monthlyTransactions.filter(
         (transaction) =>
-          transaction.transaction_date.startsWith(visibleMonthPrefix) &&
           transactionMatchesDescriptionSearch(transaction, descriptionSearch) &&
           (!selectedCategory || transaction.category_id === selectedCategory.id) &&
           transactionMatchesTag(transaction, selectedTag)
       ),
-    [descriptionSearch, selectedCategory, selectedTag, transactions, visibleMonthPrefix]
+    [descriptionSearch, monthlyTransactions, selectedCategory, selectedTag]
   );
 
   const summary = useMemo(
     () =>
-      transactions.reduce(
+      monthlyTransactions.reduce(
         (totals, transaction) => {
-          if (!transaction.transaction_date.startsWith(visibleMonthPrefix)) {
-            return totals;
-          }
-
           if (transaction.type === 'income') {
             totals.income += transaction.amount;
           } else {
@@ -141,7 +255,17 @@ export default function HomeScreen() {
         },
         { balance: 0, expense: 0, income: 0 }
       ),
-    [transactions, visibleMonthPrefix]
+    [monthlyTransactions]
+  );
+
+  const dailyChartData = useMemo(
+    () => buildDailyChartData(monthlyTransactions, visibleMonth),
+    [monthlyTransactions, visibleMonth]
+  );
+
+  const expenseCategoryData = useMemo(
+    () => groupByCategory(monthlyTransactions, 'expense'),
+    [monthlyTransactions]
   );
 
   const hasActiveFilters = !!selectedCategory || !!selectedTag;
@@ -166,13 +290,13 @@ export default function HomeScreen() {
   }
 
   async function deleteSelectedTransactions(ids: number[]) {
-    setChartMessage('');
+    setInlineMessage('');
 
     try {
       await removeTransactions(ids);
       setSelectedTransactionIds([]);
     } catch {
-      setChartMessage('No se pudieron eliminar los registros.');
+      setInlineMessage('No se pudieron eliminar los registros.');
     }
   }
 
@@ -212,7 +336,10 @@ export default function HomeScreen() {
   function handleListPress() {
     if (isSelectionMode) {
       cancelSelection();
+      return;
     }
+
+    setActiveView('list');
   }
 
   function handleChartsPress() {
@@ -221,7 +348,7 @@ export default function HomeScreen() {
       return;
     }
 
-    setChartMessage('Las gráficas se implementarán en una siguiente etapa.');
+    setActiveView('charts');
   }
 
   const goToPreviousMonth = useCallback(() => {
@@ -310,38 +437,49 @@ export default function HomeScreen() {
           />
 
           <GestureDetector gesture={monthSwipeGesture}>
-            <ScrollView contentContainerStyle={styles.listContent} style={styles.list}>
-              {filteredTransactions.length === 0 ? (
-                <ThemedView style={styles.emptyState}>
-                  <ThemedText type="subtitle" style={styles.emptyTitle}>
-                    Sin registros
-                  </ThemedText>
-                  <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-                    No hay registros en este mes.
-                  </ThemedText>
-                </ThemedView>
-              ) : (
-                filteredTransactions.map((transaction) => (
-                  <TransactionRow
-                    key={transaction.id}
-                    onLongPress={() => selectTransaction(transaction.id)}
-                    onPress={() => {
-                      if (isSelectionMode) {
-                        toggleTransactionSelection(transaction.id);
-                      }
-                    }}
-                    selected={selectedTransactionIdSet.has(transaction.id)}
-                    selectionMode={isSelectionMode}
-                    transaction={transaction}
-                  />
-                ))
-              )}
-            </ScrollView>
+            {activeView === 'list' ? (
+              <ScrollView contentContainerStyle={styles.listContent} style={styles.list}>
+                {filteredTransactions.length === 0 ? (
+                  <ThemedView style={styles.emptyState}>
+                    <ThemedText type="subtitle" style={styles.emptyTitle}>
+                      Sin registros
+                    </ThemedText>
+                    <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+                      No hay registros en este mes.
+                    </ThemedText>
+                  </ThemedView>
+                ) : (
+                  filteredTransactions.map((transaction) => (
+                    <TransactionRow
+                      key={transaction.id}
+                      onLongPress={() => selectTransaction(transaction.id)}
+                      onPress={() => {
+                        if (isSelectionMode) {
+                          toggleTransactionSelection(transaction.id);
+                        }
+                      }}
+                      selected={selectedTransactionIdSet.has(transaction.id)}
+                      selectionMode={isSelectionMode}
+                      transaction={transaction}
+                    />
+                  ))
+                )}
+              </ScrollView>
+            ) : (
+              <ScrollView contentContainerStyle={styles.chartContent} style={styles.list}>
+                <MonthlyChartsPanel
+                  dailyData={dailyChartData}
+                  expenseCategoryData={expenseCategoryData}
+                  monthTransactionCount={monthlyTransactions.length}
+                  summary={summary}
+                />
+              </ScrollView>
+            )}
           </GestureDetector>
 
-          {!!chartMessage && (
+          {!!inlineMessage && (
             <ThemedText type="small" themeColor="textSecondary" style={styles.inlineMessage}>
-              {chartMessage}
+              {inlineMessage}
             </ThemedText>
           )}
 
@@ -358,10 +496,10 @@ export default function HomeScreen() {
           )}
 
           <ThemedView style={[styles.bottomBar, { borderTopColor: theme.backgroundSelected }]}>
-            <IconButton label="Listado de registros" selected onPress={handleListPress}>
+            <IconButton label="Listado de registros" selected={activeView === 'list'} onPress={handleListPress}>
               <AppIcon color={theme.text} name="list" size={34} />
             </IconButton>
-            <IconButton label="Gráficas" onPress={handleChartsPress}>
+            <IconButton label="Gráficas" selected={activeView === 'charts'} onPress={handleChartsPress}>
               <AppIcon color={theme.text} name="bar-chart-2" size={34} />
             </IconButton>
           </ThemedView>
@@ -502,6 +640,192 @@ function BalanceSummary({
           </ThemedText>
         </View>
       </ThemedView>
+    </View>
+  );
+}
+
+function MonthlyChartsPanel({
+  dailyData,
+  expenseCategoryData,
+  monthTransactionCount,
+  summary,
+}: {
+  dailyData: DailyChartPoint[];
+  expenseCategoryData: CategoryChartPoint[];
+  monthTransactionCount: number;
+  summary: { balance: number; expense: number; income: number };
+}) {
+  const theme = useTheme();
+  const { width } = useWindowDimensions();
+  const chartWidth = Math.max(220, Math.min(320, width - 112));
+  const lineDomain = getChartDomain(dailyData.map((point) => point.balance));
+  const pieData = getTopCategoriesWithOther(expenseCategoryData, 5);
+  const barData = expenseCategoryData.slice(0, 6);
+  const maxExpenseCategory = barData[0]?.amount ?? 0;
+  const lineColor = summary.balance >= 0 ? AppPalette.incomeGreen : AppPalette.brandOrange;
+
+  if (monthTransactionCount === 0) {
+    return (
+      <ThemedView style={styles.emptyState}>
+        <ThemedText type="subtitle" style={styles.emptyTitle}>
+          Sin datos
+        </ThemedText>
+        <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+          No hay datos para graficar este mes.
+        </ThemedText>
+      </ThemedView>
+    );
+  }
+
+  return (
+    <View style={styles.chartsPanel}>
+      <ThemedView type="backgroundSelected" style={styles.chartMetricGrid}>
+        <ChartMetric label="Ingresos" value={`$ ${formatMoney(summary.income)}`} />
+        <ChartMetric label="Egresos" value={`$ ${formatMoney(summary.expense)}`} />
+        <ChartMetric label="Saldo" value={`$ ${formatMoney(summary.balance)}`} />
+      </ThemedView>
+
+      <ChartCard title="Balance diario">
+        <View style={styles.chartFrame}>
+          <CartesianChart
+            axisOptions={{
+              formatXLabel: (value) => `${value}`,
+              formatYLabel: (value) => formatMoney(Number(value)),
+              labelColor: theme.textSecondary,
+              lineColor: theme.textSecondary,
+              lineWidth: { frame: 0, grid: 1 },
+              tickCount: { x: 4, y: 4 },
+            }}
+            data={dailyData}
+            domain={{ x: [1, dailyData.length], y: lineDomain }}
+            domainPadding={{ bottom: Spacing.two, left: Spacing.two, right: Spacing.two, top: Spacing.two }}
+            explicitSize={{ height: 190, width: chartWidth }}
+            padding={{ bottom: Spacing.two, left: Spacing.two, right: Spacing.two, top: Spacing.two }}
+            xKey="day"
+            yKeys={['balance']}>
+            {({ points }) => (
+              <Line
+                color={lineColor}
+                curveType="natural"
+                points={points.balance}
+                strokeCap="round"
+                strokeJoin="round"
+                strokeWidth={3}
+              />
+            )}
+          </CartesianChart>
+        </View>
+        <View style={styles.chartFooter}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Día 1
+          </ThemedText>
+          <ThemedText type="smallBold">$ {formatMoney(summary.balance)}</ThemedText>
+        </View>
+      </ChartCard>
+
+      {expenseCategoryData.length === 0 ? (
+        <ThemedView type="backgroundSelected" style={styles.chartCard}>
+          <ThemedText type="smallBold" style={styles.chartTitle}>
+            Egresos por categoría
+          </ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+            Sin egresos este mes.
+          </ThemedText>
+        </ThemedView>
+      ) : (
+        <>
+          <ChartCard title="Egresos por categoría">
+            <View style={styles.pieChartRow}>
+              <PolarChart
+                colorKey="color"
+                data={pieData}
+                explicitSize={{ height: 176, width: 176 }}
+                labelKey="label"
+                valueKey="amount">
+                <Pie.Chart innerRadius="58%" size={168} startAngle={-90}>
+                  {() => <Pie.Slice />}
+                </Pie.Chart>
+              </PolarChart>
+              <ChartLegend data={pieData} total={summary.expense} />
+            </View>
+          </ChartCard>
+
+          <ChartCard title="Top categorías">
+            <View style={styles.chartFrame}>
+              <CartesianChart
+                axisOptions={{
+                  formatXLabel: (value) => formatMoney(Number(value)),
+                  labelColor: theme.textSecondary,
+                  lineColor: theme.textSecondary,
+                  lineWidth: { frame: 0, grid: 1 },
+                  tickCount: { x: 3, y: Math.min(barData.length, 6) },
+                }}
+                data={barData}
+                domain={{ x: [0, Math.max(maxExpenseCategory, 1)] }}
+                domainPadding={{ bottom: Spacing.three, left: Spacing.two, right: Spacing.two, top: Spacing.three }}
+                explicitSize={{ height: Math.max(180, barData.length * 38), width: chartWidth }}
+                orientation="horizontal"
+                padding={{ bottom: Spacing.two, left: Spacing.two, right: Spacing.two, top: Spacing.two }}
+                xKey="label"
+                yKeys={['amount']}>
+                {({ chartBounds, points }) => (
+                  <HorizontalBar
+                    barCount={barData.length}
+                    chartBounds={chartBounds}
+                    color={AppPalette.brandOrange}
+                    innerPadding={0.36}
+                    points={points.amount}
+                    roundedCorners={{ bottomRight: 6, topRight: 6 }}
+                  />
+                )}
+              </CartesianChart>
+            </View>
+            <ChartLegend data={barData} total={summary.expense} />
+          </ChartCard>
+        </>
+      )}
+    </View>
+  );
+}
+
+function ChartMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.chartMetric}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.chartMetricLabel}>
+        {label}
+      </ThemedText>
+      <ThemedText type="smallBold" style={styles.chartMetricValue}>
+        {value}
+      </ThemedText>
+    </View>
+  );
+}
+
+function ChartCard({ children, title }: { children: ReactNode; title: string }) {
+  return (
+    <ThemedView type="backgroundSelected" style={styles.chartCard}>
+      <ThemedText type="smallBold" style={styles.chartTitle}>
+        {title}
+      </ThemedText>
+      {children}
+    </ThemedView>
+  );
+}
+
+function ChartLegend({ data, total }: { data: CategoryChartPoint[]; total: number }) {
+  return (
+    <View style={styles.chartLegend}>
+      {data.map((item) => (
+        <View key={item.label} style={styles.chartLegendRow}>
+          <View style={[styles.chartLegendSwatch, { backgroundColor: item.color }]} />
+          <ThemedText type="small" style={styles.chartLegendLabel} numberOfLines={1}>
+            {item.label}
+          </ThemedText>
+          <ThemedText type="smallBold" style={styles.chartLegendValue}>
+            {total > 0 ? `${Math.round((item.amount / total) * 100)}%` : '0%'}
+          </ThemedText>
+        </View>
+      ))}
     </View>
   );
 }
@@ -860,6 +1184,78 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
     paddingHorizontal: Spacing.three,
     paddingBottom: BottomTabInset + 152,
+  },
+  chartContent: {
+    paddingBottom: BottomTabInset + 152,
+    paddingHorizontal: Spacing.three,
+  },
+  chartsPanel: {
+    gap: Spacing.three,
+  },
+  chartMetricGrid: {
+    borderRadius: Spacing.two,
+    flexDirection: 'row',
+    gap: Spacing.two,
+    padding: Spacing.two,
+  },
+  chartMetric: {
+    flex: 1,
+    gap: Spacing.half,
+    minWidth: 0,
+  },
+  chartMetricLabel: {
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  chartMetricValue: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  chartCard: {
+    borderRadius: Spacing.two,
+    gap: Spacing.two,
+    padding: Spacing.three,
+  },
+  chartTitle: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  chartFrame: {
+    alignItems: 'center',
+    minHeight: 180,
+    overflow: 'hidden',
+  },
+  chartFooter: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  pieChartRow: {
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  chartLegend: {
+    gap: Spacing.one,
+    width: '100%',
+  },
+  chartLegendRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.two,
+    minHeight: 22,
+  },
+  chartLegendSwatch: {
+    borderRadius: 5,
+    height: 10,
+    width: 10,
+  },
+  chartLegendLabel: {
+    flex: 1,
+    minWidth: 0,
+  },
+  chartLegendValue: {
+    minWidth: 42,
+    textAlign: 'right',
   },
   transactionRow: {
     alignItems: 'flex-start',
