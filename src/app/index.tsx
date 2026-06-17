@@ -1,6 +1,7 @@
 import { router, useNavigation } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import DropDownPicker from 'react-native-dropdown-picker';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -526,48 +527,178 @@ function FilterModal({
   setSelectedTagId: (value: number | null) => void;
   tags: Tag[];
 }) {
+  const theme = useTheme();
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isTagOpen, setIsTagOpen] = useState(false);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [tagSearch, setTagSearch] = useState('');
+
+  const categoryItems = useMemo(
+    () => [
+      { label: 'Todas', value: 0 },
+      ...categories.map((category) => ({ label: category.description, value: category.id })),
+    ],
+    [categories]
+  );
+
+  const tagItems = useMemo(
+    () => [
+      { label: 'Todos', value: 0 },
+      ...tags.map((tag) => ({ label: tag.description, value: tag.id })),
+    ],
+    [tags]
+  );
+
+  function clearAndClose() {
+    onClear();
+    setCategorySearch('');
+    setTagSearch('');
+    setIsCategoryOpen(false);
+    setIsTagOpen(false);
+  }
+
+  function closeModal() {
+    setIsCategoryOpen(false);
+    setIsTagOpen(false);
+    setCategorySearch('');
+    setTagSearch('');
+    onClose();
+  }
+
+  function setCategoryFilterValue(nextValue: (currentValue: number | null) => number | null) {
+    const next = nextValue(selectedCategoryId ?? 0);
+    setSelectedCategoryId(next === 0 ? null : next);
+  }
+
+  function setTagFilterValue(nextValue: (currentValue: number | null) => number | null) {
+    const next = nextValue(selectedTagId ?? 0);
+    setSelectedTagId(next === 0 ? null : next);
+  }
+
   return (
-    <Modal animationType="slide" transparent visible={isVisible} onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+    <Modal animationType="slide" transparent visible={isVisible} onRequestClose={closeModal}>
+      <Pressable style={styles.modalBackdrop} onPress={closeModal}>
         <Pressable onPress={(event) => event.stopPropagation()}>
           <ThemedView type="backgroundElement" style={styles.filterPanel}>
             <ThemedText type="subtitle" style={styles.panelTitle}>
               Filtros
             </ThemedText>
 
-            <ThemedText type="smallBold">Categorías</ThemedText>
-            <View style={styles.chipWrap}>
-              <FilterChip
-                label="Todas"
-                selected={selectedCategoryId === null}
-                onPress={() => setSelectedCategoryId(null)}
+            <View style={[styles.filterDropdownField, { zIndex: isCategoryOpen ? 30 : 10 }]}>
+              <ThemedText type="smallBold">Categorías</ThemedText>
+              <DropDownPicker<number>
+                ArrowDownIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="chevron-down" size={22} />
+                  </View>
+                )}
+                ArrowUpIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="chevron-up" size={22} />
+                  </View>
+                )}
+                TickIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="check" size={20} />
+                  </View>
+                )}
+                dropDownContainerStyle={[
+                  styles.filterDropdownMenu,
+                  { backgroundColor: theme.background, borderColor: theme.backgroundSelected },
+                ]}
+                items={categoryItems}
+                labelStyle={styles.filterDropdownLabel}
+                listItemContainerStyle={styles.filterDropdownItem}
+                listItemLabelStyle={{ color: theme.text }}
+                listMode="SCROLLVIEW"
+                maxHeight={180}
+                onChangeSearchText={setCategorySearch}
+                onOpen={() => setIsTagOpen(false)}
+                open={isCategoryOpen}
+                placeholder="Todas"
+                placeholderStyle={{ color: theme.textSecondary }}
+                searchPlaceholder="Buscar categoría"
+                searchPlaceholderTextColor={theme.textSecondary}
+                searchable
+                searchTextInputProps={{ value: categorySearch }}
+                searchTextInputStyle={[
+                  styles.filterDropdownSearchInput,
+                  { borderColor: theme.backgroundSelected, color: theme.text },
+                ]}
+                selectedItemContainerStyle={{ backgroundColor: theme.backgroundSelected }}
+                selectedItemLabelStyle={{ color: theme.text, fontWeight: '700' }}
+                setOpen={setIsCategoryOpen}
+                setValue={setCategoryFilterValue}
+                style={[
+                  styles.filterDropdown,
+                  { backgroundColor: theme.background, borderColor: theme.backgroundSelected },
+                ]}
+                textStyle={{ color: theme.text }}
+                value={selectedCategoryId ?? 0}
+                zIndex={isCategoryOpen ? 3000 : 1000}
+                zIndexInverse={1000}
               />
-              {categories.map((category) => (
-                <FilterChip
-                  key={category.id}
-                  label={category.description}
-                  selected={selectedCategoryId === category.id}
-                  onPress={() => setSelectedCategoryId(category.id)}
-                />
-              ))}
             </View>
 
-            <ThemedText type="smallBold">Tags</ThemedText>
-            <View style={styles.chipWrap}>
-              <FilterChip label="Todos" selected={selectedTagId === null} onPress={() => setSelectedTagId(null)} />
-              {tags.map((tag) => (
-                <FilterChip
-                  key={tag.id}
-                  label={tag.description}
-                  selected={selectedTagId === tag.id}
-                  onPress={() => setSelectedTagId(tag.id)}
-                />
-              ))}
+            <View style={[styles.filterDropdownField, { zIndex: isTagOpen ? 30 : 10 }]}>
+              <ThemedText type="smallBold">Tags</ThemedText>
+              <DropDownPicker<number>
+                ArrowDownIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="chevron-down" size={22} />
+                  </View>
+                )}
+                ArrowUpIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="chevron-up" size={22} />
+                  </View>
+                )}
+                TickIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="check" size={20} />
+                  </View>
+                )}
+                dropDownContainerStyle={[
+                  styles.filterDropdownMenu,
+                  { backgroundColor: theme.background, borderColor: theme.backgroundSelected },
+                ]}
+                items={tagItems}
+                labelStyle={styles.filterDropdownLabel}
+                listItemContainerStyle={styles.filterDropdownItem}
+                listItemLabelStyle={{ color: theme.text }}
+                listMode="SCROLLVIEW"
+                maxHeight={180}
+                onChangeSearchText={setTagSearch}
+                onOpen={() => setIsCategoryOpen(false)}
+                open={isTagOpen}
+                placeholder="Todos"
+                placeholderStyle={{ color: theme.textSecondary }}
+                searchPlaceholder="Buscar tag"
+                searchPlaceholderTextColor={theme.textSecondary}
+                searchable
+                searchTextInputProps={{ value: tagSearch }}
+                searchTextInputStyle={[
+                  styles.filterDropdownSearchInput,
+                  { borderColor: theme.backgroundSelected, color: theme.text },
+                ]}
+                selectedItemContainerStyle={{ backgroundColor: theme.backgroundSelected }}
+                selectedItemLabelStyle={{ color: theme.text, fontWeight: '700' }}
+                setOpen={setIsTagOpen}
+                setValue={setTagFilterValue}
+                style={[
+                  styles.filterDropdown,
+                  { backgroundColor: theme.background, borderColor: theme.backgroundSelected },
+                ]}
+                textStyle={{ color: theme.text }}
+                value={selectedTagId ?? 0}
+                zIndex={isTagOpen ? 3000 : 1000}
+                zIndexInverse={1000}
+              />
             </View>
 
             <View style={styles.filterActions}>
-              <MenuButton label="Limpiar" onPress={onClear} />
-              <MenuButton label="Aplicar" onPress={onClose} />
+              <MenuButton label="Limpiar" onPress={clearAndClose} />
+              <MenuButton label="Aplicar" onPress={closeModal} />
             </View>
           </ThemedView>
         </Pressable>
@@ -581,26 +712,6 @@ function MenuButton({ label, onPress }: { label: string; onPress: () => void }) 
     <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
       <ThemedView type="backgroundSelected" style={styles.menuButton}>
         <ThemedText type="smallBold">{label}</ThemedText>
-      </ThemedView>
-    </Pressable>
-  );
-}
-
-function FilterChip({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView type={selected ? 'backgroundSelected' : 'background'} style={styles.filterChip}>
-        <ThemedText type="smallBold" themeColor={selected ? 'text' : 'textSecondary'}>
-          {label}
-        </ThemedText>
       </ThemedView>
     </Pressable>
   );
@@ -903,15 +1014,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
   },
-  chipWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  filterDropdownField: {
     gap: Spacing.two,
   },
-  filterChip: {
+  filterDropdown: {
     borderRadius: Spacing.two,
+    borderWidth: 1,
+    minHeight: 44,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+  },
+  filterDropdownLabel: {
+    fontWeight: '700',
+  },
+  filterDropdownMenu: {
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+  },
+  filterDropdownItem: {
+    minHeight: 44,
+  },
+  filterDropdownSearchInput: {
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    fontSize: 16,
+    minHeight: 40,
   },
   filterActions: {
     flexDirection: 'row',
