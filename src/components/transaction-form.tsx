@@ -1,54 +1,79 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
-import DropDownPicker from 'react-native-dropdown-picker';
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+    Pressable,
+    StyleSheet,
+    TextInput,
+    View,
+    type StyleProp,
+    type ViewStyle,
+} from "react-native";
+import DropDownPicker from "react-native-dropdown-picker";
 
-import { AppIcon } from '@/components/app-icon';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { useCashioData } from '@/hooks/use-cashio-data';
-import { useTheme } from '@/hooks/use-theme';
-import { CashioValidationError } from '@/lib/cashio-repository';
-import type { Category, TransactionType } from '@/lib/database';
+import { AppIcon } from "@/components/app-icon";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { Spacing } from "@/constants/theme";
+import { useCashioData } from "@/hooks/use-cashio-data";
+import { useTheme } from "@/hooks/use-theme";
+import { CashioValidationError } from "@/lib/cashio-repository";
+import type { Category, TransactionType } from "@/lib/database";
 
 type TransactionFormProps = {
   onSaved?: () => void;
 };
 
 function canUseCategory(category: Category, transactionType: TransactionType) {
-  return category.type === null || category.type === 'both' || category.type === transactionType;
+  return (
+    category.type === null ||
+    category.type === "both" ||
+    category.type === transactionType
+  );
 }
 
 export function TransactionForm({ onSaved }: TransactionFormProps) {
   const theme = useTheme();
-  const { categories, tags, isLoading, addCategory, addTag, addTransaction } = useCashioData();
-  const [transactionType, setTransactionType] = useState<TransactionType>('expense');
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [categorySearch, setCategorySearch] = useState('');
-  const [tagSearch, setTagSearch] = useState('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const { categories, tags, isLoading, addCategory, addTag, addTransaction } =
+    useCashioData();
+  const [transactionType, setTransactionType] =
+    useState<TransactionType>("expense");
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [transactionDate, setTransactionDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [categorySearch, setCategorySearch] = useState("");
+  const [tagSearch, setTagSearch] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null,
+  );
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isTagsOpen, setIsTagsOpen] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const selectedTagBadgeBackground = theme.text;
+  const selectedTagTextColor = theme.background;
 
   const availableCategories = useMemo(
     () =>
-      categories.filter((category) => canUseCategory(category, transactionType)),
-    [categories, transactionType]
+      categories.filter((category) =>
+        canUseCategory(category, transactionType),
+      ),
+    [categories, transactionType],
   );
 
   const categoryItems = useMemo(
-    () => availableCategories.map((category) => ({ label: category.description, value: category.id })),
-    [availableCategories]
+    () =>
+      availableCategories.map((category) => ({
+        label: category.description,
+        value: category.id,
+      })),
+    [availableCategories],
   );
 
   const tagItems = useMemo(
     () => tags.map((tag) => ({ label: tag.description, value: tag.id })),
-    [tags]
+    [tags],
   );
 
   const categorySearchMatchesExisting = useMemo(
@@ -56,20 +81,29 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
       categories.some(
         (category) =>
           category.description.trim().toLocaleLowerCase() ===
-          categorySearch.trim().toLocaleLowerCase()
+          categorySearch.trim().toLocaleLowerCase(),
       ),
-    [categories, categorySearch]
+    [categories, categorySearch],
   );
 
   const tagSearchMatchesExisting = useMemo(
     () =>
-      tags.some((tag) => tag.description.trim().toLocaleLowerCase() === tagSearch.trim().toLocaleLowerCase()),
-    [tags, tagSearch]
+      tags.some(
+        (tag) =>
+          tag.description.trim().toLocaleLowerCase() ===
+          tagSearch.trim().toLocaleLowerCase(),
+      ),
+    [tags, tagSearch],
   );
 
   useEffect(() => {
-    const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
-    if (selectedCategory && !canUseCategory(selectedCategory, transactionType)) {
+    const selectedCategory = categories.find(
+      (category) => category.id === selectedCategoryId,
+    );
+    if (
+      selectedCategory &&
+      !canUseCategory(selectedCategory, transactionType)
+    ) {
       setSelectedCategoryId(null);
     }
   }, [categories, selectedCategoryId, transactionType]);
@@ -79,17 +113,17 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
       setMessage(error.message);
       return;
     }
-    setMessage('No se pudo completar la acción.');
+    setMessage("No se pudo completar la acción.");
   }
 
   function resetForm() {
-    setTransactionType('expense');
-    setAmount('');
-    setDescription('');
+    setTransactionType("expense");
+    setAmount("");
+    setDescription("");
     setSelectedCategoryId(null);
     setSelectedTagIds([]);
-    setCategorySearch('');
-    setTagSearch('');
+    setCategorySearch("");
+    setTagSearch("");
     setIsCategoryOpen(false);
     setIsTagsOpen(false);
     setTransactionDate(new Date().toISOString().slice(0, 10));
@@ -97,10 +131,13 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
 
   async function handleCreateCategory() {
     try {
-      const created = await addCategory({ description: categorySearch, type: transactionType });
+      const created = await addCategory({
+        description: categorySearch,
+        type: transactionType,
+      });
       if (created) {
         setSelectedCategoryId(created.id);
-        setCategorySearch('');
+        setCategorySearch("");
         setIsCategoryOpen(false);
         setMessage(`Categoría "${created.description}" creada.`);
       }
@@ -114,7 +151,7 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
       const created = await addTag({ description: tagSearch });
       if (created) {
         setSelectedTagIds((current) => [...current, created.id]);
-        setTagSearch('');
+        setTagSearch("");
         setIsTagsOpen(false);
         setMessage(`Tag "${created.description}" creado.`);
       }
@@ -125,19 +162,19 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
 
   async function handleSaveTransaction() {
     setIsSaving(true);
-    setMessage('');
+    setMessage("");
 
     try {
       await addTransaction({
         type: transactionType,
-        amount: Number(amount.replace(',', '.')),
+        amount: Number(amount.replace(",", ".")),
         description,
         transactionDate,
         categoryId: selectedCategoryId ?? 0,
         tagIds: selectedTagIds,
       });
       resetForm();
-      setMessage('Transacción guardada.');
+      setMessage("Transacción guardada.");
       onSaved?.();
     } catch (error) {
       handleError(error);
@@ -163,14 +200,14 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
 
       <ThemedView type="backgroundSelected" style={styles.segmentedControl}>
         <SegmentButton
-          active={transactionType === 'expense'}
+          active={transactionType === "expense"}
           label="Egreso"
-          onPress={() => setTransactionType('expense')}
+          onPress={() => setTransactionType("expense")}
         />
         <SegmentButton
-          active={transactionType === 'income'}
+          active={transactionType === "income"}
           label="Ingreso"
-          onPress={() => setTransactionType('income')}
+          onPress={() => setTransactionType("income")}
         />
       </ThemedView>
 
@@ -181,7 +218,10 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           onChangeText={setAmount}
           placeholder="$0"
           placeholderTextColor={theme.textSecondary}
-          style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+          style={[
+            styles.input,
+            { color: theme.text, borderColor: theme.backgroundSelected },
+          ]}
           value={amount}
         />
       </Field>
@@ -191,7 +231,10 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           onChangeText={setDescription}
           placeholder="Opcional"
           placeholderTextColor={theme.textSecondary}
-          style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+          style={[
+            styles.input,
+            { color: theme.text, borderColor: theme.backgroundSelected },
+          ]}
           value={description}
         />
       </Field>
@@ -201,14 +244,18 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           onChangeText={setTransactionDate}
           placeholder="AAAA-MM-DD"
           placeholderTextColor={theme.textSecondary}
-          style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+          style={[
+            styles.input,
+            { color: theme.text, borderColor: theme.backgroundSelected },
+          ]}
           value={transactionDate}
         />
       </Field>
 
       <Field
         label="Categoría"
-        style={[styles.dropdownField, { zIndex: isCategoryOpen ? 30 : 10 }]}>
+        style={[styles.dropdownField, { zIndex: isCategoryOpen ? 30 : 10 }]}
+      >
         <DropDownPicker<number>
           ArrowDownIconComponent={({ style }) => (
             <View style={style}>
@@ -240,7 +287,7 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           maxHeight={220}
           onChangeSearchText={setCategorySearch}
           onOpen={() => setIsTagsOpen(false)}
-          onSelectItem={() => setCategorySearch('')}
+          onSelectItem={() => setCategorySearch("")}
           open={isCategoryOpen}
           placeholder="Buscar o seleccionar"
           placeholderStyle={{ color: theme.textSecondary }}
@@ -258,7 +305,7 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           selectedItemContainerStyle={{
             backgroundColor: theme.backgroundSelected,
           }}
-          selectedItemLabelStyle={{ color: theme.text, fontWeight: '700' }}
+          selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
           setOpen={setIsCategoryOpen}
           setValue={setSelectedCategoryId}
           style={[
@@ -274,13 +321,17 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           zIndexInverse={1000}
         />
         {!!categorySearch.trim() && !categorySearchMatchesExisting && (
-          <ActionButton label={`Crear "${categorySearch.trim()}"`} onPress={handleCreateCategory} />
+          <ActionButton
+            label={`Crear "${categorySearch.trim()}"`}
+            onPress={handleCreateCategory}
+          />
         )}
       </Field>
 
       <Field
         label="Tags"
-        style={[styles.dropdownField, { zIndex: isTagsOpen ? 30 : 10 }]}>
+        style={[styles.dropdownField, { zIndex: isTagsOpen ? 30 : 10 }]}
+      >
         <DropDownPicker<number>
           ArrowDownIconComponent={({ style }) => (
             <View style={style}>
@@ -299,9 +350,12 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           )}
           badgeStyle={[
             styles.dropdownBadge,
-            { backgroundColor: theme.backgroundSelected },
+            { backgroundColor: selectedTagBadgeBackground },
           ]}
-          badgeTextStyle={[styles.dropdownBadgeText, { color: theme.text }]}
+          badgeTextStyle={[
+            styles.dropdownBadgeText,
+            { color: selectedTagTextColor },
+          ]}
           dropDownContainerStyle={[
             styles.dropdownMenu,
             {
@@ -320,7 +374,7 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           multipleText={`${selectedTagIds.length} tags seleccionados`}
           onChangeSearchText={setTagSearch}
           onOpen={() => setIsCategoryOpen(false)}
-          onSelectItem={() => setTagSearch('')}
+          onSelectItem={() => setTagSearch("")}
           open={isTagsOpen}
           placeholder="Buscar o seleccionar"
           placeholderStyle={{ color: theme.textSecondary }}
@@ -338,7 +392,10 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
           selectedItemContainerStyle={{
             backgroundColor: theme.backgroundSelected,
           }}
-          selectedItemLabelStyle={{ color: theme.text, fontWeight: '700' }}
+          selectedItemLabelStyle={{
+            color: selectedTagTextColor,
+            fontWeight: "700",
+          }}
           setOpen={setIsTagsOpen}
           setValue={setSelectedTagIds}
           style={[
@@ -348,14 +405,20 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
               borderColor: theme.backgroundSelected,
             },
           ]}
-          textStyle={{ color: theme.text }}
+          textStyle={{
+            color:
+              selectedTagIds.length > 0 ? selectedTagTextColor : theme.text,
+          }}
           value={selectedTagIds}
           showBadgeDot={false}
           zIndex={isTagsOpen ? 3000 : 1000}
           zIndexInverse={1000}
         />
         {!!tagSearch.trim() && !tagSearchMatchesExisting && (
-          <ActionButton label={`Crear "${tagSearch.trim()}"`} onPress={handleCreateTag} />
+          <ActionButton
+            label={`Crear "${tagSearch.trim()}"`}
+            onPress={handleCreateTag}
+          />
         )}
       </Field>
 
@@ -367,7 +430,7 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
 
       <ActionButton
         disabled={isSaving || isLoading}
-        label={isSaving ? 'Guardando...' : 'Guardar transacción'}
+        label={isSaving ? "Guardando..." : "Guardar transacción"}
         onPress={handleSaveTransaction}
         primary
       />
@@ -402,9 +465,18 @@ function SegmentButton({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.segmentButton, pressed && styles.pressed]}>
-      <ThemedView type={active ? 'background' : 'backgroundSelected'} style={styles.segmentButtonInner}>
-        <ThemedText type="smallBold" themeColor={active ? 'text' : 'textSecondary'}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.segmentButton, pressed && styles.pressed]}
+    >
+      <ThemedView
+        type={active ? "background" : "backgroundSelected"}
+        style={styles.segmentButtonInner}
+      >
+        <ThemedText
+          type="smallBold"
+          themeColor={active ? "text" : "textSecondary"}
+        >
           {label}
         </ThemedText>
       </ThemedView>
@@ -427,8 +499,15 @@ function ActionButton({
     <Pressable
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [pressed && styles.pressed, disabled && styles.disabled]}>
-      <ThemedView type={primary ? 'backgroundSelected' : 'background'} style={styles.actionButton}>
+      style={({ pressed }) => [
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}
+    >
+      <ThemedView
+        type={primary ? "backgroundSelected" : "background"}
+        style={styles.actionButton}
+      >
         <ThemedText type="smallBold">{label}</ThemedText>
       </ThemedView>
     </Pressable>
@@ -440,19 +519,19 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     gap: Spacing.three,
     padding: Spacing.three,
-    position: 'relative',
+    position: "relative",
   },
   dropdownBackdrop: {
     bottom: 0,
     left: 0,
-    position: 'absolute',
+    position: "absolute",
     right: 0,
     top: 0,
     zIndex: 20,
   },
   segmentedControl: {
     borderRadius: Spacing.two,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.one,
     padding: Spacing.one,
   },
@@ -460,7 +539,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   segmentButtonInner: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: Spacing.two,
     paddingVertical: Spacing.two,
   },
@@ -468,7 +547,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   dropdownField: {
-    position: 'relative',
+    position: "relative",
   },
   input: {
     borderRadius: Spacing.two,
@@ -485,7 +564,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   dropdownLabel: {
-    fontWeight: '700',
+    fontWeight: "700",
   },
   dropdownMenu: {
     borderRadius: Spacing.two,
@@ -505,10 +584,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
   },
   dropdownBadgeText: {
-    fontWeight: '700',
+    fontWeight: "700",
   },
   actionButton: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
