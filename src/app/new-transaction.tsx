@@ -1,16 +1,23 @@
 import { router } from 'expo-router';
+import { useRef } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { TransactionForm } from '@/components/transaction-form';
+import { TransactionForm, type TransactionFormHandle } from '@/components/transaction-form';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function NewTransactionScreen() {
   const theme = useTheme();
+  const formRef = useRef<TransactionFormHandle>(null);
+
+  function handleBack() {
+    formRef.current?.reset();
+    router.replace('/');
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -22,7 +29,7 @@ export default function NewTransactionScreen() {
           <ThemedView style={styles.header}>
             <Pressable
               accessibilityLabel="Volver al índice de transacciones"
-              onPress={() => router.back()}
+              onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}>
               <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
                 <AppIcon color={theme.text} name="arrow-left" size={22} />
@@ -33,7 +40,7 @@ export default function NewTransactionScreen() {
             </ThemedText>
           </ThemedView>
 
-          <TransactionForm onSaved={() => router.replace('/')} />
+          <TransactionForm ref={formRef} onSaved={() => router.replace('/')} />
         </SafeAreaView>
       </ScrollView>
     </ThemedView>

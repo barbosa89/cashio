@@ -53,6 +53,11 @@ export function TagEditor({ tag }: { tag?: Tag }) {
     }
   }
 
+  function handleBack() {
+    resetForm();
+    router.replace("/tags");
+  }
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -64,7 +69,7 @@ export function TagEditor({ tag }: { tag?: Tag }) {
           <View style={styles.header}>
             <Pressable
               accessibilityLabel="Volver a tags"
-              onPress={() => router.replace("/tags")}
+              onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}
             >
               <ThemedView

@@ -70,6 +70,11 @@ export function CategoryEditor({ category }: { category?: Category }) {
     }
   }
 
+  function handleBack() {
+    resetForm();
+    router.replace("/categories");
+  }
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -81,7 +86,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
           <View style={styles.header}>
             <Pressable
               accessibilityLabel="Volver a categorías"
-              onPress={() => router.replace("/categories")}
+              onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}
             >
               <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>

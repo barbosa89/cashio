@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useState,
+    type ReactNode,
+} from "react";
 import {
     Pressable,
     StyleSheet,
@@ -22,6 +29,10 @@ type TransactionFormProps = {
   onSaved?: () => void;
 };
 
+export type TransactionFormHandle = {
+  reset: () => void;
+};
+
 function canUseCategory(category: Category, transactionType: TransactionType) {
   return (
     category.type === null ||
@@ -30,7 +41,8 @@ function canUseCategory(category: Category, transactionType: TransactionType) {
   );
 }
 
-export function TransactionForm({ onSaved }: TransactionFormProps) {
+export const TransactionForm = forwardRef<TransactionFormHandle, TransactionFormProps>(
+function TransactionForm({ onSaved }, ref) {
   const theme = useTheme();
   const { categories, tags, isLoading, addCategory, addTag, addTransaction } =
     useCashioData();
@@ -126,8 +138,12 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
     setTagSearch("");
     setIsCategoryOpen(false);
     setIsTagsOpen(false);
+    setMessage("");
+    setIsSaving(false);
     setTransactionDate(new Date().toISOString().slice(0, 10));
   }
+
+  useImperativeHandle(ref, () => ({ reset: resetForm }));
 
   async function handleCreateCategory() {
     try {
@@ -436,7 +452,7 @@ export function TransactionForm({ onSaved }: TransactionFormProps) {
       />
     </ThemedView>
   );
-}
+});
 
 function Field({
   label,
