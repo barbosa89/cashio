@@ -1,6 +1,7 @@
 import { router, useNavigation } from 'expo-router';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppIcon } from '@/components/app-icon';
@@ -10,6 +11,13 @@ import { AppPalette, BottomTabInset, MaxContentWidth, Spacing } from '@/constant
 import { useCashioData } from '@/hooks/use-cashio-data';
 import { useTheme } from '@/hooks/use-theme';
 import type { Category, Tag, Transaction } from '@/lib/database';
+
+type VisibleMonth = {
+  month: number;
+  year: number;
+};
+
+const MONTH_SWIPE_THRESHOLD = 72;
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat('es-CO', {
@@ -21,19 +29,37 @@ function normalize(value: string) {
   return value.trim().toLocaleLowerCase();
 }
 
-function getCurrentMonthPrefix() {
+function getCurrentMonth(): VisibleMonth {
   const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
 
-  return `${year}-${month}-`;
+  return { month: today.getMonth() + 1, year: today.getFullYear() };
 }
 
-function getCurrentMonthLabel() {
-  const today = new Date();
-  const month = new Intl.DateTimeFormat('es-CO', { month: 'long' }).format(today);
+function addMonths(visibleMonth: VisibleMonth, delta: number): VisibleMonth {
+  const date = new Date(visibleMonth.year, visibleMonth.month - 1 + delta, 1);
 
-  return `${month.charAt(0).toLocaleUpperCase()}${month.slice(1)} ${today.getFullYear()}`;
+  return { month: date.getMonth() + 1, year: date.getFullYear() };
+}
+
+function compareMonths(left: VisibleMonth, right: VisibleMonth) {
+  if (left.year !== right.year) {
+    return left.year - right.year;
+  }
+
+  return left.month - right.month;
+}
+
+function formatMonthPrefix(visibleMonth: VisibleMonth) {
+  const month = String(visibleMonth.month).padStart(2, '0');
+
+  return `${visibleMonth.year}-${month}-`;
+}
+
+function formatMonthLabel(visibleMonth: VisibleMonth) {
+  const date = new Date(visibleMonth.year, visibleMonth.month - 1, 1);
+  const month = new Intl.DateTimeFormat('es-CO', { month: 'long' }).format(date);
+
+  return `${month.charAt(0).toLocaleUpperCase()}${month.slice(1)} ${visibleMonth.year}`;
 }
 
 function transactionMatchesDescriptionSearch(transaction: Transaction, search: string) {
@@ -65,9 +91,10 @@ export default function HomeScreen() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<number[]>([]);
+  const [visibleMonth, setVisibleMonth] = useState<VisibleMonth>(() => getCurrentMonth());
   const [chartMessage, setChartMessage] = useState('');
-  const currentMonthPrefix = getCurrentMonthPrefix();
-  const currentMonthLabel = getCurrentMonthLabel();
+  const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
+  const visibleMonthLabel = formatMonthLabel(visibleMonth);
   const selectedTransactionIdSet = useMemo(() => new Set(selectedTransactionIds), [selectedTransactionIds]);
   const selectedTransactionCount = selectedTransactionIds.length;
   const isSelectionMode = selectedTransactionCount > 0;
@@ -86,18 +113,19 @@ export default function HomeScreen() {
     () =>
       transactions.filter(
         (transaction) =>
+          transaction.transaction_date.startsWith(visibleMonthPrefix) &&
           transactionMatchesDescriptionSearch(transaction, descriptionSearch) &&
           (!selectedCategory || transaction.category_id === selectedCategory.id) &&
           transactionMatchesTag(transaction, selectedTag)
       ),
-    [descriptionSearch, selectedCategory, selectedTag, transactions]
+    [descriptionSearch, selectedCategory, selectedTag, transactions, visibleMonthPrefix]
   );
 
   const summary = useMemo(
     () =>
       transactions.reduce(
         (totals, transaction) => {
-          if (!transaction.transaction_date.startsWith(currentMonthPrefix)) {
+          if (!transaction.transaction_date.startsWith(visibleMonthPrefix)) {
             return totals;
           }
 
@@ -112,7 +140,7 @@ export default function HomeScreen() {
         },
         { balance: 0, expense: 0, income: 0 }
       ),
-    [currentMonthPrefix, transactions]
+    [transactions, visibleMonthPrefix]
   );
 
   const hasActiveFilters = !!selectedCategory || !!selectedTag;
@@ -195,6 +223,45 @@ export default function HomeScreen() {
     setChartMessage('Las gráficas se implementarán en una siguiente etapa.');
   }
 
+  const goToPreviousMonth = useCallback(() => {
+    setVisibleMonth((currentVisibleMonth) => addMonths(currentVisibleMonth, -1));
+  }, []);
+
+  const goToNextMonth = useCallback(() => {
+    setVisibleMonth((currentVisibleMonth) => {
+      const nextMonth = addMonths(currentVisibleMonth, 1);
+
+      return compareMonths(nextMonth, getCurrentMonth()) <= 0 ? nextMonth : currentVisibleMonth;
+    });
+  }, []);
+
+  const handleMonthSwipe = useCallback(
+    (translationX: number) => {
+      if (translationX <= -MONTH_SWIPE_THRESHOLD) {
+        goToPreviousMonth();
+        return;
+      }
+
+      if (translationX >= MONTH_SWIPE_THRESHOLD) {
+        goToNextMonth();
+      }
+    },
+    [goToNextMonth, goToPreviousMonth]
+  );
+
+  const monthSwipeGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(!isSelectionMode)
+        .activeOffsetX([-MONTH_SWIPE_THRESHOLD, MONTH_SWIPE_THRESHOLD])
+        .failOffsetY([-Spacing.four, Spacing.four])
+        .runOnJS(true)
+        .onEnd((event) => {
+          handleMonthSwipe(event.translationX);
+        }),
+    [handleMonthSwipe, isSelectionMode]
+  );
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -238,36 +305,38 @@ export default function HomeScreen() {
             balance={summary.balance}
             expense={summary.expense}
             income={summary.income}
-            monthLabel={currentMonthLabel}
+            monthLabel={visibleMonthLabel}
           />
 
-          <ScrollView contentContainerStyle={styles.listContent} style={styles.list}>
-            {filteredTransactions.length === 0 ? (
-              <ThemedView style={styles.emptyState}>
-                <ThemedText type="subtitle" style={styles.emptyTitle}>
-                  Sin registros
-                </ThemedText>
-                <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-                  Usa el botón + para agregar tu primer movimiento.
-                </ThemedText>
-              </ThemedView>
-            ) : (
-              filteredTransactions.map((transaction) => (
-                <TransactionRow
-                  key={transaction.id}
-                  onLongPress={() => selectTransaction(transaction.id)}
-                  onPress={() => {
-                    if (isSelectionMode) {
-                      toggleTransactionSelection(transaction.id);
-                    }
-                  }}
-                  selected={selectedTransactionIdSet.has(transaction.id)}
-                  selectionMode={isSelectionMode}
-                  transaction={transaction}
-                />
-              ))
-            )}
-          </ScrollView>
+          <GestureDetector gesture={monthSwipeGesture}>
+            <ScrollView contentContainerStyle={styles.listContent} style={styles.list}>
+              {filteredTransactions.length === 0 ? (
+                <ThemedView style={styles.emptyState}>
+                  <ThemedText type="subtitle" style={styles.emptyTitle}>
+                    Sin registros
+                  </ThemedText>
+                  <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+                    No hay registros en este mes.
+                  </ThemedText>
+                </ThemedView>
+              ) : (
+                filteredTransactions.map((transaction) => (
+                  <TransactionRow
+                    key={transaction.id}
+                    onLongPress={() => selectTransaction(transaction.id)}
+                    onPress={() => {
+                      if (isSelectionMode) {
+                        toggleTransactionSelection(transaction.id);
+                      }
+                    }}
+                    selected={selectedTransactionIdSet.has(transaction.id)}
+                    selectionMode={isSelectionMode}
+                    transaction={transaction}
+                  />
+                ))
+              )}
+            </ScrollView>
+          </GestureDetector>
 
           {!!chartMessage && (
             <ThemedText type="small" themeColor="textSecondary" style={styles.inlineMessage}>
