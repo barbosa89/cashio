@@ -410,7 +410,7 @@ function TypeIcon({ color, type }: { color: string; type: Transaction['type'] })
 
   return (
     <View style={[styles.typeIcon, { borderColor: iconColor }]}>
-      <AppIcon color={iconColor} name={type === 'income' ? 'check' : 'minus'} size={18} />
+      <AppIcon color={iconColor} name={type === 'income' ? 'arrow-up' : 'arrow-down'} size={18} />
     </View>
   );
 }
