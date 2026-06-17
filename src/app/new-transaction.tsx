@@ -2,12 +2,16 @@ import { router } from 'expo-router';
 import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { TransactionForm } from '@/components/transaction-form';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function NewTransactionScreen() {
+  const theme = useTheme();
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -16,9 +20,12 @@ export default function NewTransactionScreen() {
         style={styles.scrollView}>
         <SafeAreaView style={styles.safeArea}>
           <ThemedView style={styles.header}>
-            <Pressable onPress={() => router.back()} style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.backButton}>
-                <ThemedText type="smallBold">Volver</ThemedText>
+            <Pressable
+              accessibilityLabel="Volver al índice de transacciones"
+              onPress={() => router.back()}
+              style={({ pressed }) => pressed && styles.pressed}>
+              <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
+                <AppIcon color={theme.text} name="arrow-left" size={22} />
               </ThemedView>
             </Pressable>
             <ThemedText type="title" style={styles.title}>
@@ -51,19 +58,23 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
   },
   header: {
-    gap: Spacing.three,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.two,
     paddingTop: Platform.OS === 'web' ? Spacing.five : Spacing.three,
   },
   backButton: {
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    borderRadius: 16,
+    borderWidth: 2,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
   },
   title: {
-    fontSize: 36,
-    lineHeight: 42,
+    flex: 1,
+    fontSize: 32,
+    lineHeight: 38,
   },
   pressed: {
     opacity: 0.7,
