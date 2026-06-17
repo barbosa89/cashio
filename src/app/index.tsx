@@ -29,6 +29,13 @@ function getCurrentMonthPrefix() {
   return `${year}-${month}-`;
 }
 
+function getCurrentMonthLabel() {
+  const today = new Date();
+  const month = new Intl.DateTimeFormat('es-CO', { month: 'long' }).format(today);
+
+  return `${month.charAt(0).toLocaleUpperCase()}${month.slice(1)} ${today.getFullYear()}`;
+}
+
 function transactionMatchesDescriptionSearch(transaction: Transaction, search: string) {
   const needle = normalize(search);
   if (!needle) {
@@ -59,6 +66,7 @@ export default function HomeScreen() {
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
   const [chartMessage, setChartMessage] = useState('');
   const currentMonthPrefix = getCurrentMonthPrefix();
+  const currentMonthLabel = getCurrentMonthLabel();
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === selectedCategoryId) ?? null,
@@ -141,7 +149,12 @@ export default function HomeScreen() {
             </View>
           </ThemedView>
 
-          <BalanceSummary balance={summary.balance} expense={summary.expense} income={summary.income} />
+          <BalanceSummary
+            balance={summary.balance}
+            expense={summary.expense}
+            income={summary.income}
+            monthLabel={currentMonthLabel}
+          />
 
           <ScrollView contentContainerStyle={styles.listContent} style={styles.list}>
             {filteredTransactions.length === 0 ? (
@@ -237,30 +250,37 @@ function BalanceSummary({
   balance,
   expense,
   income,
+  monthLabel,
 }: {
   balance: number;
   expense: number;
   income: number;
+  monthLabel: string;
 }) {
   return (
-    <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
-      <View style={styles.summaryMainRow}>
-        <ThemedText type="subtitle" style={styles.summaryTitle}>
-          Saldo
-        </ThemedText>
-        <ThemedText type="subtitle" style={styles.summaryAmount}>
-          $ {formatMoney(balance)}
-        </ThemedText>
-      </View>
-      <View style={styles.summaryDetailRow}>
-        <ThemedText type="smallBold" style={styles.summaryDetail}>
-          Ingresos: $ {formatMoney(income)}
-        </ThemedText>
-        <ThemedText type="smallBold" style={styles.summaryDetail}>
-          Egresos: $ {formatMoney(expense)}
-        </ThemedText>
-      </View>
-    </ThemedView>
+    <View style={styles.summaryWrap}>
+      <ThemedText type="smallBold" style={styles.summaryMonth}>
+        {monthLabel}
+      </ThemedText>
+      <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
+        <View style={styles.summaryMainRow}>
+          <ThemedText type="subtitle" style={styles.summaryTitle}>
+            Saldo
+          </ThemedText>
+          <ThemedText type="subtitle" style={styles.summaryAmount}>
+            $ {formatMoney(balance)}
+          </ThemedText>
+        </View>
+        <View style={styles.summaryDetailRow}>
+          <ThemedText type="smallBold" style={styles.summaryDetail}>
+            Ingresos: $ {formatMoney(income)}
+          </ThemedText>
+          <ThemedText type="smallBold" style={styles.summaryDetail}>
+            Egresos: $ {formatMoney(expense)}
+          </ThemedText>
+        </View>
+      </ThemedView>
+    </View>
   );
 }
 
@@ -504,11 +524,19 @@ const styles = StyleSheet.create({
     marginTop: Spacing.half,
     width: 30,
   },
+  summaryWrap: {
+    gap: Spacing.one,
+    marginHorizontal: Spacing.three,
+    marginTop: Spacing.two,
+  },
+  summaryMonth: {
+    fontSize: 18,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
   summaryPanel: {
     borderRadius: Spacing.two,
     gap: Spacing.half,
-    marginHorizontal: Spacing.three,
-    marginTop: Spacing.two,
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.one,
   },
@@ -518,12 +546,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   summaryTitle: {
-    fontSize: 20,
-    lineHeight: 24,
+    fontSize: 18,
+    lineHeight: 22,
   },
   summaryAmount: {
-    fontSize: 20,
-    lineHeight: 24,
+    fontSize: 18,
+    lineHeight: 22,
     textAlign: 'right',
   },
   summaryDetailRow: {
