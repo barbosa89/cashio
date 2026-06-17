@@ -14,6 +14,7 @@ import {
     type StyleProp,
     type ViewStyle,
 } from "react-native";
+import CurrencyInput from "react-native-currency-input";
 import DropDownPicker from "react-native-dropdown-picker";
 
 import { AppIcon } from "@/components/app-icon";
@@ -48,7 +49,7 @@ function TransactionForm({ onSaved }, ref) {
     useCashioData();
   const [transactionType, setTransactionType] =
     useState<TransactionType>("expense");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState<number | null>(null);
   const [description, setDescription] = useState("");
   const [transactionDate, setTransactionDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
@@ -130,7 +131,7 @@ function TransactionForm({ onSaved }, ref) {
 
   function resetForm() {
     setTransactionType("expense");
-    setAmount("");
+    setAmount(null);
     setDescription("");
     setSelectedCategoryId(null);
     setSelectedTagIds([]);
@@ -183,7 +184,7 @@ function TransactionForm({ onSaved }, ref) {
     try {
       await addTransaction({
         type: transactionType,
-        amount: Number(amount.replace(",", ".")),
+        amount: amount ?? 0,
         description,
         transactionDate,
         categoryId: selectedCategoryId ?? 0,
@@ -228,12 +229,16 @@ function TransactionForm({ onSaved }, ref) {
       </ThemedView>
 
       <Field label="Monto">
-        <TextInput
-          inputMode="decimal"
-          keyboardType="decimal-pad"
-          onChangeText={setAmount}
-          placeholder="$0"
+        <CurrencyInput
+          delimiter="."
+          keyboardType="numeric"
+          minValue={0}
+          onChangeValue={setAmount}
+          placeholder="$ 0"
           placeholderTextColor={theme.textSecondary}
+          precision={0}
+          prefix="$ "
+          separator=","
           style={[
             styles.input,
             { color: theme.text, borderColor: theme.backgroundSelected },
