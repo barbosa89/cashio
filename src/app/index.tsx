@@ -227,16 +227,24 @@ function TransactionRow({ transaction }: { transaction: Transaction }) {
         <ThemedText type="subtitle" style={styles.amount}>
           {formatMoney(transaction.amount)}
         </ThemedText>
-        <ThemedText type="small">{transaction.category_description}</ThemedText>
+        <View style={styles.metadataRow}>
+          <AppIcon color={theme.textSecondary} name="folder" size={12} style={styles.metadataIcon} />
+          <ThemedText type="small" style={styles.metadataText}>
+            {transaction.category_description}
+          </ThemedText>
+        </View>
         {!!transaction.description && (
           <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
             {transaction.description}
           </ThemedText>
         )}
         {!!transaction.tags && (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
-            {transaction.tags}
-          </ThemedText>
+          <View style={styles.metadataRow}>
+            <AppIcon color={theme.textSecondary} name="tag" size={12} style={styles.metadataIcon} />
+            <ThemedText type="small" themeColor="textSecondary" style={[styles.description, styles.metadataText]}>
+              {transaction.tags}
+            </ThemedText>
+          </View>
         )}
       </View>
       <ThemedText type="smallBold" style={styles.dateText}>
@@ -510,6 +518,17 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 12,
     lineHeight: 16,
+  },
+  metadataIcon: {
+    marginTop: 1,
+  },
+  metadataRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.one,
+  },
+  metadataText: {
+    flexShrink: 1,
   },
   dateText: {
     minWidth: 96,
