@@ -26,6 +26,13 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+export const AppPalette = {
+  brandOrange: '#f97316',
+  brandOrangeActive: '#ea580c',
+  foregroundInverse: '#ffffff',
+  incomeGreen: '#10b981',
+} as const;
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */

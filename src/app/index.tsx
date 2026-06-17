@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { AppPalette, BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useCashioData } from '@/hooks/use-cashio-data';
 import { useTheme } from '@/hooks/use-theme';
 import type { Category, Tag, Transaction } from '@/lib/database';
@@ -171,10 +171,9 @@ export default function HomeScreen() {
             onPress={() => router.push('/new-transaction')}
             style={({ pressed }) => [
               styles.fab,
-              { borderColor: theme.text },
-              pressed && styles.pressed,
+              pressed && styles.fabPressed,
             ]}>
-            <AppIcon color="#FFFFFF" name="plus" size={36} />
+            <AppIcon color={AppPalette.foregroundInverse} name="plus" size={36} />
           </Pressable>
 
           <ThemedView style={[styles.bottomBar, { borderTopColor: theme.backgroundSelected }]}>
@@ -387,9 +386,11 @@ function IconButton({
 }
 
 function TypeIcon({ color, type }: { color: string; type: Transaction['type'] }) {
+  const iconColor = type === 'income' ? AppPalette.incomeGreen : color;
+
   return (
-    <View style={[styles.typeIcon, { borderColor: color }]}>
-      <AppIcon color={color} name={type === 'income' ? 'check' : 'minus'} size={18} />
+    <View style={[styles.typeIcon, { borderColor: iconColor }]}>
+      <AppIcon color={iconColor} name={type === 'income' ? 'check' : 'minus'} size={18} />
     </View>
   );
 }
@@ -546,8 +547,8 @@ const styles = StyleSheet.create({
   },
   fab: {
     alignItems: 'center',
-    backgroundColor: '#000000',
-    borderColor: '#0B3444',
+    backgroundColor: AppPalette.brandOrange,
+    borderColor: 'transparent',
     borderRadius: Spacing.two,
     borderWidth: 2,
     bottom: BottomTabInset + 104,
@@ -557,6 +558,9 @@ const styles = StyleSheet.create({
     right: Spacing.three,
     width: 64,
     zIndex: 2,
+  },
+  fabPressed: {
+    backgroundColor: AppPalette.brandOrangeActive,
   },
   inlineMessage: {
     paddingHorizontal: Spacing.three,

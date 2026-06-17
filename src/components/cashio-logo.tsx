@@ -1,8 +1,7 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
-
-const TAILWIND_ORANGE_500 = "#f97316";
+import { AppPalette } from "@/constants/theme";
 
 type CashioLogoProps = {
   height?: number;
@@ -32,7 +31,7 @@ export function CashioLogo({
       ]}
     >
       <View
-        style={[styles.cashPanel, { backgroundColor: TAILWIND_ORANGE_500 }]}
+        style={[styles.cashPanel, { backgroundColor: AppPalette.brandOrange }]}
       >
         <ThemedText
           numberOfLines={1}
@@ -55,7 +54,7 @@ export function CashioLogo({
           style={[
             styles.ioText,
             {
-              color: TAILWIND_ORANGE_500,
+              color: AppPalette.brandOrange,
               fontSize: Math.round(height * 0.44),
               lineHeight: Math.round(height * 0.5),
             },

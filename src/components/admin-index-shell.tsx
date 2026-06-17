@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, Spacing } from "@/constants/theme";
+import { AppPalette, BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 export function AdminIndexShell({
@@ -119,11 +119,10 @@ export function AdminIndexShell({
             onPress={() => router.push(ctaHref)}
             style={({ pressed }) => [
               styles.fab,
-              { borderColor: theme.text },
-              pressed && styles.pressed,
+              pressed && styles.fabPressed,
             ]}
           >
-            <AppIcon color="#FFFFFF" name="plus" size={36} />
+            <AppIcon color={AppPalette.foregroundInverse} name="plus" size={36} />
           </Pressable>
         </ThemedView>
       </SafeAreaView>
@@ -238,7 +237,8 @@ const styles = StyleSheet.create({
   },
   fab: {
     alignItems: "center",
-    backgroundColor: "#000000",
+    backgroundColor: AppPalette.brandOrange,
+    borderColor: "transparent",
     borderRadius: Spacing.two,
     borderWidth: 2,
     bottom: BottomTabInset + Spacing.three,
@@ -248,6 +248,9 @@ const styles = StyleSheet.create({
     right: Spacing.three,
     width: 64,
     zIndex: 2,
+  },
+  fabPressed: {
+    backgroundColor: AppPalette.brandOrangeActive,
   },
   pressed: {
     opacity: 0.7,
