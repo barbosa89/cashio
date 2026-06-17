@@ -1,25 +1,36 @@
-import 'react-native-gesture-handler';
+import "react-native-gesture-handler";
 
-import { DarkTheme, DefaultTheme, router, ThemeProvider, usePathname } from 'expo-router';
-import { Drawer, DrawerContentScrollView, type DrawerContentComponentProps } from 'expo-router/drawer';
-import { useFonts } from 'expo-font';
-import { SQLiteProvider } from 'expo-sqlite';
-import { Suspense, useEffect, useState, type ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { useFonts } from "expo-font";
+import {
+    DarkTheme,
+    DefaultTheme,
+    router,
+    ThemeProvider,
+    usePathname,
+} from "expo-router";
+import {
+    Drawer,
+    DrawerContentScrollView,
+    type DrawerContentComponentProps,
+} from "expo-router/drawer";
+import { SQLiteProvider } from "expo-sqlite";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { Platform, Pressable, StyleSheet, useColorScheme } from "react-native";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { AppIcon } from '@/components/app-icon';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { migrateDatabase } from '@/lib/database';
+import { AnimatedSplashOverlay } from "@/components/animated-icon";
+import { AppIcon } from "@/components/app-icon";
+import { CashioLogo } from "@/components/cashio-logo";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { Colors, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import { migrateDatabase } from "@/lib/database";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  const theme = Colors[colorScheme === "dark" ? "dark" : "light"];
   const [fontsLoaded] = useFonts({
-    Feather: require('react-native-vector-icons/Fonts/Feather.ttf'),
+    Feather: require("react-native-vector-icons/Fonts/Feather.ttf"),
   });
 
   if (!fontsLoaded) {
@@ -27,7 +38,7 @@ export default function TabLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <DatabaseProvider>
         <AnimatedSplashOverlay />
         <Drawer
@@ -37,20 +48,27 @@ export default function TabLayout() {
               backgroundColor: theme.background,
               width: 300,
             },
-            drawerType: 'front',
+            drawerType: "front",
             headerShown: false,
-            overlayColor: 'rgba(0, 0, 0, 0.45)',
-          }}>
-          <Drawer.Screen name="index" options={{ title: 'Inicio' }} />
-          <Drawer.Screen name="categories" options={{ title: 'Categorías' }} />
-          <Drawer.Screen name="tags" options={{ title: 'Tags' }} />
+            overlayColor: "rgba(0, 0, 0, 0.45)",
+          }}
+        >
+          <Drawer.Screen name="index" options={{ title: "Inicio" }} />
+          <Drawer.Screen name="categories" options={{ title: "Categorías" }} />
+          <Drawer.Screen name="tags" options={{ title: "Tags" }} />
           <Drawer.Screen
             name="explore"
-            options={{ drawerItemStyle: { display: 'none' }, title: 'Administrar' }}
+            options={{
+              drawerItemStyle: { display: "none" },
+              title: "Administrar",
+            }}
           />
           <Drawer.Screen
             name="new-transaction"
-            options={{ drawerItemStyle: { display: 'none' }, title: 'Nueva transacción' }}
+            options={{
+              drawerItemStyle: { display: "none" },
+              title: "Nueva transacción",
+            }}
           />
         </Drawer>
       </DatabaseProvider>
@@ -62,7 +80,7 @@ function CashioDrawerContent(props: DrawerContentComponentProps) {
   const pathname = usePathname();
   const theme = useTheme();
 
-  function navigateTo(path: '/' | '/categories' | '/tags') {
+  function navigateTo(path: "/" | "/categories" | "/tags") {
     props.navigation.closeDrawer();
     router.push(path);
   }
@@ -70,40 +88,32 @@ function CashioDrawerContent(props: DrawerContentComponentProps) {
   return (
     <DrawerContentScrollView
       {...props}
-      contentContainerStyle={[styles.drawerContent, { backgroundColor: theme.background }]}>
+      contentContainerStyle={[
+        styles.drawerContent,
+        { backgroundColor: theme.background },
+      ]}
+    >
       <ThemedView style={styles.drawerHeader}>
-        <ThemedView style={styles.drawerAvatar}>
-          <ThemedText type="smallBold" style={styles.drawerAvatarText}>
-            OB
-          </ThemedText>
-        </ThemedView>
-        <View>
-          <ThemedText type="subtitle" style={styles.drawerTitle}>
-            Cashio
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            Menú principal
-          </ThemedText>
-        </View>
+        <CashioLogo />
       </ThemedView>
 
       <DrawerMenuItem
-        active={pathname === '/'}
+        active={pathname === "/"}
         icon="home"
         label="Inicio"
-        onPress={() => navigateTo('/')}
+        onPress={() => navigateTo("/")}
       />
       <DrawerMenuItem
-        active={pathname.startsWith('/categories')}
+        active={pathname.startsWith("/categories")}
         icon="folder"
         label="Categorías"
-        onPress={() => navigateTo('/categories')}
+        onPress={() => navigateTo("/categories")}
       />
       <DrawerMenuItem
-        active={pathname.startsWith('/tags')}
+        active={pathname.startsWith("/tags")}
         icon="tag"
         label="Tags"
-        onPress={() => navigateTo('/tags')}
+        onPress={() => navigateTo("/tags")}
       />
     </DrawerContentScrollView>
   );
@@ -116,7 +126,7 @@ function DrawerMenuItem({
   onPress,
 }: {
   active: boolean;
-  icon: 'folder' | 'home' | 'tag';
+  icon: "folder" | "home" | "tag";
   label: string;
   onPress: () => void;
 }) {
@@ -127,10 +137,24 @@ function DrawerMenuItem({
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      style={({ pressed }) => [styles.drawerItemPressable, pressed && styles.pressed]}>
-      <ThemedView type={active ? 'backgroundSelected' : 'background'} style={styles.drawerItem}>
-        <AppIcon color={active ? theme.text : theme.textSecondary} name={icon} size={22} />
-        <ThemedText type="smallBold" themeColor={active ? 'text' : 'textSecondary'}>
+      style={({ pressed }) => [
+        styles.drawerItemPressable,
+        pressed && styles.pressed,
+      ]}
+    >
+      <ThemedView
+        type={active ? "backgroundSelected" : "background"}
+        style={styles.drawerItem}
+      >
+        <AppIcon
+          color={active ? theme.text : theme.textSecondary}
+          name={icon}
+          size={22}
+        />
+        <ThemedText
+          type="smallBold"
+          themeColor={active ? "text" : "textSecondary"}
+        >
           {label}
         </ThemedText>
       </ThemedView>
@@ -139,7 +163,7 @@ function DrawerMenuItem({
 }
 
 function DatabaseProvider({ children }: { children: ReactNode }) {
-  const [canUseDatabase, setCanUseDatabase] = useState(Platform.OS !== 'web');
+  const [canUseDatabase, setCanUseDatabase] = useState(Platform.OS !== "web");
 
   useEffect(() => {
     setCanUseDatabase(true);
@@ -151,7 +175,11 @@ function DatabaseProvider({ children }: { children: ReactNode }) {
 
   return (
     <Suspense fallback={null}>
-      <SQLiteProvider databaseName="cashio.db" onInit={migrateDatabase} useSuspense>
+      <SQLiteProvider
+        databaseName="cashio.db"
+        onInit={migrateDatabase}
+        useSuspense
+      >
         {children}
       </SQLiteProvider>
     </Suspense>
@@ -161,40 +189,22 @@ function DatabaseProvider({ children }: { children: ReactNode }) {
 const styles = StyleSheet.create({
   drawerContent: {
     flex: 1,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-  },
-  drawerHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: Spacing.three,
-    paddingBottom: Spacing.four,
+    paddingHorizontal: Spacing.two,
     paddingTop: Spacing.two,
   },
-  drawerAvatar: {
-    alignItems: 'center',
-    backgroundColor: '#126B8D',
-    borderRadius: 24,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  drawerAvatarText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-  },
-  drawerTitle: {
-    fontSize: 28,
-    lineHeight: 34,
+  drawerHeader: {
+    alignItems: "center",
+    paddingBottom: Spacing.three,
+    paddingTop: Spacing.one,
   },
   drawerItemPressable: {
     borderRadius: Spacing.two,
     marginBottom: Spacing.two,
   },
   drawerItem: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: Spacing.two,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.three,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
