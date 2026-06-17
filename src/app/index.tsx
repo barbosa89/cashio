@@ -483,8 +483,8 @@ const styles = StyleSheet.create({
     gap: Spacing.half,
   },
   amount: {
-    fontSize: 24,
-    lineHeight: 28,
+    fontSize: 21,
+    lineHeight: 25,
   },
   description: {
     fontSize: 12,
