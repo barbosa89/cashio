@@ -15,7 +15,10 @@ import {
     type ViewStyle,
 } from "react-native";
 import CurrencyInput from "react-native-currency-input";
-import DropDownPicker from "react-native-dropdown-picker";
+import DropDownPicker, {
+  type ItemType,
+  type RenderListItemPropsInterface,
+} from "react-native-dropdown-picker";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
@@ -30,9 +33,15 @@ type TransactionFormProps = {
   onSaved?: () => void;
 };
 
+type DropdownValue = number | string;
+
 export type TransactionFormHandle = {
   reset: () => void;
 };
+
+function normalizeLookup(value: string) {
+  return value.trim().toLocaleLowerCase();
+}
 
 function canUseCategory(category: Category, transactionType: TransactionType) {
   return (
@@ -76,7 +85,7 @@ function TransactionForm({ onSaved }, ref) {
   );
 
   const categoryItems = useMemo(
-    () =>
+    (): Array<ItemType<DropdownValue>> =>
       availableCategories.map((category) => ({
         label: category.description,
         value: category.id,
@@ -85,7 +94,8 @@ function TransactionForm({ onSaved }, ref) {
   );
 
   const tagItems = useMemo(
-    () => tags.map((tag) => ({ label: tag.description, value: tag.id })),
+    (): Array<ItemType<DropdownValue>> =>
+      tags.map((tag) => ({ label: tag.description, value: tag.id })),
     [tags],
   );
 
@@ -93,8 +103,8 @@ function TransactionForm({ onSaved }, ref) {
     () =>
       categories.some(
         (category) =>
-          category.description.trim().toLocaleLowerCase() ===
-          categorySearch.trim().toLocaleLowerCase(),
+          normalizeLookup(category.description) ===
+          normalizeLookup(categorySearch),
       ),
     [categories, categorySearch],
   );
@@ -103,8 +113,7 @@ function TransactionForm({ onSaved }, ref) {
     () =>
       tags.some(
         (tag) =>
-          tag.description.trim().toLocaleLowerCase() ===
-          tagSearch.trim().toLocaleLowerCase(),
+          normalizeLookup(tag.description) === normalizeLookup(tagSearch),
       ),
     [tags, tagSearch],
   );
@@ -146,35 +155,129 @@ function TransactionForm({ onSaved }, ref) {
 
   useImperativeHandle(ref, () => ({ reset: resetForm }));
 
-  async function handleCreateCategory() {
+  function setCategoryDropdownValue(
+    nextValue: (currentValue: DropdownValue | null) => DropdownValue | null,
+  ) {
+    setSelectedCategoryId((currentValue) => {
+      const next = nextValue(currentValue);
+
+      if (typeof next === "number" || next === null) {
+        return next;
+      }
+
+      return currentValue;
+    });
+  }
+
+  function setTagDropdownValues(
+    nextValue: (currentValue: DropdownValue[] | null) => DropdownValue[] | null,
+  ) {
+    setSelectedTagIds((currentValue) => {
+      const next = nextValue(currentValue);
+
+      if (!Array.isArray(next)) {
+        return [];
+      }
+
+      return next.filter((value): value is number => typeof value === "number");
+    });
+  }
+
+  async function handleCreateCategoryFromText(value: string) {
+    const description = value.trim();
+    if (!description) {
+      return;
+    }
+
+    const existingCategory = categories.find(
+      (category) =>
+        normalizeLookup(category.description) === normalizeLookup(description),
+    );
+
+    if (existingCategory) {
+      if (canUseCategory(existingCategory, transactionType)) {
+        setSelectedCategoryId(existingCategory.id);
+        setCategorySearch("");
+        setIsCategoryOpen(false);
+        setMessage(`Categoría "${existingCategory.description}" seleccionada.`);
+        return;
+      }
+
+      setMessage(
+        `La categoría "${existingCategory.description}" no aplica para este tipo de registro.`,
+      );
+      return;
+    }
+
     try {
       const created = await addCategory({
-        description: categorySearch,
+        description,
         type: transactionType,
       });
       if (created) {
         setSelectedCategoryId(created.id);
         setCategorySearch("");
         setIsCategoryOpen(false);
-        setMessage(`Categoría "${created.description}" creada.`);
+        setMessage(`Categoría "${created.description}" creada y seleccionada.`);
       }
     } catch (error) {
       handleError(error);
     }
   }
 
-  async function handleCreateTag() {
+  async function handleCreateTagFromText(value: string) {
+    const description = value.trim();
+    if (!description) {
+      return;
+    }
+
+    const existingTag = tags.find(
+      (tag) => normalizeLookup(tag.description) === normalizeLookup(description),
+    );
+
+    if (existingTag) {
+      setSelectedTagIds((current) =>
+        current.includes(existingTag.id) ? current : [...current, existingTag.id],
+      );
+      setTagSearch("");
+      setIsTagsOpen(false);
+      setMessage(`Tag "${existingTag.description}" seleccionado.`);
+      return;
+    }
+
     try {
-      const created = await addTag({ description: tagSearch });
+      const created = await addTag({ description });
       if (created) {
-        setSelectedTagIds((current) => [...current, created.id]);
+        setSelectedTagIds((current) =>
+          current.includes(created.id) ? current : [...current, created.id],
+        );
         setTagSearch("");
         setIsTagsOpen(false);
-        setMessage(`Tag "${created.description}" creado.`);
+        setMessage(`Tag "${created.description}" creado y seleccionado.`);
       }
     } catch (error) {
       handleError(error);
     }
+  }
+
+  function handleSelectCategory(item: ItemType<DropdownValue>) {
+    if (typeof item.value === "string") {
+      void handleCreateCategoryFromText(String(item.label ?? item.value));
+      return;
+    }
+
+    setCategorySearch("");
+  }
+
+  function handleSelectTags(items: Array<ItemType<DropdownValue>>) {
+    const customItem = items.find((item) => typeof item.value === "string");
+
+    if (customItem) {
+      void handleCreateTagFromText(String(customItem.label ?? customItem.value ?? ""));
+      return;
+    }
+
+    setTagSearch("");
   }
 
   async function handleSaveTransaction() {
@@ -277,7 +380,8 @@ function TransactionForm({ onSaved }, ref) {
         label="Categoría"
         style={[styles.dropdownField, { zIndex: isCategoryOpen ? 30 : 10 }]}
       >
-        <DropDownPicker<number>
+        <DropDownPicker<DropdownValue>
+          addCustomItem={!!categorySearch.trim() && !categorySearchMatchesExisting}
           ArrowDownIconComponent={({ style }) => (
             <View style={style}>
               <AppIcon color={theme.text} name="chevron-down" size={22} />
@@ -300,6 +404,11 @@ function TransactionForm({ onSaved }, ref) {
               borderColor: theme.backgroundSelected,
             },
           ]}
+          customItemContainerStyle={[
+            styles.dropdownCustomItem,
+            { borderTopColor: theme.backgroundSelected },
+          ]}
+          customItemLabelStyle={styles.dropdownCustomItemText}
           items={categoryItems}
           labelStyle={styles.dropdownLabel}
           listItemContainerStyle={styles.dropdownItem}
@@ -308,11 +417,17 @@ function TransactionForm({ onSaved }, ref) {
           maxHeight={220}
           onChangeSearchText={setCategorySearch}
           onOpen={() => setIsTagsOpen(false)}
-          onSelectItem={() => setCategorySearch("")}
+          onSelectItem={handleSelectCategory}
           open={isCategoryOpen}
-          placeholder="Buscar o seleccionar"
+          placeholder="Buscar o seleccionar categoría"
           placeholderStyle={{ color: theme.textSecondary }}
-          searchPlaceholder="Buscar o crear"
+          renderListItem={(props) => (
+            <DropdownListItem
+              createLabel="Crear categoría"
+              itemProps={props}
+            />
+          )}
+          searchPlaceholder="Buscar categoría"
           searchPlaceholderTextColor={theme.textSecondary}
           searchable
           searchTextInputProps={{ value: categorySearch }}
@@ -328,7 +443,7 @@ function TransactionForm({ onSaved }, ref) {
           }}
           selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
           setOpen={setIsCategoryOpen}
-          setValue={setSelectedCategoryId}
+          setValue={setCategoryDropdownValue}
           style={[
             styles.dropdown,
             {
@@ -341,19 +456,14 @@ function TransactionForm({ onSaved }, ref) {
           zIndex={isCategoryOpen ? 3000 : 1000}
           zIndexInverse={1000}
         />
-        {!!categorySearch.trim() && !categorySearchMatchesExisting && (
-          <ActionButton
-            label={`Crear "${categorySearch.trim()}"`}
-            onPress={handleCreateCategory}
-          />
-        )}
       </Field>
 
       <Field
         label="Tags"
         style={[styles.dropdownField, { zIndex: isTagsOpen ? 30 : 10 }]}
       >
-        <DropDownPicker<number>
+        <DropDownPicker<DropdownValue>
+          addCustomItem={!!tagSearch.trim() && !tagSearchMatchesExisting}
           ArrowDownIconComponent={({ style }) => (
             <View style={style}>
               <AppIcon color={theme.text} name="chevron-down" size={22} />
@@ -384,6 +494,11 @@ function TransactionForm({ onSaved }, ref) {
               borderColor: theme.backgroundSelected,
             },
           ]}
+          customItemContainerStyle={[
+            styles.dropdownCustomItem,
+            { borderTopColor: theme.backgroundSelected },
+          ]}
+          customItemLabelStyle={styles.dropdownCustomItemText}
           items={tagItems}
           labelStyle={styles.dropdownLabel}
           listItemContainerStyle={styles.dropdownItem}
@@ -395,11 +510,17 @@ function TransactionForm({ onSaved }, ref) {
           multipleText={`${selectedTagIds.length} tags seleccionados`}
           onChangeSearchText={setTagSearch}
           onOpen={() => setIsCategoryOpen(false)}
-          onSelectItem={() => setTagSearch("")}
+          onSelectItem={handleSelectTags}
           open={isTagsOpen}
-          placeholder="Buscar o seleccionar"
+          placeholder="Buscar o seleccionar tags"
           placeholderStyle={{ color: theme.textSecondary }}
-          searchPlaceholder="Buscar o crear"
+          renderListItem={(props) => (
+            <DropdownListItem
+              createLabel="Crear tag"
+              itemProps={props}
+            />
+          )}
+          searchPlaceholder="Buscar tag"
           searchPlaceholderTextColor={theme.textSecondary}
           searchable
           searchTextInputProps={{ value: tagSearch }}
@@ -418,7 +539,7 @@ function TransactionForm({ onSaved }, ref) {
             fontWeight: "700",
           }}
           setOpen={setIsTagsOpen}
-          setValue={setSelectedTagIds}
+          setValue={setTagDropdownValues}
           style={[
             styles.dropdown,
             {
@@ -435,12 +556,6 @@ function TransactionForm({ onSaved }, ref) {
           zIndex={isTagsOpen ? 3000 : 1000}
           zIndexInverse={1000}
         />
-        {!!tagSearch.trim() && !tagSearchMatchesExisting && (
-          <ActionButton
-            label={`Crear "${tagSearch.trim()}"`}
-            onPress={handleCreateTag}
-          />
-        )}
       </Field>
 
       {!!message && (
@@ -458,6 +573,63 @@ function TransactionForm({ onSaved }, ref) {
     </ThemedView>
   );
 });
+
+function DropdownListItem({
+  createLabel,
+  itemProps,
+}: {
+  createLabel: string;
+  itemProps: RenderListItemPropsInterface<DropdownValue>;
+}) {
+  const theme = useTheme();
+  const disabled = itemProps.disabled || itemProps.selectable === false;
+  const displayLabel = itemProps.custom
+    ? `${createLabel} "${itemProps.label.trim()}"`
+    : itemProps.label;
+
+  function handlePress() {
+    const onPressItem = itemProps.onPress as unknown as (
+      item: ItemType<DropdownValue>,
+      custom: boolean,
+    ) => void;
+
+    onPressItem(itemProps.item, itemProps.custom);
+  }
+
+  return (
+    <Pressable
+      disabled={disabled}
+      onLayout={({ nativeEvent }) =>
+        itemProps.setPosition(itemProps.value, nativeEvent.layout.y)
+      }
+      onPress={handlePress}
+      style={({ pressed }) => [
+        itemProps.listItemContainerStyle,
+        itemProps.custom && itemProps.customItemContainerStyle,
+        itemProps.isSelected && itemProps.selectedItemContainerStyle,
+        disabled && itemProps.disabledItemContainerStyle,
+        pressed && styles.pressed,
+      ]}
+    >
+      {itemProps.custom && (
+        <AppIcon color={theme.text} name="plus" size={16} />
+      )}
+      <ThemedText
+        type={itemProps.custom || itemProps.isSelected ? "smallBold" : "small"}
+        style={[
+          styles.dropdownListItemText,
+          itemProps.listItemLabelStyle,
+          itemProps.custom && itemProps.customItemLabelStyle,
+          itemProps.isSelected && itemProps.selectedItemLabelStyle,
+          disabled && itemProps.disabledItemLabelStyle,
+        ]}
+      >
+        {displayLabel}
+      </ThemedText>
+      {itemProps.isSelected && !itemProps.custom && <itemProps.TickIconComponent />}
+    </Pressable>
+  );
+}
 
 function Field({
   label,
@@ -592,7 +764,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   dropdownItem: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.two,
     minHeight: 44,
+  },
+  dropdownListItemText: {
+    flex: 1,
+  },
+  dropdownCustomItem: {
+    borderTopWidth: 1,
+    minHeight: 44,
+  },
+  dropdownCustomItemText: {
+    fontWeight: "700",
   },
   dropdownSearchInput: {
     borderRadius: Spacing.two,
