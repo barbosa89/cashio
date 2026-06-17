@@ -16,6 +16,7 @@ import {
 import { SQLiteProvider } from "expo-sqlite";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Platform, Pressable, StyleSheet, useColorScheme } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AnimatedSplashOverlay } from "@/components/animated-icon";
 import { AppIcon } from "@/components/app-icon";
@@ -79,6 +80,7 @@ export default function TabLayout() {
 function CashioDrawerContent(props: DrawerContentComponentProps) {
   const pathname = usePathname();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   function navigateTo(path: "/" | "/categories" | "/tags") {
     props.navigation.closeDrawer();
@@ -90,7 +92,11 @@ function CashioDrawerContent(props: DrawerContentComponentProps) {
       {...props}
       contentContainerStyle={[
         styles.drawerContent,
-        { backgroundColor: theme.background },
+        {
+          backgroundColor: theme.background,
+          paddingBottom: Math.max(insets.bottom, Spacing.three),
+          paddingTop: Math.max(insets.top + Spacing.two, Spacing.four),
+        },
       ]}
     >
       <ThemedView style={styles.drawerHeader}>
@@ -190,12 +196,10 @@ const styles = StyleSheet.create({
   drawerContent: {
     flex: 1,
     paddingHorizontal: Spacing.two,
-    paddingTop: Spacing.two,
   },
   drawerHeader: {
     alignItems: "center",
     paddingBottom: Spacing.three,
-    paddingTop: Spacing.one,
   },
   drawerItemPressable: {
     borderRadius: Spacing.two,
