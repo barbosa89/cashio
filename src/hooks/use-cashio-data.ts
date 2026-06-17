@@ -8,6 +8,7 @@ import {
   createTransaction,
   deleteCategory,
   deleteTag,
+  deleteTransactions,
   listCategories,
   listTags,
   listTransactions,
@@ -103,6 +104,14 @@ export function useCashioData() {
     [db, refresh]
   );
 
+  const removeTransactions = useCallback(
+    async (ids: number[]) => {
+      await deleteTransactions(db, ids);
+      await refresh();
+    },
+    [db, refresh]
+  );
+
   return {
     categories,
     tags,
@@ -116,5 +125,6 @@ export function useCashioData() {
     editTag,
     removeTag,
     addTransaction,
+    removeTransactions,
   };
 }

@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppIcon } from '@/components/app-icon';
@@ -59,14 +59,18 @@ function transactionMatchesTag(transaction: Transaction, tag: Tag | null) {
 export default function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<{ openDrawer: () => void }>();
-  const { categories, tags, transactions } = useCashioData();
+  const { categories, removeTransactions, tags, transactions } = useCashioData();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [descriptionSearch, setDescriptionSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<number[]>([]);
   const [chartMessage, setChartMessage] = useState('');
   const currentMonthPrefix = getCurrentMonthPrefix();
   const currentMonthLabel = getCurrentMonthLabel();
+  const selectedTransactionIdSet = useMemo(() => new Set(selectedTransactionIds), [selectedTransactionIds]);
+  const selectedTransactionCount = selectedTransactionIds.length;
+  const isSelectionMode = selectedTransactionCount > 0;
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === selectedCategoryId) ?? null,
@@ -118,36 +122,117 @@ export default function HomeScreen() {
     setSelectedTagId(null);
   }
 
+  function cancelSelection() {
+    setSelectedTransactionIds([]);
+  }
+
+  function selectTransaction(id: number) {
+    setSelectedTransactionIds((currentIds) => (currentIds.includes(id) ? currentIds : [...currentIds, id]));
+  }
+
+  function toggleTransactionSelection(id: number) {
+    setSelectedTransactionIds((currentIds) =>
+      currentIds.includes(id) ? currentIds.filter((currentId) => currentId !== id) : [...currentIds, id]
+    );
+  }
+
+  async function deleteSelectedTransactions(ids: number[]) {
+    setChartMessage('');
+
+    try {
+      await removeTransactions(ids);
+      setSelectedTransactionIds([]);
+    } catch {
+      setChartMessage('No se pudieron eliminar los registros.');
+    }
+  }
+
+  function handleDeleteSelectedTransactions() {
+    const ids = [...selectedTransactionIds];
+    const count = ids.length;
+    const message =
+      count === 1 ? '¿Quieres eliminar el registro seleccionado?' : `¿Quieres eliminar ${count} registros seleccionados?`;
+
+    if (count === 0) {
+      return;
+    }
+
+    if (Platform.OS === 'web') {
+      if (confirm(message)) {
+        void deleteSelectedTransactions(ids);
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Eliminar registros',
+      message,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => {
+            void deleteSelectedTransactions(ids);
+          },
+        },
+      ]
+    );
+  }
+
+  function handleListPress() {
+    if (isSelectionMode) {
+      cancelSelection();
+    }
+  }
+
+  function handleChartsPress() {
+    if (isSelectionMode) {
+      cancelSelection();
+      return;
+    }
+
+    setChartMessage('Las gráficas se implementarán en una siguiente etapa.');
+  }
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={[styles.phoneSurface, { borderColor: theme.backgroundSelected }]}>
-          <ThemedView style={styles.header}>
-            <IconButton label="Abrir menú" onPress={() => navigation.openDrawer()}>
-              <AppIcon color={theme.text} name="menu" size={30} />
-            </IconButton>
-
-            <View style={styles.headerActions}>
-              <ThemedView type="backgroundSelected" style={styles.searchWrap}>
-                <TextInput
-                  accessibilityLabel="Buscar transacciones por descripción"
-                  onChangeText={setDescriptionSearch}
-                  placeholder="Buscar"
-                  placeholderTextColor={theme.text}
-                  style={[styles.searchInput, { color: theme.text }]}
-                  value={descriptionSearch}
-                />
-              </ThemedView>
-              <IconButton label="Filtrar" selected={hasActiveFilters} onPress={() => setIsFilterOpen(true)}>
-                <AppIcon color={theme.text} name="filter" size={30} />
+          {isSelectionMode ? (
+            <SelectionHeader
+              count={selectedTransactionCount}
+              onCancel={cancelSelection}
+              onDelete={handleDeleteSelectedTransactions}
+            />
+          ) : (
+            <ThemedView style={styles.header}>
+              <IconButton label="Abrir menú" onPress={() => navigation.openDrawer()}>
+                <AppIcon color={theme.text} name="menu" size={30} />
               </IconButton>
-              <ThemedView style={styles.avatar}>
-                <ThemedText type="smallBold" style={styles.avatarText}>
-                  OB
-                </ThemedText>
-              </ThemedView>
-            </View>
-          </ThemedView>
+
+              <View style={styles.headerActions}>
+                <ThemedView type="backgroundSelected" style={styles.searchWrap}>
+                  <TextInput
+                    accessibilityLabel="Buscar transacciones por descripción"
+                    onChangeText={setDescriptionSearch}
+                    placeholder="Buscar"
+                    placeholderTextColor={theme.text}
+                    style={[styles.searchInput, { color: theme.text }]}
+                    value={descriptionSearch}
+                  />
+                </ThemedView>
+                <IconButton label="Filtrar" selected={hasActiveFilters} onPress={() => setIsFilterOpen(true)}>
+                  <AppIcon color={theme.text} name="filter" size={30} />
+                </IconButton>
+                <ThemedView style={styles.avatar}>
+                  <ThemedText type="smallBold" style={styles.avatarText}>
+                    OB
+                  </ThemedText>
+                </ThemedView>
+              </View>
+            </ThemedView>
+          )}
 
           <BalanceSummary
             balance={summary.balance}
@@ -168,7 +253,18 @@ export default function HomeScreen() {
               </ThemedView>
             ) : (
               filteredTransactions.map((transaction) => (
-                <TransactionRow key={transaction.id} transaction={transaction} />
+                <TransactionRow
+                  key={transaction.id}
+                  onLongPress={() => selectTransaction(transaction.id)}
+                  onPress={() => {
+                    if (isSelectionMode) {
+                      toggleTransactionSelection(transaction.id);
+                    }
+                  }}
+                  selected={selectedTransactionIdSet.has(transaction.id)}
+                  selectionMode={isSelectionMode}
+                  transaction={transaction}
+                />
               ))
             )}
           </ScrollView>
@@ -179,23 +275,23 @@ export default function HomeScreen() {
             </ThemedText>
           )}
 
-          <Pressable
-            accessibilityLabel="Agregar registro"
-            onPress={() => router.push('/new-transaction')}
-            style={({ pressed }) => [
-              styles.fab,
-              pressed && styles.fabPressed,
-            ]}>
-            <AppIcon color={AppPalette.foregroundInverse} name="plus" size={36} />
-          </Pressable>
+          {!isSelectionMode && (
+            <Pressable
+              accessibilityLabel="Agregar registro"
+              onPress={() => router.push('/new-transaction')}
+              style={({ pressed }) => [
+                styles.fab,
+                pressed && styles.fabPressed,
+              ]}>
+              <AppIcon color={AppPalette.foregroundInverse} name="plus" size={36} />
+            </Pressable>
+          )}
 
           <ThemedView style={[styles.bottomBar, { borderTopColor: theme.backgroundSelected }]}>
-            <IconButton label="Listado de registros" selected onPress={() => undefined}>
+            <IconButton label="Listado de registros" selected onPress={handleListPress}>
               <AppIcon color={theme.text} name="list" size={34} />
             </IconButton>
-            <IconButton
-              label="Gráficas"
-              onPress={() => setChartMessage('Las gráficas se implementarán en una siguiente etapa.')}>
+            <IconButton label="Gráficas" onPress={handleChartsPress}>
               <AppIcon color={theme.text} name="bar-chart-2" size={34} />
             </IconButton>
           </ThemedView>
@@ -217,39 +313,87 @@ export default function HomeScreen() {
   );
 }
 
-function TransactionRow({ transaction }: { transaction: Transaction }) {
+function TransactionRow({
+  onLongPress,
+  onPress,
+  selected,
+  selectionMode,
+  transaction,
+}: {
+  onLongPress: () => void;
+  onPress: () => void;
+  selected: boolean;
+  selectionMode: boolean;
+  transaction: Transaction;
+}) {
   const theme = useTheme();
 
   return (
-    <ThemedView style={styles.transactionRow}>
-      <TypeIcon color={theme.text} type={transaction.type} />
-      <View style={styles.transactionBody}>
-        <ThemedText type="subtitle" style={styles.amount}>
-          {formatMoney(transaction.amount)}
-        </ThemedText>
-        <View style={styles.metadataRow}>
-          <AppIcon color={theme.textSecondary} name="folder" size={12} style={styles.metadataIcon} />
-          <ThemedText type="small" style={styles.metadataText}>
-            {transaction.category_description}
+    <Pressable
+      accessibilityHint={selectionMode ? 'Toca para alternar selección' : 'Mantén pulsado para seleccionar'}
+      accessibilityLabel={`Registro ${transaction.description || transaction.category_description}`}
+      accessibilityState={{ selected }}
+      delayLongPress={300}
+      onLongPress={onLongPress}
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}>
+      <ThemedView type={selected ? 'backgroundSelected' : 'background'} style={styles.transactionRow}>
+        <TypeIcon color={theme.text} selected={selected} type={transaction.type} />
+        <View style={styles.transactionBody}>
+          <ThemedText type="subtitle" style={styles.amount}>
+            {formatMoney(transaction.amount)}
           </ThemedText>
-        </View>
-        {!!transaction.description && (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
-            {transaction.description}
-          </ThemedText>
-        )}
-        {!!transaction.tags && (
           <View style={styles.metadataRow}>
-            <AppIcon color={theme.textSecondary} name="tag" size={12} style={styles.metadataIcon} />
-            <ThemedText type="small" themeColor="textSecondary" style={[styles.description, styles.metadataText]}>
-              {transaction.tags}
+            <AppIcon color={theme.textSecondary} name="folder" size={12} style={styles.metadataIcon} />
+            <ThemedText type="small" style={styles.metadataText}>
+              {transaction.category_description}
             </ThemedText>
           </View>
-        )}
-      </View>
-      <ThemedText type="smallBold" style={styles.dateText}>
-        {transaction.transaction_date}
+          {!!transaction.description && (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
+              {transaction.description}
+            </ThemedText>
+          )}
+          {!!transaction.tags && (
+            <View style={styles.metadataRow}>
+              <AppIcon color={theme.textSecondary} name="tag" size={12} style={styles.metadataIcon} />
+              <ThemedText type="small" themeColor="textSecondary" style={[styles.description, styles.metadataText]}>
+                {transaction.tags}
+              </ThemedText>
+            </View>
+          )}
+        </View>
+        <ThemedText type="smallBold" style={styles.dateText}>
+          {transaction.transaction_date}
+        </ThemedText>
+      </ThemedView>
+    </Pressable>
+  );
+}
+
+function SelectionHeader({
+  count,
+  onCancel,
+  onDelete,
+}: {
+  count: number;
+  onCancel: () => void;
+  onDelete: () => void;
+}) {
+  const theme = useTheme();
+  const label = count === 1 ? '1 registro seleccionado' : `${count} registros seleccionados`;
+
+  return (
+    <ThemedView type="backgroundSelected" style={styles.selectionHeader}>
+      <FlatIconButton label="Cancelar eliminación" onPress={onCancel}>
+        <AppIcon color={theme.text} name="arrow-left" size={28} />
+      </FlatIconButton>
+      <ThemedText type="smallBold" style={styles.selectionTitle}>
+        {label}
       </ThemedText>
+      <FlatIconButton label="Eliminar registros seleccionados" onPress={onDelete}>
+        <AppIcon color={theme.text} name="trash-2" size={28} />
+      </FlatIconButton>
     </ThemedView>
   );
 }
@@ -413,12 +557,29 @@ function IconButton({
   );
 }
 
-function TypeIcon({ color, type }: { color: string; type: Transaction['type'] }) {
+function FlatIconButton({
+  children,
+  label,
+  onPress,
+}: {
+  children: ReactNode;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.flatIconButton, pressed && styles.pressed]}>
+      {children}
+    </Pressable>
+  );
+}
+
+function TypeIcon({ color, selected, type }: { color: string; selected?: boolean; type: Transaction['type'] }) {
   const iconColor = type === 'income' ? AppPalette.incomeGreen : color;
+  const iconName = selected ? 'check' : type === 'income' ? 'arrow-up' : 'arrow-down';
 
   return (
     <View style={[styles.typeIcon, { borderColor: iconColor }]}>
-      <AppIcon color={iconColor} name={type === 'income' ? 'arrow-up' : 'arrow-down'} size={18} />
+      <AppIcon color={iconColor} name={iconName} size={18} />
     </View>
   );
 }
@@ -456,6 +617,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minWidth: 0,
   },
+  selectionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.two,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.two,
+  },
+  selectionTitle: {
+    flex: 1,
+    textAlign: 'center',
+  },
   searchWrap: {
     alignItems: 'center',
     borderRadius: Spacing.two,
@@ -492,6 +666,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 48,
   },
+  flatIconButton: {
+    alignItems: 'center',
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
   list: {
     flex: 1,
     marginTop: Spacing.three,
@@ -503,9 +683,11 @@ const styles = StyleSheet.create({
   },
   transactionRow: {
     alignItems: 'flex-start',
+    borderRadius: Spacing.two,
     flexDirection: 'row',
     gap: Spacing.two,
     minHeight: 64,
+    padding: Spacing.two,
   },
   transactionBody: {
     flex: 1,

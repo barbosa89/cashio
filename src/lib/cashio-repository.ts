@@ -278,6 +278,20 @@ export async function createTransaction(db: SQLiteDatabase, input: CreateTransac
   });
 }
 
+export async function deleteTransactions(db: SQLiteDatabase, ids: number[]) {
+  const uniqueIds = Array.from(new Set(ids)).filter((id) => Number.isInteger(id) && id > 0);
+
+  if (uniqueIds.length === 0) {
+    return;
+  }
+
+  await db.withTransactionAsync(async () => {
+    for (const id of uniqueIds) {
+      await db.runAsync('DELETE FROM transactions WHERE id = ?', id);
+    }
+  });
+}
+
 export async function listTransactions(db: SQLiteDatabase) {
   return db.getAllAsync<Transaction>(`
     SELECT
