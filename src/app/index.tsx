@@ -62,6 +62,21 @@ function formatMoney(value: number) {
   }).format(value);
 }
 
+function formatCompactMoney(value: number) {
+  const absoluteValue = Math.abs(value);
+  const sign = value < 0 ? '-' : '';
+
+  if (absoluteValue >= 1_000_000) {
+    return `${sign}$ ${(absoluteValue / 1_000_000).toFixed(1)}M`;
+  }
+
+  if (absoluteValue >= 1_000) {
+    return `${sign}$ ${Math.round(absoluteValue / 1_000)}k`;
+  }
+
+  return `${sign}$ ${formatMoney(absoluteValue)}`;
+}
+
 function normalize(value: string) {
   return value.trim().toLocaleLowerCase();
 }
@@ -201,6 +216,33 @@ function getChartDomain(values: number[]): [number, number] {
   const padding = Math.max((max - min) * 0.1, 1);
 
   return [Math.floor(min - padding), Math.ceil(max + padding)];
+}
+
+function getBalanceAxisLabels(domain: [number, number]) {
+  const [min, max] = domain;
+  const middle = min + (max - min) / 2;
+
+  return [max, middle, min].map((value) => Math.round(value));
+}
+
+function getZeroLineTop(domain: [number, number]): DimensionValue | null {
+  const [min, max] = domain;
+
+  if (min >= 0 || max <= 0) {
+    return null;
+  }
+
+  return `${((max - 0) / (max - min)) * 100}%`;
+}
+
+function getMonthStartBalance(dailyData: DailyChartPoint[], openingBalance: number) {
+  const firstDay = dailyData[0];
+
+  if (!firstDay) {
+    return openingBalance;
+  }
+
+  return firstDay.balance - firstDay.income + firstDay.expense;
 }
 
 function transactionMatchesDescriptionSearch(transaction: Transaction, search: string) {
@@ -712,8 +754,11 @@ function MonthlyChartsPanel({
 }) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
-  const chartWidth = Math.max(220, Math.min(320, width - 112));
+  const chartWidth = Math.max(210, Math.min(300, width - 128));
   const lineDomain = getChartDomain(dailyData.map((point) => point.balance));
+  const balanceAxisLabels = getBalanceAxisLabels(lineDomain);
+  const zeroLineTop = getZeroLineTop(lineDomain);
+  const monthStartBalance = getMonthStartBalance(dailyData, summary.openingBalance);
   const pieData = getTopCategoriesWithOther(expenseCategoryData, 5);
   const barData = expenseCategoryData.slice(0, 6);
   const lineColor = summary.balance >= 0 ? AppPalette.incomeGreen : AppPalette.brandOrange;
@@ -739,41 +784,53 @@ function MonthlyChartsPanel({
         <ChartMetric label="Saldo" value={`$ ${formatMoney(summary.balance)}`} />
       </ThemedView>
 
-      <ChartCard title="Balance diario">
-        <View style={styles.chartFrame}>
-          <CartesianChart
-            axisOptions={{
-              formatXLabel: (value) => `${value}`,
-              formatYLabel: (value) => formatMoney(Number(value)),
-              labelColor: theme.textSecondary,
-              lineColor: theme.textSecondary,
-              lineWidth: { frame: 0, grid: 1 },
-              tickCount: { x: 4, y: 4 },
-            }}
-            data={dailyData}
-            domain={{ x: [1, dailyData.length], y: lineDomain }}
-            domainPadding={{ bottom: Spacing.two, left: Spacing.two, right: Spacing.two, top: Spacing.two }}
-            explicitSize={{ height: 190, width: chartWidth }}
-            padding={{ bottom: Spacing.two, left: Spacing.two, right: Spacing.two, top: Spacing.two }}
-            xKey="day"
-            yKeys={['balance']}>
-            {({ points }) => (
-              <Line
-                color={lineColor}
-                curveType="natural"
-                points={points.balance}
-                strokeCap="round"
-                strokeJoin="round"
-                strokeWidth={3}
-              />
+      <ChartCard title="Saldo acumulado diario">
+        <View style={styles.balanceChartRow}>
+          <View style={styles.balanceAxisLabels}>
+            {balanceAxisLabels.map((value, index) => (
+              <ThemedText key={`${value}-${index}`} type="small" themeColor="textSecondary" style={styles.balanceAxisLabel}>
+                {formatCompactMoney(value)}
+              </ThemedText>
+            ))}
+          </View>
+          <View style={[styles.chartFrame, { width: chartWidth }]}>
+            {zeroLineTop && (
+              <View pointerEvents="none" style={[styles.zeroLine, { borderTopColor: theme.textSecondary, top: zeroLineTop }]} />
             )}
-          </CartesianChart>
+            <CartesianChart
+              axisOptions={{
+                formatXLabel: (value) => `${value}`,
+                formatYLabel: () => '',
+                labelColor: theme.textSecondary,
+                lineColor: theme.textSecondary,
+                lineWidth: { frame: 0, grid: 1 },
+                tickCount: { x: 4, y: 4 },
+              }}
+              data={dailyData}
+              domain={{ x: [1, dailyData.length], y: lineDomain }}
+              domainPadding={{ bottom: Spacing.two, left: Spacing.two, right: Spacing.two, top: Spacing.two }}
+              explicitSize={{ height: 190, width: chartWidth }}
+              padding={{ bottom: Spacing.two, left: Spacing.two, right: Spacing.two, top: Spacing.two }}
+              xKey="day"
+              yKeys={['balance']}>
+              {({ points }) => (
+                <Line
+                  color={lineColor}
+                  curveType="natural"
+                  points={points.balance}
+                  strokeCap="round"
+                  strokeJoin="round"
+                  strokeWidth={3}
+                />
+              )}
+            </CartesianChart>
+          </View>
         </View>
         <View style={styles.chartFooter}>
           <ThemedText type="small" themeColor="textSecondary">
-            Día 1
+            Inicio: {formatCompactMoney(monthStartBalance)}
           </ThemedText>
-          <ThemedText type="smallBold">$ {formatMoney(summary.balance)}</ThemedText>
+          <ThemedText type="smallBold">Final: $ {formatMoney(summary.balance)}</ThemedText>
         </View>
       </ChartCard>
 
@@ -1268,15 +1325,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
   },
+  balanceChartRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.one,
+    justifyContent: 'center',
+  },
+  balanceAxisLabels: {
+    height: 174,
+    justifyContent: 'space-between',
+    width: 42,
+  },
+  balanceAxisLabel: {
+    fontSize: 9,
+    lineHeight: 11,
+    textAlign: 'right',
+  },
   chartFrame: {
     alignItems: 'center',
     minHeight: 180,
     overflow: 'hidden',
+    position: 'relative',
   },
   chartFooter: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  zeroLine: {
+    borderTopWidth: 2,
+    left: 0,
+    opacity: 0.65,
+    position: 'absolute',
+    right: 0,
+    zIndex: 1,
   },
   pieChartRow: {
     alignItems: 'center',
