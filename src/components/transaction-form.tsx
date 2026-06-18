@@ -7,6 +7,7 @@ import {
     type ReactNode,
 } from "react";
 import {
+    Platform,
     Pressable,
     StyleSheet,
     TextInput,
@@ -14,6 +15,9 @@ import {
     type StyleProp,
     type ViewStyle,
 } from "react-native";
+import DateTimePicker, {
+  DateTimePickerAndroid,
+} from "@react-native-community/datetimepicker";
 import CurrencyInput from "react-native-currency-input";
 import DropDownPicker, {
   type ItemType,
@@ -51,6 +55,23 @@ function canUseCategory(category: Category, transactionType: TransactionType) {
   );
 }
 
+function formatDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateValue(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return new Date();
+  }
+
+  return new Date(year, month - 1, day);
+}
+
 export const TransactionForm = forwardRef<TransactionFormHandle, TransactionFormProps>(
 function TransactionForm({ onSaved }, ref) {
   const theme = useTheme();
@@ -61,7 +82,10 @@ function TransactionForm({ onSaved }, ref) {
   const [amount, setAmount] = useState<number | null>(null);
   const [description, setDescription] = useState("");
   const [transactionDate, setTransactionDate] = useState(() =>
-    new Date().toISOString().slice(0, 10),
+    formatDateValue(new Date()),
+  );
+  const [draftTransactionDate, setDraftTransactionDate] = useState(() =>
+    new Date(),
   );
   const [categorySearch, setCategorySearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
@@ -71,6 +95,7 @@ function TransactionForm({ onSaved }, ref) {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isTagsOpen, setIsTagsOpen] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const selectedTagBadgeBackground = theme.text;
@@ -148,9 +173,12 @@ function TransactionForm({ onSaved }, ref) {
     setTagSearch("");
     setIsCategoryOpen(false);
     setIsTagsOpen(false);
+    setIsDatePickerOpen(false);
     setMessage("");
     setIsSaving(false);
-    setTransactionDate(new Date().toISOString().slice(0, 10));
+    const today = new Date();
+    setDraftTransactionDate(today);
+    setTransactionDate(formatDateValue(today));
   }
 
   useImperativeHandle(ref, () => ({ reset: resetForm }));
@@ -308,6 +336,33 @@ function TransactionForm({ onSaved }, ref) {
     setIsTagsOpen(false);
   }
 
+  function openDatePicker() {
+    closeDropdowns();
+    const currentDate = parseDateValue(transactionDate);
+
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        display: "default",
+        mode: "date",
+        onDismiss: () => undefined,
+        onNeutralButtonPress: () => undefined,
+        onValueChange: (_event, selectedDate) => {
+          setTransactionDate(formatDateValue(selectedDate));
+        },
+        value: currentDate,
+      });
+      return;
+    }
+
+    setDraftTransactionDate(currentDate);
+    setIsDatePickerOpen(true);
+  }
+
+  function applyDraftDate() {
+    setTransactionDate(formatDateValue(draftTransactionDate));
+    setIsDatePickerOpen(false);
+  }
+
   return (
     <ThemedView type="backgroundElement" style={styles.panel}>
       {(isCategoryOpen || isTagsOpen) && (
@@ -350,6 +405,54 @@ function TransactionForm({ onSaved }, ref) {
         />
       </Field>
 
+      <Field label="Fecha">
+        <Pressable
+          accessibilityLabel="Seleccionar fecha de la transacción"
+          onPress={openDatePicker}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <View
+            style={[
+              styles.dateInput,
+              { borderColor: theme.backgroundSelected },
+            ]}
+          >
+            <ThemedText style={styles.dateInputText}>
+              {transactionDate}
+            </ThemedText>
+            <AppIcon color={theme.text} name="calendar" size={20} />
+          </View>
+        </Pressable>
+        {isDatePickerOpen && Platform.OS === "ios" && (
+          <ThemedView type="background" style={styles.datePickerPanel}>
+            <DateTimePicker
+              display="spinner"
+              mode="date"
+              onValueChange={(_event, selectedDate) =>
+                setDraftTransactionDate(selectedDate)
+              }
+              value={draftTransactionDate}
+            />
+            <View style={styles.datePickerActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setIsDatePickerOpen(false)}
+                style={({ pressed }) => [styles.datePickerAction, pressed && styles.pressed]}
+              >
+                <ThemedText type="smallBold">Cancelar</ThemedText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={applyDraftDate}
+                style={({ pressed }) => [styles.datePickerAction, pressed && styles.pressed]}
+              >
+                <ThemedText type="smallBold">Aplicar</ThemedText>
+              </Pressable>
+            </View>
+          </ThemedView>
+        )}
+      </Field>
+
       <Field label="Descripción">
         <TextInput
           onChangeText={setDescription}
@@ -360,19 +463,6 @@ function TransactionForm({ onSaved }, ref) {
             { color: theme.text, borderColor: theme.backgroundSelected },
           ]}
           value={description}
-        />
-      </Field>
-
-      <Field label="Fecha">
-        <TextInput
-          onChangeText={setTransactionDate}
-          placeholder="AAAA-MM-DD"
-          placeholderTextColor={theme.textSecondary}
-          style={[
-            styles.input,
-            { color: theme.text, borderColor: theme.backgroundSelected },
-          ]}
-          value={transactionDate}
         />
       </Field>
 
@@ -747,6 +837,35 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     fontSize: 16,
     minHeight: 44,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  dateInput: {
+    alignItems: "center",
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 44,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  dateInputText: {
+    fontSize: 16,
+  },
+  datePickerPanel: {
+    borderRadius: Spacing.two,
+    overflow: "hidden",
+    paddingBottom: Spacing.two,
+  },
+  datePickerActions: {
+    flexDirection: "row",
+    gap: Spacing.two,
+    justifyContent: "flex-end",
+    paddingHorizontal: Spacing.two,
+  },
+  datePickerAction: {
+    borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
