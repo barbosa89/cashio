@@ -1105,7 +1105,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.two,
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three,
     paddingTop: Spacing.four,
   },
   headerActions: {
