@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "cashio",
+    "name": "Cash IO",
     "slug": "cashio",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,7 +8,8 @@
     "scheme": "cashio",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.omarbarbosa.cashio"
     },
     "android": {
       "adaptiveIcon": {
@@ -37,9 +38,13 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#208AEF",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
           "android": {
             "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
+            "imageWidth": 200,
+            "resizeMode": "contain"
           }
         }
       ],
