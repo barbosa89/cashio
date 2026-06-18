@@ -33,7 +33,17 @@ export type Transaction = {
   updated_at: string;
 };
 
-const DATABASE_VERSION = 1;
+export type SettingValueType = 'boolean' | 'number' | 'string' | 'json';
+
+export type SettingRow = {
+  key: string;
+  value: string;
+  value_type: SettingValueType;
+  created_at: string;
+  updated_at: string;
+};
+
+const DATABASE_VERSION = 2;
 
 const DEFAULT_CATEGORIES: Array<{ description: string; type: CategoryType }> = [
   { description: 'Alimentación', type: 'expense' },
@@ -123,6 +133,31 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     }
 
     currentDbVersion = 1;
+  }
+
+  if (currentDbVersion === 1) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        value_type TEXT NOT NULL CHECK(value_type IN ('boolean', 'number', 'string', 'json')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    const now = new Date().toISOString();
+    await db.runAsync(
+      `INSERT OR IGNORE INTO settings (key, value, value_type, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      'accumulate_previous_balances',
+      'false',
+      'boolean',
+      now,
+      now
+    );
+
+    currentDbVersion = 2;
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

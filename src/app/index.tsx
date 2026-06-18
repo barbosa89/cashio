@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AppPalette, BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useCashioData } from '@/hooks/use-cashio-data';
+import { useCashioSettings } from '@/hooks/use-cashio-settings';
 import { useTheme } from '@/hooks/use-theme';
 import type { Category, Tag, Transaction } from '@/lib/database';
 
@@ -32,6 +33,13 @@ type CategoryChartPoint = {
   amount: number;
   color: string;
   label: string;
+};
+
+type MonthlySummary = {
+  balance: number;
+  expense: number;
+  income: number;
+  openingBalance: number;
 };
 
 const MONTH_SWIPE_THRESHOLD = 72;
@@ -73,6 +81,10 @@ function formatMonthPrefix(visibleMonth: VisibleMonth) {
   return `${visibleMonth.year}-${month}-`;
 }
 
+function formatMonthStart(visibleMonth: VisibleMonth) {
+  return `${formatMonthPrefix(visibleMonth)}01`;
+}
+
 function formatMonthLabel(visibleMonth: VisibleMonth) {
   const date = new Date(visibleMonth.year, visibleMonth.month - 1, 1);
   const month = new Intl.DateTimeFormat('es-CO', { month: 'long' }).format(date);
@@ -88,7 +100,11 @@ function getTransactionDay(transaction: Transaction) {
   return Number(transaction.transaction_date.slice(8, 10));
 }
 
-function buildDailyChartData(monthTransactions: Transaction[], visibleMonth: VisibleMonth): DailyChartPoint[] {
+function buildDailyChartData(
+  monthTransactions: Transaction[],
+  visibleMonth: VisibleMonth,
+  openingBalance: number
+): DailyChartPoint[] {
   const days = Array.from({ length: getDaysInMonth(visibleMonth) }, (_, index) => ({
     balance: 0,
     day: index + 1,
@@ -111,7 +127,7 @@ function buildDailyChartData(monthTransactions: Transaction[], visibleMonth: Vis
     }
   }
 
-  let runningBalance = 0;
+  let runningBalance = openingBalance;
   return days.map((point) => {
     runningBalance += point.income - point.expense;
 
@@ -200,6 +216,7 @@ export default function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<{ openDrawer: () => void }>();
   const { categories, removeTransactions, tags, transactions } = useCashioData();
+  const { settings } = useCashioSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [descriptionSearch, setDescriptionSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -209,7 +226,9 @@ export default function HomeScreen() {
   const [activeView, setActiveView] = useState<ActiveView>('list');
   const [inlineMessage, setInlineMessage] = useState('');
   const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
+  const visibleMonthStart = formatMonthStart(visibleMonth);
   const visibleMonthLabel = formatMonthLabel(visibleMonth);
+  const shouldAccumulatePreviousBalances = settings.accumulatePreviousBalances;
   const selectedTransactionIdSet = useMemo(() => new Set(selectedTransactionIds), [selectedTransactionIds]);
   const selectedTransactionCount = selectedTransactionIds.length;
   const isSelectionMode = selectedTransactionCount > 0;
@@ -228,6 +247,20 @@ export default function HomeScreen() {
     () => transactions.filter((transaction) => transaction.transaction_date.startsWith(visibleMonthPrefix)),
     [transactions, visibleMonthPrefix]
   );
+
+  const openingBalance = useMemo(() => {
+    if (!shouldAccumulatePreviousBalances) {
+      return 0;
+    }
+
+    return transactions.reduce((total, transaction) => {
+      if (transaction.transaction_date >= visibleMonthStart) {
+        return total;
+      }
+
+      return total + (transaction.type === 'income' ? transaction.amount : -transaction.amount);
+    }, 0);
+  }, [shouldAccumulatePreviousBalances, transactions, visibleMonthStart]);
 
   const filteredTransactions = useMemo(
     () =>
@@ -250,17 +283,17 @@ export default function HomeScreen() {
             totals.expense += transaction.amount;
           }
 
-          totals.balance = totals.income - totals.expense;
+          totals.balance = totals.openingBalance + totals.income - totals.expense;
           return totals;
         },
-        { balance: 0, expense: 0, income: 0 }
+        { balance: openingBalance, expense: 0, income: 0, openingBalance }
       ),
-    [monthlyTransactions]
+    [monthlyTransactions, openingBalance]
   );
 
   const dailyChartData = useMemo(
-    () => buildDailyChartData(monthlyTransactions, visibleMonth),
-    [monthlyTransactions, visibleMonth]
+    () => buildDailyChartData(monthlyTransactions, visibleMonth, openingBalance),
+    [monthlyTransactions, openingBalance, visibleMonth]
   );
 
   const expenseCategoryData = useMemo(
@@ -429,6 +462,8 @@ export default function HomeScreen() {
             expense={summary.expense}
             income={summary.income}
             monthLabel={visibleMonthLabel}
+            openingBalance={summary.openingBalance}
+            showOpeningBalance={shouldAccumulatePreviousBalances}
           />
 
           <GestureDetector gesture={monthSwipeGesture}>
@@ -606,12 +641,18 @@ function BalanceSummary({
   expense,
   income,
   monthLabel,
+  openingBalance,
+  showOpeningBalance,
 }: {
   balance: number;
   expense: number;
   income: number;
   monthLabel: string;
+  openingBalance: number;
+  showOpeningBalance: boolean;
 }) {
+  const theme = useTheme();
+
   return (
     <View style={styles.summaryWrap}>
       <ThemedText type="smallBold" style={styles.summaryMonth}>
@@ -626,6 +667,16 @@ function BalanceSummary({
             $ {formatMoney(balance)}
           </ThemedText>
         </View>
+        {showOpeningBalance && (
+          <View style={[styles.summaryOpeningRow, { borderTopColor: theme.textSecondary }]}>
+            <ThemedText type="smallBold" style={styles.summaryDetail}>
+              Saldo anterior
+            </ThemedText>
+            <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
+              $ {formatMoney(openingBalance)}
+            </ThemedText>
+          </View>
+        )}
         <View style={styles.summaryDetailRow}>
           <ThemedText type="smallBold" style={styles.summaryDetail}>
             Ingresos: $ {formatMoney(income)}
@@ -648,7 +699,7 @@ function MonthlyChartsPanel({
   dailyData: DailyChartPoint[];
   expenseCategoryData: CategoryChartPoint[];
   monthTransactionCount: number;
-  summary: { balance: number; expense: number; income: number };
+  summary: MonthlySummary;
 }) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
@@ -659,7 +710,7 @@ function MonthlyChartsPanel({
   const maxExpenseCategory = barData[0]?.amount ?? 0;
   const lineColor = summary.balance >= 0 ? AppPalette.incomeGreen : AppPalette.brandOrange;
 
-  if (monthTransactionCount === 0) {
+  if (monthTransactionCount === 0 && summary.openingBalance === 0) {
     return (
       <ThemedView style={styles.emptyState}>
         <ThemedText type="subtitle" style={styles.emptyTitle}>
@@ -1318,10 +1369,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.two,
   },
+  summaryOpeningRow: {
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    paddingTop: Spacing.half,
+  },
   summaryDetail: {
     flexShrink: 1,
     fontSize: 12,
     lineHeight: 16,
+  },
+  summaryDetailAmount: {
+    flexShrink: 0,
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'right',
   },
   bottomBar: {
     alignItems: 'center',
