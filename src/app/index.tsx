@@ -1,10 +1,21 @@
 import { router, useNavigation } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
+import {
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  useWindowDimensions,
+  type DimensionValue,
+} from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CartesianChart, HorizontalBar, Line, Pie, PolarChart } from 'victory-native';
+import { CartesianChart, Line, Pie, PolarChart } from 'victory-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
@@ -705,7 +716,6 @@ function MonthlyChartsPanel({
   const lineDomain = getChartDomain(dailyData.map((point) => point.balance));
   const pieData = getTopCategoriesWithOther(expenseCategoryData, 5);
   const barData = expenseCategoryData.slice(0, 6);
-  const maxExpenseCategory = barData[0]?.amount ?? 0;
   const lineColor = summary.balance >= 0 ? AppPalette.incomeGreen : AppPalette.brandOrange;
 
   if (monthTransactionCount === 0 && summary.openingBalance === 0) {
@@ -795,39 +805,46 @@ function MonthlyChartsPanel({
           </ChartCard>
 
           <ChartCard title="Top categorías">
-            <View style={styles.chartFrame}>
-              <CartesianChart
-                axisOptions={{
-                  formatXLabel: (value) => formatMoney(Number(value)),
-                  labelColor: theme.textSecondary,
-                  lineColor: theme.textSecondary,
-                  lineWidth: { frame: 0, grid: 1 },
-                  tickCount: { x: 3, y: Math.min(barData.length, 6) },
-                }}
-                data={barData}
-                domain={{ x: [0, Math.max(maxExpenseCategory, 1)] }}
-                domainPadding={{ bottom: Spacing.three, left: Spacing.two, right: Spacing.two, top: Spacing.three }}
-                explicitSize={{ height: Math.max(180, barData.length * 38), width: chartWidth }}
-                orientation="horizontal"
-                padding={{ bottom: Spacing.two, left: Spacing.two, right: Spacing.two, top: Spacing.two }}
-                xKey="label"
-                yKeys={['amount']}>
-                {({ chartBounds, points }) => (
-                  <HorizontalBar
-                    barCount={barData.length}
-                    chartBounds={chartBounds}
-                    color={AppPalette.brandOrange}
-                    innerPadding={0.36}
-                    points={points.amount}
-                    roundedCorners={{ bottomRight: 6, topRight: 6 }}
-                  />
-                )}
-              </CartesianChart>
-            </View>
-            <ChartLegend data={barData} total={summary.expense} />
+            <TopCategoryBars data={barData} total={summary.expense} />
           </ChartCard>
         </>
       )}
+    </View>
+  );
+}
+
+function TopCategoryBars({ data, total }: { data: CategoryChartPoint[]; total: number }) {
+  const theme = useTheme();
+  const maxAmount = Math.max(...data.map((item) => item.amount), 1);
+
+  return (
+    <View style={styles.topCategoryList}>
+      {data.map((item) => {
+        const percentage = total > 0 ? Math.round((item.amount / total) * 100) : 0;
+        const barWidth: DimensionValue = `${Math.max((item.amount / maxAmount) * 100, 4)}%`;
+
+        return (
+          <View key={item.label} style={styles.topCategoryItem}>
+            <View style={styles.topCategoryHeader}>
+              <View style={styles.topCategoryLabelWrap}>
+                <View style={[styles.chartLegendSwatch, { backgroundColor: item.color }]} />
+                <ThemedText type="smallBold" style={styles.topCategoryLabel} numberOfLines={1}>
+                  {item.label}
+                </ThemedText>
+              </View>
+              <ThemedText type="smallBold" style={styles.topCategoryAmount}>
+                $ {formatMoney(item.amount)}
+              </ThemedText>
+            </View>
+            <View style={[styles.topCategoryTrack, { backgroundColor: theme.background }]}>
+              <View style={[styles.topCategoryBar, { backgroundColor: item.color, width: barWidth }]} />
+            </View>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.topCategoryPercent}>
+              {percentage}%
+            </ThemedText>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -1286,6 +1303,46 @@ const styles = StyleSheet.create({
   },
   chartLegendValue: {
     minWidth: 42,
+    textAlign: 'right',
+  },
+  topCategoryList: {
+    gap: Spacing.three,
+  },
+  topCategoryItem: {
+    gap: Spacing.one,
+  },
+  topCategoryHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.two,
+    justifyContent: 'space-between',
+  },
+  topCategoryLabelWrap: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: Spacing.two,
+    minWidth: 0,
+  },
+  topCategoryLabel: {
+    flex: 1,
+    minWidth: 0,
+  },
+  topCategoryAmount: {
+    flexShrink: 0,
+    textAlign: 'right',
+  },
+  topCategoryTrack: {
+    borderRadius: 6,
+    height: 10,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  topCategoryBar: {
+    borderRadius: 6,
+    height: '100%',
+  },
+  topCategoryPercent: {
     textAlign: 'right',
   },
   transactionRow: {
