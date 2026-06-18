@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppIcon } from "@/components/app-icon";
-import { CashioLogo } from "@/components/cashio-logo";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { AppPalette, Spacing } from "@/constants/theme";
@@ -125,8 +124,6 @@ export default function BackupScreen() {
           ]}
         >
           <ScrollView contentContainerStyle={styles.content}>
-            <CashioLogo />
-
             <ThemedView style={styles.titleRow}>
               <Pressable
                 accessibilityLabel="Volver al índice de transacciones"
