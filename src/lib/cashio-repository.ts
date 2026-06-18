@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { Category, CategoryType, Tag, Transaction, TransactionType } from '@/lib/database';
+import type { Category, CategoryType, MonthlySummaryRow, Tag, Transaction, TransactionType } from '@/lib/database';
 
 export type SaveCategoryInput = {
   description: string;
@@ -45,6 +45,55 @@ function assertDescription(description: string, entity: 'categoría' | 'tag') {
     throw new CashioValidationError(`El nombre del ${entity} no puede estar vacío.`);
   }
   return normalized;
+}
+
+function getTransactionMonth(transactionDate: string) {
+  return transactionDate.slice(0, 7);
+}
+
+export async function recalculateMonthlySummary(db: SQLiteDatabase, month: string) {
+  const summary = await db.getFirstAsync<{
+    income_total: number;
+    expense_total: number;
+    net_total: number;
+    transaction_count: number;
+  }>(
+    `
+      SELECT
+        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income_total,
+        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS expense_total,
+        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) AS net_total,
+        COUNT(*) AS transaction_count
+      FROM transactions
+      WHERE substr(transaction_date, 1, 7) = ?
+    `,
+    month
+  );
+
+  if (!summary || summary.transaction_count === 0) {
+    await db.runAsync('DELETE FROM monthly_summaries WHERE month = ?', month);
+    return;
+  }
+
+  await db.runAsync(
+    `
+      INSERT INTO monthly_summaries
+        (month, income_total, expense_total, net_total, transaction_count, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(month) DO UPDATE SET
+        income_total = excluded.income_total,
+        expense_total = excluded.expense_total,
+        net_total = excluded.net_total,
+        transaction_count = excluded.transaction_count,
+        updated_at = excluded.updated_at
+    `,
+    month,
+    summary.income_total,
+    summary.expense_total,
+    summary.net_total,
+    summary.transaction_count,
+    nowIso()
+  );
 }
 
 export async function listCategories(db: SQLiteDatabase, search = '') {
@@ -275,6 +324,8 @@ export async function createTransaction(db: SQLiteDatabase, input: CreateTransac
         tagId
       );
     }
+
+    await recalculateMonthlySummary(db, getTransactionMonth(input.transactionDate));
   });
 }
 
@@ -286,10 +337,37 @@ export async function deleteTransactions(db: SQLiteDatabase, ids: number[]) {
   }
 
   await db.withTransactionAsync(async () => {
+    const placeholders = uniqueIds.map(() => '?').join(', ');
+    const affectedRows = await db.getAllAsync<{ transaction_date: string }>(
+      `SELECT transaction_date FROM transactions WHERE id IN (${placeholders})`,
+      ...uniqueIds
+    );
+    const affectedMonths = Array.from(
+      new Set(affectedRows.map((row) => getTransactionMonth(row.transaction_date)))
+    );
+
     for (const id of uniqueIds) {
       await db.runAsync('DELETE FROM transactions WHERE id = ?', id);
     }
+
+    for (const month of affectedMonths) {
+      await recalculateMonthlySummary(db, month);
+    }
   });
+}
+
+export async function listMonthlySummaries(db: SQLiteDatabase) {
+  return db.getAllAsync<MonthlySummaryRow>(`
+    SELECT
+      month,
+      income_total,
+      expense_total,
+      net_total,
+      transaction_count,
+      updated_at
+    FROM monthly_summaries
+    ORDER BY month ASC
+  `);
 }
 
 export async function listTransactions(db: SQLiteDatabase) {

@@ -33,6 +33,15 @@ export type Transaction = {
   updated_at: string;
 };
 
+export type MonthlySummaryRow = {
+  month: string;
+  income_total: number;
+  expense_total: number;
+  net_total: number;
+  transaction_count: number;
+  updated_at: string;
+};
+
 export type SettingValueType = 'boolean' | 'number' | 'string' | 'json';
 
 export type SettingRow = {
@@ -43,7 +52,7 @@ export type SettingRow = {
   updated_at: string;
 };
 
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 const DEFAULT_CATEGORIES: Array<{ description: string; type: CategoryType }> = [
   { description: 'Alimentación', type: 'expense' },
@@ -158,6 +167,39 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     );
 
     currentDbVersion = 2;
+  }
+
+  if (currentDbVersion === 2) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS monthly_summaries (
+        month TEXT PRIMARY KEY,
+        income_total REAL NOT NULL,
+        expense_total REAL NOT NULL,
+        net_total REAL NOT NULL,
+        transaction_count INTEGER NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    const now = new Date().toISOString();
+    await db.runAsync(
+      `
+        INSERT OR REPLACE INTO monthly_summaries
+          (month, income_total, expense_total, net_total, transaction_count, updated_at)
+        SELECT
+          substr(transaction_date, 1, 7) AS month,
+          COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income_total,
+          COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS expense_total,
+          COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) AS net_total,
+          COUNT(*) AS transaction_count,
+          ? AS updated_at
+        FROM transactions
+        GROUP BY substr(transaction_date, 1, 7)
+      `,
+      now
+    );
+
+    currentDbVersion = 3;
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

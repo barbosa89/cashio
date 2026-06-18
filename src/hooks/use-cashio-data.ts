@@ -10,6 +10,7 @@ import {
   deleteTag,
   deleteTransactions,
   listCategories,
+  listMonthlySummaries,
   listTags,
   listTransactions,
   updateCategory,
@@ -18,23 +19,26 @@ import {
   type SaveCategoryInput,
   type SaveTagInput,
 } from '@/lib/cashio-repository';
-import type { Category, Tag, Transaction } from '@/lib/database';
+import type { Category, MonthlySummaryRow, Tag, Transaction } from '@/lib/database';
 
 export function useCashioData() {
   const db = useSQLiteContext();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [monthlySummaries, setMonthlySummaries] = useState<MonthlySummaryRow[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [nextCategories, nextTags, nextTransactions] = await Promise.all([
+    const [nextCategories, nextTags, nextTransactions, nextMonthlySummaries] = await Promise.all([
       listCategories(db),
       listTags(db),
       listTransactions(db),
+      listMonthlySummaries(db),
     ]);
 
     setCategories(nextCategories);
+    setMonthlySummaries(nextMonthlySummaries);
     setTags(nextTags);
     setTransactions(nextTransactions);
     setIsLoading(false);
@@ -114,6 +118,7 @@ export function useCashioData() {
 
   return {
     categories,
+    monthlySummaries,
     tags,
     transactions,
     isLoading,

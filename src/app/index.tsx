@@ -81,8 +81,8 @@ function formatMonthPrefix(visibleMonth: VisibleMonth) {
   return `${visibleMonth.year}-${month}-`;
 }
 
-function formatMonthStart(visibleMonth: VisibleMonth) {
-  return `${formatMonthPrefix(visibleMonth)}01`;
+function formatMonthKey(visibleMonth: VisibleMonth) {
+  return formatMonthPrefix(visibleMonth).slice(0, 7);
 }
 
 function formatMonthLabel(visibleMonth: VisibleMonth) {
@@ -215,7 +215,7 @@ function transactionMatchesTag(transaction: Transaction, tag: Tag | null) {
 export default function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<{ openDrawer: () => void }>();
-  const { categories, removeTransactions, tags, transactions } = useCashioData();
+  const { categories, monthlySummaries, removeTransactions, tags, transactions } = useCashioData();
   const { settings } = useCashioSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [descriptionSearch, setDescriptionSearch] = useState('');
@@ -226,7 +226,7 @@ export default function HomeScreen() {
   const [activeView, setActiveView] = useState<ActiveView>('list');
   const [inlineMessage, setInlineMessage] = useState('');
   const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
-  const visibleMonthStart = formatMonthStart(visibleMonth);
+  const visibleMonthKey = formatMonthKey(visibleMonth);
   const visibleMonthLabel = formatMonthLabel(visibleMonth);
   const shouldAccumulatePreviousBalances = settings.accumulatePreviousBalances;
   const selectedTransactionIdSet = useMemo(() => new Set(selectedTransactionIds), [selectedTransactionIds]);
@@ -248,19 +248,22 @@ export default function HomeScreen() {
     [transactions, visibleMonthPrefix]
   );
 
+  const visibleMonthSummary = useMemo(
+    () => monthlySummaries.find((monthlySummary) => monthlySummary.month === visibleMonthKey) ?? null,
+    [monthlySummaries, visibleMonthKey]
+  );
+
   const openingBalance = useMemo(() => {
     if (!shouldAccumulatePreviousBalances) {
       return 0;
     }
 
-    return transactions.reduce((total, transaction) => {
-      if (transaction.transaction_date >= visibleMonthStart) {
-        return total;
-      }
-
-      return total + (transaction.type === 'income' ? transaction.amount : -transaction.amount);
-    }, 0);
-  }, [shouldAccumulatePreviousBalances, transactions, visibleMonthStart]);
+    return monthlySummaries.reduce(
+      (total, monthlySummary) =>
+        monthlySummary.month < visibleMonthKey ? total + monthlySummary.net_total : total,
+      0
+    );
+  }, [monthlySummaries, shouldAccumulatePreviousBalances, visibleMonthKey]);
 
   const filteredTransactions = useMemo(
     () =>
@@ -273,23 +276,18 @@ export default function HomeScreen() {
     [descriptionSearch, monthlyTransactions, selectedCategory, selectedTag]
   );
 
-  const summary = useMemo(
-    () =>
-      monthlyTransactions.reduce(
-        (totals, transaction) => {
-          if (transaction.type === 'income') {
-            totals.income += transaction.amount;
-          } else {
-            totals.expense += transaction.amount;
-          }
+  const summary = useMemo<MonthlySummary>(() => {
+    const income = visibleMonthSummary?.income_total ?? 0;
+    const expense = visibleMonthSummary?.expense_total ?? 0;
+    const net = visibleMonthSummary?.net_total ?? 0;
 
-          totals.balance = totals.openingBalance + totals.income - totals.expense;
-          return totals;
-        },
-        { balance: openingBalance, expense: 0, income: 0, openingBalance }
-      ),
-    [monthlyTransactions, openingBalance]
-  );
+    return {
+      balance: openingBalance + net,
+      expense,
+      income,
+      openingBalance,
+    };
+  }, [openingBalance, visibleMonthSummary]);
 
   const dailyChartData = useMemo(
     () => buildDailyChartData(monthlyTransactions, visibleMonth, openingBalance),
