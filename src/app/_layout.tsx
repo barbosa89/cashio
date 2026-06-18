@@ -1,4 +1,5 @@
 import "react-native-gesture-handler";
+import "@/lib/backup/backup-scheduler";
 
 import { useFonts } from "expo-font";
 import {
@@ -15,7 +16,7 @@ import {
 } from "expo-router/drawer";
 import { SQLiteProvider } from "expo-sqlite";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
-import { Platform, Pressable, StyleSheet, useColorScheme } from "react-native";
+import { Alert, LogBox, Platform, Pressable, StyleSheet, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AnimatedSplashOverlay } from "@/components/animated-icon";
@@ -25,7 +26,15 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { restoreLatestBackup, runOpportunisticBackup } from "@/lib/backup/backup-service";
+import { syncBackupTaskRegistration } from "@/lib/backup/backup-scheduler";
+import { hasSeenRestorePrompt, markRestorePromptSeen } from "@/lib/backup/storage";
 import { migrateDatabase } from "@/lib/database";
+
+LogBox.ignoreLogs([
+  "[react-native-skia] SkPath.",
+  "SafeAreaView has been deprecated and will be removed in a future release.",
+]);
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -57,6 +66,7 @@ export default function TabLayout() {
           <Drawer.Screen name="index" options={{ title: "Inicio" }} />
           <Drawer.Screen name="categories" options={{ title: "Categorías" }} />
           <Drawer.Screen name="tags" options={{ title: "Tags" }} />
+          <Drawer.Screen name="backup" options={{ title: "Copia de seguridad" }} />
           <Drawer.Screen
             name="explore"
             options={{
@@ -82,7 +92,7 @@ function CashioDrawerContent(props: DrawerContentComponentProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  function navigateTo(path: "/" | "/categories" | "/tags") {
+  function navigateTo(path: "/" | "/categories" | "/tags" | "/backup") {
     props.navigation.closeDrawer();
     router.push(path);
   }
@@ -121,6 +131,12 @@ function CashioDrawerContent(props: DrawerContentComponentProps) {
         label="Tags"
         onPress={() => navigateTo("/tags")}
       />
+      <DrawerMenuItem
+        active={pathname.startsWith("/backup")}
+        icon="cloud"
+        label="Copia de seguridad"
+        onPress={() => navigateTo("/backup")}
+      />
     </DrawerContentScrollView>
   );
 }
@@ -132,7 +148,7 @@ function DrawerMenuItem({
   onPress,
 }: {
   active: boolean;
-  icon: "folder" | "home" | "tag";
+  icon: "cloud" | "folder" | "home" | "tag";
   label: string;
   onPress: () => void;
 }) {
@@ -170,12 +186,82 @@ function DrawerMenuItem({
 
 function DatabaseProvider({ children }: { children: ReactNode }) {
   const [canUseDatabase, setCanUseDatabase] = useState(Platform.OS !== "web");
+  const [isRestoreGateReady, setIsRestoreGateReady] = useState(Platform.OS === "web");
 
   useEffect(() => {
     setCanUseDatabase(true);
   }, []);
 
-  if (!canUseDatabase) {
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function continueWithoutRestore() {
+      await markRestorePromptSeen();
+      if (isMounted) {
+        setIsRestoreGateReady(true);
+      }
+    }
+
+    async function restoreBackup() {
+      try {
+        await restoreLatestBackup();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "No se pudo restaurar la copia de seguridad.";
+        Alert.alert("No se pudo restaurar", message);
+      } finally {
+        await markRestorePromptSeen();
+        if (isMounted) {
+          setIsRestoreGateReady(true);
+        }
+      }
+    }
+
+    async function maybeAskForRestore() {
+      if (await hasSeenRestorePrompt()) {
+        setIsRestoreGateReady(true);
+        return;
+      }
+
+      Alert.alert(
+        "Restaurar copia de seguridad",
+        "¿Deseas buscar y restaurar una copia de seguridad antes de iniciar Cash IO?",
+        [
+          {
+            onPress: () => void continueWithoutRestore(),
+            style: "cancel",
+            text: "Omitir",
+          },
+          {
+            onPress: () => void restoreBackup(),
+            text: "Restaurar",
+          },
+        ],
+        { cancelable: false }
+      );
+    }
+
+    void maybeAskForRestore();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!canUseDatabase || !isRestoreGateReady || Platform.OS === "web") {
+      return;
+    }
+
+    void syncBackupTaskRegistration().catch(() => undefined);
+    void runOpportunisticBackup().catch(() => undefined);
+  }, [canUseDatabase, isRestoreGateReady]);
+
+  if (!canUseDatabase || !isRestoreGateReady) {
     return null;
   }
 

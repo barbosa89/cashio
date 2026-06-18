@@ -48,7 +48,23 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-background-task",
+      [
+        "react-native-cloud-store",
+        {
+          "iCloud": {
+            "documents": [
+              {
+                "containerId": "iCloud.com.omarbarbosa.cashio",
+                "enabled": true,
+                "visible": false
+              }
+            ],
+            "environment": "Production"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
