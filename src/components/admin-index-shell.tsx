@@ -69,11 +69,6 @@ export function AdminIndexShell({
                   value={search}
                 />
               </ThemedView>
-              <ThemedView style={styles.avatar}>
-                <ThemedText type="smallBold" style={styles.avatarText}>
-                  OB
-                </ThemedText>
-              </ThemedView>
             </View>
           </ThemedView>
 
@@ -179,18 +174,6 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     textAlign: "center",
     width: "100%",
-  },
-  avatar: {
-    alignItems: "center",
-    backgroundColor: "#126B8D",
-    borderRadius: 24,
-    height: 48,
-    justifyContent: "center",
-    width: 48,
-  },
-  avatarText: {
-    color: "#FFFFFF",
-    fontSize: 18,
   },
   iconButton: {
     alignItems: "center",
