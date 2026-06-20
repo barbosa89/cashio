@@ -20,7 +20,7 @@ import { CartesianChart, Line, Pie, PolarChart } from 'victory-native';
 import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { AppPalette, BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { AppPalette, BottomTabInset, DROPDOWN_LIST_MODE, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useCashioData } from '@/hooks/use-cashio-data';
 import { useCashioSettings } from '@/hooks/use-cashio-settings';
 import { useTheme } from '@/hooks/use-theme';
@@ -1039,6 +1039,11 @@ function FilterModal({
                     <AppIcon color={theme.text} name="chevron-up" size={22} />
                   </View>
                 )}
+                CloseIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="x" size={24} />
+                  </View>
+                )}
                 TickIconComponent={({ style }) => (
                   <View style={style}>
                     <AppIcon color={theme.text} name="check" size={20} />
@@ -1052,8 +1057,13 @@ function FilterModal({
                 labelStyle={styles.filterDropdownLabel}
                 listItemContainerStyle={styles.filterDropdownItem}
                 listItemLabelStyle={{ color: theme.text }}
-                listMode="SCROLLVIEW"
+                listMode={DROPDOWN_LIST_MODE}
                 maxHeight={180}
+                modalAnimationType="slide"
+                modalContentContainerStyle={[
+                  styles.dropdownModal,
+                  { backgroundColor: theme.background },
+                ]}
                 onChangeSearchText={setCategorySearch}
                 onOpen={() => setIsTagOpen(false)}
                 open={isCategoryOpen}
@@ -1095,6 +1105,11 @@ function FilterModal({
                     <AppIcon color={theme.text} name="chevron-up" size={22} />
                   </View>
                 )}
+                CloseIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="x" size={24} />
+                  </View>
+                )}
                 TickIconComponent={({ style }) => (
                   <View style={style}>
                     <AppIcon color={theme.text} name="check" size={20} />
@@ -1108,8 +1123,13 @@ function FilterModal({
                 labelStyle={styles.filterDropdownLabel}
                 listItemContainerStyle={styles.filterDropdownItem}
                 listItemLabelStyle={{ color: theme.text }}
-                listMode="SCROLLVIEW"
+                listMode={DROPDOWN_LIST_MODE}
                 maxHeight={180}
+                modalAnimationType="slide"
+                modalContentContainerStyle={[
+                  styles.dropdownModal,
+                  { backgroundColor: theme.background },
+                ]}
                 onChangeSearchText={setTagSearch}
                 onOpen={() => setIsCategoryOpen(false)}
                 open={isTagOpen}
@@ -1609,6 +1629,9 @@ const styles = StyleSheet.create({
   filterDropdownMenu: {
     borderRadius: Spacing.two,
     borderWidth: 1,
+  },
+  dropdownModal: {
+    padding: Spacing.three,
   },
   filterDropdownItem: {
     minHeight: 44,

@@ -71,4 +71,5 @@ export const Spacing = {
 // Android screens already sit inside SafeAreaView, which applies the system
 // navigation-bar inset. Adding another fixed inset here creates excess space.
 export const BottomTabInset = Platform.select({ ios: 50, android: 0 }) ?? 0;
+export const DROPDOWN_LIST_MODE = Platform.OS === 'android' ? 'MODAL' : 'SCROLLVIEW';
 export const MaxContentWidth = 800;

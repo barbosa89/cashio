@@ -27,7 +27,7 @@ import DropDownPicker, {
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Spacing } from "@/constants/theme";
+import { DROPDOWN_LIST_MODE, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
 import { CashioValidationError } from "@/lib/cashio-repository";
@@ -482,6 +482,11 @@ function TransactionForm({ onSaved }, ref) {
               <AppIcon color={theme.text} name="chevron-up" size={22} />
             </View>
           )}
+          CloseIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="x" size={24} />
+            </View>
+          )}
           TickIconComponent={({ style }) => (
             <View style={style}>
               <AppIcon color={theme.text} name="check" size={20} />
@@ -503,8 +508,13 @@ function TransactionForm({ onSaved }, ref) {
           labelStyle={styles.dropdownLabel}
           listItemContainerStyle={styles.dropdownItem}
           listItemLabelStyle={{ color: theme.text }}
-          listMode="SCROLLVIEW"
+          listMode={DROPDOWN_LIST_MODE}
           maxHeight={220}
+          modalAnimationType="slide"
+          modalContentContainerStyle={[
+            styles.dropdownModal,
+            { backgroundColor: theme.background },
+          ]}
           onChangeSearchText={setCategorySearch}
           onOpen={() => setIsTagsOpen(false)}
           onSelectItem={handleSelectCategory}
@@ -564,6 +574,11 @@ function TransactionForm({ onSaved }, ref) {
               <AppIcon color={theme.text} name="chevron-up" size={22} />
             </View>
           )}
+          CloseIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="x" size={24} />
+            </View>
+          )}
           TickIconComponent={({ style }) => (
             <View style={style}>
               <AppIcon color={theme.text} name="check" size={20} />
@@ -593,8 +608,13 @@ function TransactionForm({ onSaved }, ref) {
           labelStyle={styles.dropdownLabel}
           listItemContainerStyle={styles.dropdownItem}
           listItemLabelStyle={{ color: theme.text }}
-          listMode="SCROLLVIEW"
+          listMode={DROPDOWN_LIST_MODE}
           maxHeight={220}
+          modalAnimationType="slide"
+          modalContentContainerStyle={[
+            styles.dropdownModal,
+            { backgroundColor: theme.background },
+          ]}
           mode="BADGE"
           multiple
           multipleText={`${selectedTagIds.length} tags seleccionados`}
@@ -881,6 +901,9 @@ const styles = StyleSheet.create({
   dropdownMenu: {
     borderRadius: Spacing.two,
     borderWidth: 1,
+  },
+  dropdownModal: {
+    padding: Spacing.three,
   },
   dropdownItem: {
     alignItems: "center",

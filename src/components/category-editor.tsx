@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { BottomTabInset, DROPDOWN_LIST_MODE, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
 import { CashioValidationError } from "@/lib/cashio-repository";
@@ -140,6 +140,11 @@ export function CategoryEditor({ category }: { category?: Category }) {
                     <AppIcon color={theme.text} name="chevron-up" size={22} />
                   </View>
                 )}
+                CloseIconComponent={({ style }) => (
+                  <View style={style}>
+                    <AppIcon color={theme.text} name="x" size={24} />
+                  </View>
+                )}
                 TickIconComponent={({ style }) => (
                   <View style={style}>
                     <AppIcon color={theme.text} name="check" size={20} />
@@ -156,7 +161,14 @@ export function CategoryEditor({ category }: { category?: Category }) {
                 labelStyle={styles.dropdownLabel}
                 listItemContainerStyle={styles.dropdownItem}
                 listItemLabelStyle={{ color: theme.text }}
-                listMode="SCROLLVIEW"
+                listMode={DROPDOWN_LIST_MODE}
+                modalAnimationType="slide"
+                modalContentContainerStyle={[
+                  styles.dropdownModal,
+                  { backgroundColor: theme.background },
+                ]}
+                modalTitle="Seleccionar tipo"
+                modalTitleStyle={{ color: theme.text }}
                 open={isTypeOpen}
                 placeholder="Selecciona un tipo"
                 placeholderStyle={{ color: theme.textSecondary }}
@@ -283,6 +295,9 @@ const styles = StyleSheet.create({
   dropdownMenu: {
     borderRadius: Spacing.two,
     borderWidth: 1,
+  },
+  dropdownModal: {
+    padding: Spacing.three,
   },
   dropdownItem: {
     minHeight: 44,
