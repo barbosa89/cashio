@@ -760,7 +760,6 @@ function MonthlyChartsPanel({
   const zeroLineTop = getZeroLineTop(lineDomain);
   const monthStartBalance = getMonthStartBalance(dailyData, summary.openingBalance);
   const pieData = getTopCategoriesWithOther(expenseCategoryData, 5);
-  const barData = expenseCategoryData.slice(0, 6);
   const lineColor = summary.balance >= 0 ? AppPalette.incomeGreen : AppPalette.brandOrange;
 
   if (monthTransactionCount === 0 && summary.openingBalance === 0) {
@@ -861,8 +860,8 @@ function MonthlyChartsPanel({
             </View>
           </ChartCard>
 
-          <ChartCard title="Top categorías">
-            <TopCategoryBars data={barData} total={summary.expense} />
+          <ChartCard title="Gasto por categoría">
+            <CategoryExpenseBars data={expenseCategoryData} total={summary.expense} />
           </ChartCard>
         </>
       )}
@@ -870,33 +869,33 @@ function MonthlyChartsPanel({
   );
 }
 
-function TopCategoryBars({ data, total }: { data: CategoryChartPoint[]; total: number }) {
+function CategoryExpenseBars({ data, total }: { data: CategoryChartPoint[]; total: number }) {
   const theme = useTheme();
   const maxAmount = Math.max(...data.map((item) => item.amount), 1);
 
   return (
-    <View style={styles.topCategoryList}>
+    <View style={styles.categoryExpenseList}>
       {data.map((item) => {
         const percentage = total > 0 ? Math.round((item.amount / total) * 100) : 0;
         const barWidth: DimensionValue = `${Math.max((item.amount / maxAmount) * 100, 4)}%`;
 
         return (
-          <View key={item.label} style={styles.topCategoryItem}>
-            <View style={styles.topCategoryHeader}>
-              <View style={styles.topCategoryLabelWrap}>
+          <View key={item.label} style={styles.categoryExpenseItem}>
+            <View style={styles.categoryExpenseHeader}>
+              <View style={styles.categoryExpenseLabelWrap}>
                 <View style={[styles.chartLegendSwatch, { backgroundColor: item.color }]} />
-                <ThemedText type="smallBold" style={styles.topCategoryLabel} numberOfLines={1}>
+                <ThemedText type="smallBold" style={styles.categoryExpenseLabel} numberOfLines={1}>
                   {item.label}
                 </ThemedText>
               </View>
-              <ThemedText type="smallBold" style={styles.topCategoryAmount}>
+              <ThemedText type="smallBold" style={styles.categoryExpenseAmount}>
                 $ {formatMoney(item.amount)}
               </ThemedText>
             </View>
-            <View style={[styles.topCategoryTrack, { backgroundColor: theme.background }]}>
-              <View style={[styles.topCategoryBar, { backgroundColor: item.color, width: barWidth }]} />
+            <View style={[styles.categoryExpenseTrack, { backgroundColor: theme.background }]}>
+              <View style={[styles.categoryExpenseBar, { backgroundColor: item.color, width: barWidth }]} />
             </View>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.topCategoryPercent}>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.categoryExpensePercent}>
               {percentage}%
             </ThemedText>
           </View>
@@ -1408,44 +1407,44 @@ const styles = StyleSheet.create({
     minWidth: 42,
     textAlign: 'right',
   },
-  topCategoryList: {
+  categoryExpenseList: {
     gap: Spacing.three,
   },
-  topCategoryItem: {
+  categoryExpenseItem: {
     gap: Spacing.one,
   },
-  topCategoryHeader: {
+  categoryExpenseHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: Spacing.two,
     justifyContent: 'space-between',
   },
-  topCategoryLabelWrap: {
+  categoryExpenseLabelWrap: {
     alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
     gap: Spacing.two,
     minWidth: 0,
   },
-  topCategoryLabel: {
+  categoryExpenseLabel: {
     flex: 1,
     minWidth: 0,
   },
-  topCategoryAmount: {
+  categoryExpenseAmount: {
     flexShrink: 0,
     textAlign: 'right',
   },
-  topCategoryTrack: {
+  categoryExpenseTrack: {
     borderRadius: 6,
     height: 10,
     overflow: 'hidden',
     width: '100%',
   },
-  topCategoryBar: {
+  categoryExpenseBar: {
     borderRadius: 6,
     height: '100%',
   },
-  topCategoryPercent: {
+  categoryExpensePercent: {
     textAlign: 'right',
   },
   transactionRow: {
