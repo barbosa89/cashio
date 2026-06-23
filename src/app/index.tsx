@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CartesianChart, Line, Pie, PolarChart } from 'victory-native';
 
 import { AppIcon } from '@/components/app-icon';
+import { ReportExportPanel } from '@/components/report-export-panel';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AppPalette, BottomTabInset, DROPDOWN_LIST_MODE, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -31,7 +32,7 @@ type VisibleMonth = {
   year: number;
 };
 
-type ActiveView = 'list' | 'charts';
+type ActiveView = 'list' | 'charts' | 'reports';
 
 type DailyChartPoint = {
   balance: number;
@@ -268,7 +269,7 @@ function transactionMatchesTag(transaction: Transaction, tag: Tag | null) {
 export default function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<{ openDrawer: () => void }>();
-  const { categories, monthlySummaries, removeTransactions, tags, transactions } = useCashioData();
+  const { categories, isLoading, monthlySummaries, removeTransactions, tags, transactions } = useCashioData();
   const { settings } = useCashioSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [descriptionSearch, setDescriptionSearch] = useState('');
@@ -435,6 +436,15 @@ export default function HomeScreen() {
     setActiveView('charts');
   }
 
+  function handleReportsPress() {
+    if (isSelectionMode) {
+      cancelSelection();
+      return;
+    }
+
+    setActiveView('reports');
+  }
+
   const goToPreviousMonth = useCallback(() => {
     setVisibleMonth((currentVisibleMonth) => addMonths(currentVisibleMonth, -1));
   }, []);
@@ -484,6 +494,16 @@ export default function HomeScreen() {
               onCancel={cancelSelection}
               onDelete={handleDeleteSelectedTransactions}
             />
+          ) : activeView === 'reports' ? (
+            <ThemedView style={styles.header}>
+              <IconButton label="Abrir menú" onPress={() => navigation.openDrawer()}>
+                <AppIcon color={theme.text} name="menu" size={30} />
+              </IconButton>
+              <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
+                Reportes
+              </ThemedText>
+              <View style={styles.headerSpacer} />
+            </ThemedView>
           ) : (
             <ThemedView style={styles.header}>
               <IconButton label="Abrir menú" onPress={() => navigation.openDrawer()}>
@@ -508,63 +528,76 @@ export default function HomeScreen() {
             </ThemedView>
           )}
 
-          <BalanceSummary
-            balance={summary.balance}
-            expense={summary.expense}
-            income={summary.income}
-            monthLabel={visibleMonthLabel}
-            openingBalance={summary.openingBalance}
-            showOpeningBalance={shouldAccumulatePreviousBalances}
-          />
+          {activeView !== 'reports' && (
+            <BalanceSummary
+              balance={summary.balance}
+              expense={summary.expense}
+              income={summary.income}
+              monthLabel={visibleMonthLabel}
+              openingBalance={summary.openingBalance}
+              showOpeningBalance={shouldAccumulatePreviousBalances}
+            />
+          )}
 
-          <GestureDetector gesture={monthSwipeGesture}>
-            {activeView === 'list' ? (
-              <ScrollView contentContainerStyle={styles.listContent} style={styles.list}>
-                {filteredTransactions.length === 0 ? (
-                  <ThemedView style={styles.emptyState}>
-                    <ThemedText type="subtitle" style={styles.emptyTitle}>
-                      Sin registros
-                    </ThemedText>
-                    <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-                      No hay registros en este mes.
-                    </ThemedText>
-                  </ThemedView>
-                ) : (
-                  filteredTransactions.map((transaction) => (
-                    <TransactionRow
-                      key={transaction.id}
-                      onLongPress={() => selectTransaction(transaction.id)}
-                      onPress={() => {
-                        if (isSelectionMode) {
-                          toggleTransactionSelection(transaction.id);
-                        }
-                      }}
-                      selected={selectedTransactionIdSet.has(transaction.id)}
-                      selectionMode={isSelectionMode}
-                      transaction={transaction}
-                    />
-                  ))
-                )}
-              </ScrollView>
-            ) : (
-              <ScrollView contentContainerStyle={styles.chartContent} style={styles.list}>
-                <MonthlyChartsPanel
-                  dailyData={dailyChartData}
-                  expenseCategoryData={expenseCategoryData}
-                  monthTransactionCount={monthlyTransactions.length}
-                  summary={summary}
-                />
-              </ScrollView>
-            )}
-          </GestureDetector>
+          {activeView === 'reports' ? (
+            <ScrollView contentContainerStyle={styles.reportContent} style={styles.list}>
+              <ReportExportPanel
+                defaultMonth={visibleMonthKey}
+                isLoading={isLoading}
+                monthlySummaries={monthlySummaries}
+                transactions={transactions}
+              />
+            </ScrollView>
+          ) : (
+            <GestureDetector gesture={monthSwipeGesture}>
+              {activeView === 'list' ? (
+                <ScrollView contentContainerStyle={styles.listContent} style={styles.list}>
+                  {filteredTransactions.length === 0 ? (
+                    <ThemedView style={styles.emptyState}>
+                      <ThemedText type="subtitle" style={styles.emptyTitle}>
+                        Sin registros
+                      </ThemedText>
+                      <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+                        No hay registros en este mes.
+                      </ThemedText>
+                    </ThemedView>
+                  ) : (
+                    filteredTransactions.map((transaction) => (
+                      <TransactionRow
+                        key={transaction.id}
+                        onLongPress={() => selectTransaction(transaction.id)}
+                        onPress={() => {
+                          if (isSelectionMode) {
+                            toggleTransactionSelection(transaction.id);
+                          }
+                        }}
+                        selected={selectedTransactionIdSet.has(transaction.id)}
+                        selectionMode={isSelectionMode}
+                        transaction={transaction}
+                      />
+                    ))
+                  )}
+                </ScrollView>
+              ) : (
+                <ScrollView contentContainerStyle={styles.chartContent} style={styles.list}>
+                  <MonthlyChartsPanel
+                    dailyData={dailyChartData}
+                    expenseCategoryData={expenseCategoryData}
+                    monthTransactionCount={monthlyTransactions.length}
+                    summary={summary}
+                  />
+                </ScrollView>
+              )}
+            </GestureDetector>
+          )}
 
-          {!!inlineMessage && (
+          {activeView !== 'reports' && !!inlineMessage && (
             <ThemedText type="small" themeColor="textSecondary" style={styles.inlineMessage}>
               {inlineMessage}
             </ThemedText>
           )}
 
-          {!isSelectionMode && (
+          {!isSelectionMode && activeView !== 'reports' && (
             <Pressable
               accessibilityLabel="Agregar registro"
               onPress={() => router.push('/new-transaction')}
@@ -582,6 +615,9 @@ export default function HomeScreen() {
             </IconButton>
             <IconButton label="Gráficas" selected={activeView === 'charts'} onPress={handleChartsPress}>
               <AppIcon color={theme.text} name="bar-chart-2" size={34} />
+            </IconButton>
+            <IconButton label="Reportes" selected={activeView === 'reports'} onPress={handleReportsPress}>
+              <AppIcon color={theme.text} name="file-text" size={34} />
             </IconButton>
           </ThemedView>
         </ThemedView>
@@ -1257,6 +1293,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minWidth: 0,
   },
+  reportHeaderTitle: {
+    flex: 1,
+    fontSize: 18,
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    height: 48,
+    width: 48,
+  },
   selectionHeader: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -1311,6 +1357,10 @@ const styles = StyleSheet.create({
   },
   chartContent: {
     paddingBottom: BottomTabInset + 152,
+    paddingHorizontal: Spacing.three,
+  },
+  reportContent: {
+    paddingBottom: BottomTabInset + Spacing.five,
     paddingHorizontal: Spacing.three,
   },
   chartsPanel: {
