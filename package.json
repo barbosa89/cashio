@@ -7,8 +7,6 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "^9.1.0",
     "@react-native-google-signin/google-signin": "^16.1.2",
-    "@react-navigation/drawer": "^7.12.0",
-    "@react-navigation/native": "^7.3.1",
     "@shopify/react-native-skia": "2.6.2",
     "expo": "~56.0.11",
     "expo-background-task": "~56.0.19",
@@ -48,6 +46,16 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-cloud-store",
+          "react-native-vector-icons"
+        ]
+      }
+    }
   },
   "scripts": {
     "start": "expo start",

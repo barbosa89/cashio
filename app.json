@@ -69,7 +69,8 @@
             "environment": "Production"
           }
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
