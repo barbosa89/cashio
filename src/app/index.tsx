@@ -1,5 +1,5 @@
 import { router, useNavigation } from 'expo-router';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
   Modal,
@@ -13,6 +13,7 @@ import {
   type DimensionValue,
 } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
+import CurrencyInput from 'react-native-currency-input';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CartesianChart, Line, Pie, PolarChart } from 'victory-native';
@@ -25,14 +26,14 @@ import { AppPalette, BottomTabInset, DROPDOWN_LIST_MODE, MaxContentWidth, Spacin
 import { useCashioData } from '@/hooks/use-cashio-data';
 import { useCashioSettings } from '@/hooks/use-cashio-settings';
 import { useTheme } from '@/hooks/use-theme';
-import type { Category, Tag, Transaction } from '@/lib/database';
+import type { Category, MonthlyBudgetProgressRow, MonthlyBudgetSummary, Tag, Transaction } from '@/lib/database';
 
 type VisibleMonth = {
   month: number;
   year: number;
 };
 
-type ActiveView = 'list' | 'charts' | 'reports';
+type ActiveView = 'list' | 'charts' | 'budgets' | 'reports';
 
 type DailyChartPoint = {
   balance: number;
@@ -266,10 +267,44 @@ function transactionMatchesTag(transaction: Transaction, tag: Tag | null) {
     .includes(normalize(tag.description));
 }
 
+function buildBudgetSummary(rows: MonthlyBudgetProgressRow[]): MonthlyBudgetSummary {
+  return rows.reduce(
+    (summary, row) => {
+      const planned = row.planned_amount;
+      const spent = row.spent_amount;
+
+      return {
+        planned_total: summary.planned_total + planned,
+        spent_total: summary.spent_total + spent,
+        remaining_total: summary.remaining_total + planned - spent,
+        unbudgeted_expense_total:
+          summary.unbudgeted_expense_total + (row.has_budget === 0 && spent > 0 ? spent : 0),
+      };
+    },
+    {
+      planned_total: 0,
+      remaining_total: 0,
+      spent_total: 0,
+      unbudgeted_expense_total: 0,
+    }
+  );
+}
+
 export default function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<{ openDrawer: () => void }>();
-  const { categories, isLoading, monthlySummaries, removeTransactions, tags, transactions } = useCashioData();
+  const {
+    categories,
+    copyBudgetFromPreviousMonth,
+    isLoading,
+    monthlyBudgetProgress,
+    monthlySummaries,
+    refreshMonthlyBudgetProgress,
+    removeTransactions,
+    saveMonthlyBudgetAllocation,
+    tags,
+    transactions,
+  } = useCashioData();
   const { settings } = useCashioSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [descriptionSearch, setDescriptionSearch] = useState('');
@@ -279,6 +314,7 @@ export default function HomeScreen() {
   const [visibleMonth, setVisibleMonth] = useState<VisibleMonth>(() => getCurrentMonth());
   const [activeView, setActiveView] = useState<ActiveView>('list');
   const [inlineMessage, setInlineMessage] = useState('');
+  const [budgetMessage, setBudgetMessage] = useState('');
   const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
   const visibleMonthKey = formatMonthKey(visibleMonth);
   const visibleMonthLabel = formatMonthLabel(visibleMonth);
@@ -353,7 +389,16 @@ export default function HomeScreen() {
     [monthlyTransactions]
   );
 
+  const budgetSummary = useMemo(
+    () => buildBudgetSummary(monthlyBudgetProgress),
+    [monthlyBudgetProgress]
+  );
+
   const hasActiveFilters = !!selectedCategory || !!selectedTag;
+
+  useEffect(() => {
+    void refreshMonthlyBudgetProgress(visibleMonthKey);
+  }, [categories, refreshMonthlyBudgetProgress, transactions, visibleMonthKey]);
 
   function clearFilters() {
     setSelectedCategoryId(null);
@@ -436,6 +481,16 @@ export default function HomeScreen() {
     setActiveView('charts');
   }
 
+  function handleBudgetsPress() {
+    if (isSelectionMode) {
+      cancelSelection();
+      return;
+    }
+
+    setBudgetMessage('');
+    setActiveView('budgets');
+  }
+
   function handleReportsPress() {
     if (isSelectionMode) {
       cancelSelection();
@@ -443,6 +498,36 @@ export default function HomeScreen() {
     }
 
     setActiveView('reports');
+  }
+
+  async function handleSaveBudget(categoryId: number, plannedAmount: number) {
+    setBudgetMessage('');
+
+    try {
+      await saveMonthlyBudgetAllocation({
+        categoryId,
+        month: visibleMonthKey,
+        plannedAmount,
+      });
+    } catch {
+      setBudgetMessage('No se pudo guardar el presupuesto.');
+    }
+  }
+
+  async function handleCopyPreviousBudget() {
+    setBudgetMessage('');
+
+    try {
+      const previousMonthKey = formatMonthKey(addMonths(visibleMonth, -1));
+      const copiedCount = await copyBudgetFromPreviousMonth(previousMonthKey, visibleMonthKey);
+      setBudgetMessage(
+        copiedCount > 0
+          ? 'Presupuesto copiado desde el mes anterior.'
+          : 'No hay categorías nuevas para copiar desde el mes anterior.'
+      );
+    } catch {
+      setBudgetMessage('No se pudo copiar el presupuesto anterior.');
+    }
   }
 
   const goToPreviousMonth = useCallback(() => {
@@ -494,13 +579,13 @@ export default function HomeScreen() {
               onCancel={cancelSelection}
               onDelete={handleDeleteSelectedTransactions}
             />
-          ) : activeView === 'reports' ? (
+          ) : activeView === 'reports' || activeView === 'budgets' ? (
             <ThemedView style={styles.header}>
               <IconButton label="Abrir menú" onPress={() => navigation.openDrawer()}>
                 <AppIcon color={theme.text} name="menu" size={30} />
               </IconButton>
               <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
-                Reportes
+                {activeView === 'budgets' ? 'Presupuesto' : 'Reportes'}
               </ThemedText>
               <View style={styles.headerSpacer} />
             </ThemedView>
@@ -528,7 +613,12 @@ export default function HomeScreen() {
             </ThemedView>
           )}
 
-          {activeView !== 'reports' && (
+          {activeView === 'budgets' ? (
+            <BudgetSummary
+              monthLabel={visibleMonthLabel}
+              summary={budgetSummary}
+            />
+          ) : activeView !== 'reports' && (
             <BalanceSummary
               balance={summary.balance}
               expense={summary.expense}
@@ -578,7 +668,7 @@ export default function HomeScreen() {
                     ))
                   )}
                 </ScrollView>
-              ) : (
+              ) : activeView === 'charts' ? (
                 <ScrollView contentContainerStyle={styles.chartContent} style={styles.list}>
                   <MonthlyChartsPanel
                     dailyData={dailyChartData}
@@ -587,17 +677,27 @@ export default function HomeScreen() {
                     summary={summary}
                   />
                 </ScrollView>
+              ) : (
+                <ScrollView contentContainerStyle={styles.budgetContent} style={styles.list}>
+                  <MonthlyBudgetPanel
+                    budgetMessage={budgetMessage}
+                    onCopyPreviousBudget={() => void handleCopyPreviousBudget()}
+                    onSaveBudget={(categoryId, plannedAmount) => void handleSaveBudget(categoryId, plannedAmount)}
+                    rows={monthlyBudgetProgress}
+                    summary={budgetSummary}
+                  />
+                </ScrollView>
               )}
             </GestureDetector>
           )}
 
-          {activeView !== 'reports' && !!inlineMessage && (
+          {activeView !== 'reports' && activeView !== 'budgets' && !!inlineMessage && (
             <ThemedText type="small" themeColor="textSecondary" style={styles.inlineMessage}>
               {inlineMessage}
             </ThemedText>
           )}
 
-          {!isSelectionMode && activeView !== 'reports' && (
+          {!isSelectionMode && activeView !== 'reports' && activeView !== 'budgets' && (
             <Pressable
               accessibilityLabel="Agregar registro"
               onPress={() => router.push('/new-transaction')}
@@ -615,6 +715,9 @@ export default function HomeScreen() {
             </IconButton>
             <IconButton label="Gráficas" selected={activeView === 'charts'} onPress={handleChartsPress}>
               <AppIcon color={theme.text} name="bar-chart-2" size={34} />
+            </IconButton>
+            <IconButton label="Presupuesto" selected={activeView === 'budgets'} onPress={handleBudgetsPress}>
+              <AppIcon color={theme.text} name="target" size={34} />
             </IconButton>
             <IconButton label="Reportes" selected={activeView === 'reports'} onPress={handleReportsPress}>
               <AppIcon color={theme.text} name="file-text" size={34} />
@@ -774,6 +877,182 @@ function BalanceSummary({
         </View>
       </ThemedView>
     </View>
+  );
+}
+
+function BudgetSummary({
+  monthLabel,
+  summary,
+}: {
+  monthLabel: string;
+  summary: MonthlyBudgetSummary;
+}) {
+  return (
+    <View style={styles.summaryWrap}>
+      <ThemedText type="smallBold" style={styles.summaryMonth}>
+        {monthLabel}
+      </ThemedText>
+      <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
+        <View style={styles.summaryMainRow}>
+          <ThemedText type="subtitle" style={styles.summaryTitle}>
+            Disponible
+          </ThemedText>
+          <ThemedText type="subtitle" style={styles.summaryAmount}>
+            $ {formatMoney(summary.remaining_total)}
+          </ThemedText>
+        </View>
+        <View style={styles.summaryDetailRow}>
+          <ThemedText type="smallBold" style={styles.summaryDetail}>
+            Presupuestado: $ {formatMoney(summary.planned_total)}
+          </ThemedText>
+          <ThemedText type="smallBold" style={styles.summaryDetail}>
+            Gastado: $ {formatMoney(summary.spent_total)}
+          </ThemedText>
+        </View>
+        {summary.unbudgeted_expense_total > 0 && (
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.summaryDetail}>
+            Sin presupuesto: $ {formatMoney(summary.unbudgeted_expense_total)}
+          </ThemedText>
+        )}
+      </ThemedView>
+    </View>
+  );
+}
+
+function MonthlyBudgetPanel({
+  budgetMessage,
+  onCopyPreviousBudget,
+  onSaveBudget,
+  rows,
+  summary,
+}: {
+  budgetMessage: string;
+  onCopyPreviousBudget: () => void;
+  onSaveBudget: (categoryId: number, plannedAmount: number) => void;
+  rows: MonthlyBudgetProgressRow[];
+  summary: MonthlyBudgetSummary;
+}) {
+  const hasBudgetRows = rows.some((row) => row.has_budget === 1 || row.spent_amount > 0);
+
+  return (
+    <View style={styles.budgetPanel}>
+      <View style={styles.budgetActions}>
+        <MenuButton label="Copiar mes anterior" onPress={onCopyPreviousBudget} />
+      </View>
+
+      {!!budgetMessage && (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.budgetMessage}>
+          {budgetMessage}
+        </ThemedText>
+      )}
+
+      {!hasBudgetRows && summary.planned_total === 0 ? (
+        <ThemedView style={styles.emptyState}>
+          <ThemedText type="subtitle" style={styles.emptyTitle}>
+            Sin presupuesto
+          </ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+            Asigna valores a las categorías o copia el mes anterior.
+          </ThemedText>
+        </ThemedView>
+      ) : null}
+
+      <View style={styles.budgetRows}>
+        {rows.map((row) => (
+          <BudgetCategoryRow
+            key={row.category_id}
+            onSaveBudget={onSaveBudget}
+            row={row}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function BudgetCategoryRow({
+  onSaveBudget,
+  row,
+}: {
+  onSaveBudget: (categoryId: number, plannedAmount: number) => void;
+  row: MonthlyBudgetProgressRow;
+}) {
+  const theme = useTheme();
+  const [draftAmount, setDraftAmount] = useState<number | null>(
+    row.planned_amount > 0 ? row.planned_amount : null
+  );
+  const plannedAmount = row.planned_amount;
+  const spentAmount = row.spent_amount;
+  const remainingAmount = plannedAmount - spentAmount;
+  const progress = plannedAmount > 0 ? spentAmount / plannedAmount : spentAmount > 0 ? 1 : 0;
+  const progressWidth: DimensionValue = `${Math.min(Math.max(progress * 100, spentAmount > 0 ? 4 : 0), 100)}%`;
+  const isUnbudgeted = row.has_budget === 0 && spentAmount > 0;
+  const isOver = plannedAmount > 0 && spentAmount > plannedAmount;
+  const isNearLimit = plannedAmount > 0 && !isOver && progress >= 0.8;
+  const statusLabel = isUnbudgeted ? 'Sin presupuesto' : isOver ? 'Excedido' : isNearLimit ? 'Cerca del límite' : 'En curso';
+  const statusColor = isOver || isUnbudgeted
+    ? AppPalette.brandOrange
+    : isNearLimit
+      ? '#eab308'
+      : AppPalette.incomeGreen;
+
+  useEffect(() => {
+    setDraftAmount(row.planned_amount > 0 ? row.planned_amount : null);
+  }, [row.planned_amount]);
+
+  function commitBudget() {
+    const nextAmount = draftAmount ?? 0;
+
+    if (nextAmount === row.planned_amount) {
+      return;
+    }
+
+    onSaveBudget(row.category_id, nextAmount);
+  }
+
+  return (
+    <ThemedView type="backgroundSelected" style={styles.budgetRow}>
+      <View style={styles.budgetRowHeader}>
+        <View style={styles.budgetCategoryCopy}>
+          <ThemedText type="smallBold" style={styles.budgetCategoryName} numberOfLines={1}>
+            {row.category_description}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {statusLabel}
+          </ThemedText>
+        </View>
+        <CurrencyInput
+          delimiter="."
+          keyboardType="numeric"
+          minValue={0}
+          onBlur={commitBudget}
+          onChangeValue={setDraftAmount}
+          placeholder="$ 0"
+          placeholderTextColor={theme.textSecondary}
+          precision={0}
+          prefix="$ "
+          separator=","
+          style={[
+            styles.budgetInput,
+            { borderColor: theme.background, color: theme.text },
+          ]}
+          value={draftAmount}
+        />
+      </View>
+
+      <View style={styles.budgetMetaRow}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.budgetMetaText}>
+          Gastado: $ {formatMoney(spentAmount)}
+        </ThemedText>
+        <ThemedText type="smallBold" style={styles.budgetMetaText}>
+          Disponible: $ {formatMoney(remainingAmount)}
+        </ThemedText>
+      </View>
+
+      <View style={[styles.budgetTrack, { backgroundColor: theme.background }]}>
+        <View style={[styles.budgetBar, { backgroundColor: statusColor, width: progressWidth }]} />
+      </View>
+    </ThemedView>
   );
 }
 
@@ -1359,12 +1638,79 @@ const styles = StyleSheet.create({
     paddingBottom: BottomTabInset + 152,
     paddingHorizontal: Spacing.three,
   },
+  budgetContent: {
+    paddingBottom: BottomTabInset + Spacing.five,
+    paddingHorizontal: Spacing.three,
+  },
   reportContent: {
     paddingBottom: BottomTabInset + Spacing.five,
     paddingHorizontal: Spacing.three,
   },
   chartsPanel: {
     gap: Spacing.three,
+  },
+  budgetPanel: {
+    gap: Spacing.three,
+  },
+  budgetActions: {
+    alignItems: 'flex-start',
+  },
+  budgetMessage: {
+    textAlign: 'center',
+  },
+  budgetRows: {
+    gap: Spacing.three,
+  },
+  budgetRow: {
+    borderRadius: Spacing.two,
+    gap: Spacing.two,
+    padding: Spacing.three,
+  },
+  budgetRowHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.two,
+    justifyContent: 'space-between',
+  },
+  budgetCategoryCopy: {
+    flex: 1,
+    gap: Spacing.half,
+    minWidth: 0,
+  },
+  budgetCategoryName: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  budgetInput: {
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    flexShrink: 0,
+    fontSize: 14,
+    fontWeight: '700',
+    height: 40,
+    minWidth: 112,
+    paddingHorizontal: Spacing.two,
+    textAlign: 'right',
+  },
+  budgetMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.two,
+    justifyContent: 'space-between',
+  },
+  budgetMetaText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  budgetTrack: {
+    borderRadius: 6,
+    height: 10,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  budgetBar: {
+    borderRadius: 6,
+    height: '100%',
   },
   chartMetricGrid: {
     borderRadius: Spacing.two,

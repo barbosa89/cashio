@@ -1,6 +1,14 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { Category, CategoryType, MonthlySummaryRow, Tag, Transaction, TransactionType } from '@/lib/database';
+import type {
+  Category,
+  CategoryType,
+  MonthlyBudgetProgressRow,
+  MonthlySummaryRow,
+  Tag,
+  Transaction,
+  TransactionType,
+} from '@/lib/database';
 
 export type SaveCategoryInput = {
   description: string;
@@ -18,6 +26,12 @@ export type CreateTransactionInput = {
   transactionDate: string;
   categoryId: number;
   tagIds: number[];
+};
+
+export type SaveMonthlyBudgetAllocationInput = {
+  month: string;
+  categoryId: number;
+  plannedAmount: number;
 };
 
 export class CashioValidationError extends Error {
@@ -49,6 +63,32 @@ function assertDescription(description: string, entity: 'categoría' | 'tag') {
 
 function getTransactionMonth(transactionDate: string) {
   return transactionDate.slice(0, 7);
+}
+
+function assertMonth(month: string) {
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    throw new CashioValidationError('El mes del presupuesto no es válido.');
+  }
+  return month;
+}
+
+function canBudgetCategory(type: CategoryType | null) {
+  return type === null || type === 'expense' || type === 'both';
+}
+
+async function assertBudgetableCategory(db: SQLiteDatabase, categoryId: number) {
+  const category = await db.getFirstAsync<{ id: number; type: CategoryType | null }>(
+    'SELECT id, type FROM categories WHERE id = ?',
+    categoryId
+  );
+
+  if (!category) {
+    throw new CashioValidationError('Selecciona una categoría válida.');
+  }
+
+  if (!canBudgetCategory(category.type)) {
+    throw new CashioValidationError('Solo las categorías de egreso pueden tener presupuesto.');
+  }
 }
 
 export async function recalculateMonthlySummary(db: SQLiteDatabase, month: string) {
@@ -178,15 +218,21 @@ export async function updateCategory(db: SQLiteDatabase, id: number, input: Save
   const description = assertDescription(input.description, 'categoría');
 
   try {
-    await db.runAsync(
-      `UPDATE categories
-       SET description = ?, type = ?, updated_at = ?
-       WHERE id = ?`,
-      description,
-      input.type,
-      nowIso(),
-      id
-    );
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `UPDATE categories
+         SET description = ?, type = ?, updated_at = ?
+         WHERE id = ?`,
+        description,
+        input.type,
+        nowIso(),
+        id
+      );
+
+      if (input.type === 'income') {
+        await db.runAsync('DELETE FROM monthly_budget_allocations WHERE category_id = ?', id);
+      }
+    });
   } catch (error) {
     if (isUniqueError(error)) {
       throw new CashioValidationError('Ya existe una categoría con ese nombre.');
@@ -368,6 +414,122 @@ export async function listMonthlySummaries(db: SQLiteDatabase) {
     FROM monthly_summaries
     ORDER BY month ASC
   `);
+}
+
+export async function listMonthlyBudgetProgress(db: SQLiteDatabase, month: string) {
+  const budgetMonth = assertMonth(month);
+
+  return db.getAllAsync<MonthlyBudgetProgressRow>(
+    `
+      WITH monthly_spending AS (
+        SELECT
+          category_id,
+          COALESCE(SUM(amount), 0) AS spent_amount
+        FROM transactions
+        WHERE type = 'expense'
+          AND substr(transaction_date, 1, 7) = ?
+        GROUP BY category_id
+      )
+      SELECT
+        monthly_budget_allocations.id AS allocation_id,
+        categories.id AS category_id,
+        categories.description AS category_description,
+        categories.type AS category_type,
+        COALESCE(monthly_budget_allocations.planned_amount, 0) AS planned_amount,
+        COALESCE(monthly_spending.spent_amount, 0) AS spent_amount,
+        COALESCE(monthly_budget_allocations.planned_amount, 0) - COALESCE(monthly_spending.spent_amount, 0)
+          AS remaining_amount,
+        CASE WHEN monthly_budget_allocations.id IS NULL THEN 0 ELSE 1 END AS has_budget
+      FROM categories
+      LEFT JOIN monthly_budget_allocations
+        ON monthly_budget_allocations.category_id = categories.id
+        AND monthly_budget_allocations.month = ?
+      LEFT JOIN monthly_spending ON monthly_spending.category_id = categories.id
+      WHERE categories.type IS NULL OR categories.type IN ('expense', 'both')
+      ORDER BY
+        CASE
+          WHEN monthly_budget_allocations.id IS NOT NULL OR COALESCE(monthly_spending.spent_amount, 0) > 0 THEN 0
+          ELSE 1
+        END ASC,
+        categories.description COLLATE NOCASE ASC
+    `,
+    budgetMonth,
+    budgetMonth
+  );
+}
+
+export async function upsertMonthlyBudgetAllocation(
+  db: SQLiteDatabase,
+  input: SaveMonthlyBudgetAllocationInput
+) {
+  const month = assertMonth(input.month);
+
+  if (!Number.isFinite(input.plannedAmount) || input.plannedAmount <= 0) {
+    await deleteMonthlyBudgetAllocation(db, month, input.categoryId);
+    return;
+  }
+
+  await assertBudgetableCategory(db, input.categoryId);
+
+  const timestamp = nowIso();
+  await db.runAsync(
+    `
+      INSERT INTO monthly_budget_allocations
+        (month, category_id, planned_amount, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(month, category_id) DO UPDATE SET
+        planned_amount = excluded.planned_amount,
+        updated_at = excluded.updated_at
+    `,
+    month,
+    input.categoryId,
+    input.plannedAmount,
+    timestamp,
+    timestamp
+  );
+}
+
+export async function deleteMonthlyBudgetAllocation(db: SQLiteDatabase, month: string, categoryId: number) {
+  await db.runAsync(
+    'DELETE FROM monthly_budget_allocations WHERE month = ? AND category_id = ?',
+    assertMonth(month),
+    categoryId
+  );
+}
+
+export async function copyPreviousMonthBudget(db: SQLiteDatabase, fromMonth: string, toMonth: string) {
+  const sourceMonth = assertMonth(fromMonth);
+  const targetMonth = assertMonth(toMonth);
+  const timestamp = nowIso();
+  const result = await db.runAsync(
+    `
+      INSERT INTO monthly_budget_allocations
+        (month, category_id, planned_amount, created_at, updated_at)
+      SELECT
+        ?,
+        source.category_id,
+        source.planned_amount,
+        ?,
+        ?
+      FROM monthly_budget_allocations AS source
+      INNER JOIN categories ON categories.id = source.category_id
+      WHERE source.month = ?
+        AND (categories.type IS NULL OR categories.type IN ('expense', 'both'))
+        AND NOT EXISTS (
+          SELECT 1
+          FROM monthly_budget_allocations AS target
+          WHERE target.month = ?
+            AND target.category_id = source.category_id
+        )
+    `,
+    targetMonth,
+    timestamp,
+    timestamp,
+    sourceMonth,
+    targetMonth
+  );
+
+  return result.changes;
 }
 
 export async function listTransactions(db: SQLiteDatabase) {

@@ -42,6 +42,33 @@ export type MonthlySummaryRow = {
   updated_at: string;
 };
 
+export type MonthlyBudgetAllocation = {
+  id: number;
+  month: string;
+  category_id: number;
+  planned_amount: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MonthlyBudgetProgressRow = {
+  allocation_id: number | null;
+  category_id: number;
+  category_description: string;
+  category_type: CategoryType | null;
+  planned_amount: number;
+  spent_amount: number;
+  remaining_amount: number;
+  has_budget: 0 | 1;
+};
+
+export type MonthlyBudgetSummary = {
+  planned_total: number;
+  spent_total: number;
+  remaining_total: number;
+  unbudgeted_expense_total: number;
+};
+
 export type SettingValueType = 'boolean' | 'number' | 'string' | 'json';
 
 export type SettingRow = {
@@ -52,7 +79,7 @@ export type SettingRow = {
   updated_at: string;
 };
 
-const DATABASE_VERSION = 3;
+const DATABASE_VERSION = 4;
 
 const DEFAULT_CATEGORIES: Array<{ description: string; type: CategoryType }> = [
   { description: 'Alimentación', type: 'expense' },
@@ -200,6 +227,28 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     );
 
     currentDbVersion = 3;
+  }
+
+  if (currentDbVersion === 3) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS monthly_budget_allocations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        month TEXT NOT NULL,
+        category_id INTEGER NOT NULL,
+        planned_amount REAL NOT NULL CHECK(planned_amount > 0),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(month, category_id),
+        FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_monthly_budget_allocations_month
+        ON monthly_budget_allocations(month);
+      CREATE INDEX IF NOT EXISTS idx_monthly_budget_allocations_category_id
+        ON monthly_budget_allocations(category_id);
+    `);
+
+    currentDbVersion = 4;
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

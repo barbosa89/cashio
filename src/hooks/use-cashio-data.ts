@@ -6,24 +6,30 @@ import {
   createCategory,
   createTag,
   createTransaction,
+  copyPreviousMonthBudget,
   deleteCategory,
+  deleteMonthlyBudgetAllocation,
   deleteTag,
   deleteTransactions,
   listCategories,
+  listMonthlyBudgetProgress,
   listMonthlySummaries,
   listTags,
   listTransactions,
+  upsertMonthlyBudgetAllocation,
   updateCategory,
   updateTag,
   type CreateTransactionInput,
   type SaveCategoryInput,
+  type SaveMonthlyBudgetAllocationInput,
   type SaveTagInput,
 } from '@/lib/cashio-repository';
-import type { Category, MonthlySummaryRow, Tag, Transaction } from '@/lib/database';
+import type { Category, MonthlyBudgetProgressRow, MonthlySummaryRow, Tag, Transaction } from '@/lib/database';
 
 export function useCashioData() {
   const db = useSQLiteContext();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [monthlyBudgetProgress, setMonthlyBudgetProgress] = useState<MonthlyBudgetProgressRow[]>([]);
   const [monthlySummaries, setMonthlySummaries] = useState<MonthlySummaryRow[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -100,6 +106,40 @@ export function useCashioData() {
     [db, refresh]
   );
 
+  const refreshMonthlyBudgetProgress = useCallback(
+    async (month: string) => {
+      const nextMonthlyBudgetProgress = await listMonthlyBudgetProgress(db, month);
+      setMonthlyBudgetProgress(nextMonthlyBudgetProgress);
+      return nextMonthlyBudgetProgress;
+    },
+    [db]
+  );
+
+  const saveMonthlyBudgetAllocation = useCallback(
+    async (input: SaveMonthlyBudgetAllocationInput) => {
+      await upsertMonthlyBudgetAllocation(db, input);
+      await refreshMonthlyBudgetProgress(input.month);
+    },
+    [db, refreshMonthlyBudgetProgress]
+  );
+
+  const removeMonthlyBudgetAllocation = useCallback(
+    async (month: string, categoryId: number) => {
+      await deleteMonthlyBudgetAllocation(db, month, categoryId);
+      await refreshMonthlyBudgetProgress(month);
+    },
+    [db, refreshMonthlyBudgetProgress]
+  );
+
+  const copyBudgetFromPreviousMonth = useCallback(
+    async (fromMonth: string, toMonth: string) => {
+      const copiedCount = await copyPreviousMonthBudget(db, fromMonth, toMonth);
+      await refreshMonthlyBudgetProgress(toMonth);
+      return copiedCount;
+    },
+    [db, refreshMonthlyBudgetProgress]
+  );
+
   const addTransaction = useCallback(
     async (input: CreateTransactionInput) => {
       await createTransaction(db, input);
@@ -118,6 +158,7 @@ export function useCashioData() {
 
   return {
     categories,
+    monthlyBudgetProgress,
     monthlySummaries,
     tags,
     transactions,
@@ -129,6 +170,10 @@ export function useCashioData() {
     addTag,
     editTag,
     removeTag,
+    refreshMonthlyBudgetProgress,
+    saveMonthlyBudgetAllocation,
+    removeMonthlyBudgetAllocation,
+    copyBudgetFromPreviousMonth,
     addTransaction,
     removeTransactions,
   };
