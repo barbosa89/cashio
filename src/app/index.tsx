@@ -1,46 +1,54 @@
-import { router, useNavigation } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { router, useNavigation } from "expo-router";
 import {
-  Alert,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-  useWindowDimensions,
-  type DimensionValue,
-} from 'react-native';
-import DropDownPicker from 'react-native-dropdown-picker';
-import CurrencyInput from 'react-native-currency-input';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { CartesianChart, Line, Pie, PolarChart } from 'victory-native';
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type ReactNode,
+} from "react";
+import {
+    Alert,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    View,
+    type DimensionValue,
+} from "react-native";
+import DropDownPicker from "react-native-dropdown-picker";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Circle, G } from "react-native-svg";
 
-import { AppIcon } from '@/components/app-icon';
-import { ReportExportPanel } from '@/components/report-export-panel';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { AppPalette, BottomTabInset, DROPDOWN_LIST_MODE, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useCashioData } from '@/hooks/use-cashio-data';
-import { useCashioSettings } from '@/hooks/use-cashio-settings';
-import { useTheme } from '@/hooks/use-theme';
-import type { Category, MonthlyBudgetProgressRow, MonthlyBudgetSummary, Tag, Transaction } from '@/lib/database';
+import { AppIcon } from "@/components/app-icon";
+import {
+    BudgetSummary,
+    MonthlyBudgetPanel,
+    buildBudgetSummary,
+} from "@/components/monthly-budget-panel";
+import { ReportExportPanel } from "@/components/report-export-panel";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import {
+    AppPalette,
+    BottomTabInset,
+    DROPDOWN_LIST_MODE,
+    MaxContentWidth,
+    Spacing,
+} from "@/constants/theme";
+import { useCashioData } from "@/hooks/use-cashio-data";
+import { useCashioSettings } from "@/hooks/use-cashio-settings";
+import { useTheme } from "@/hooks/use-theme";
+import type { Category, Tag, Transaction } from "@/lib/database";
 
 type VisibleMonth = {
   month: number;
   year: number;
 };
 
-type ActiveView = 'list' | 'charts' | 'budgets' | 'reports';
-
-type DailyChartPoint = {
-  balance: number;
-  day: number;
-  expense: number;
-  income: number;
-};
+type ActiveView = "list" | "charts" | "budgets" | "reports";
 
 type CategoryChartPoint = {
   amount: number;
@@ -56,27 +64,22 @@ type MonthlySummary = {
 };
 
 const MONTH_SWIPE_THRESHOLD = 72;
-const CHART_CATEGORY_COLORS = ['#f97316', '#3b82f6', '#10b981', '#ef4444', '#a855f7', '#14b8a6', '#eab308'];
+const DONUT_CHART_SIZE = 168;
+const DONUT_CHART_STROKE_WIDTH = 36;
+const CHART_CATEGORY_COLORS = [
+  "#f97316",
+  "#3b82f6",
+  "#10b981",
+  "#ef4444",
+  "#a855f7",
+  "#14b8a6",
+  "#eab308",
+];
 
 function formatMoney(value: number) {
-  return new Intl.NumberFormat('es-CO', {
+  return new Intl.NumberFormat("es-CO", {
     maximumFractionDigits: 0,
   }).format(value);
-}
-
-function formatCompactMoney(value: number) {
-  const absoluteValue = Math.abs(value);
-  const sign = value < 0 ? '-' : '';
-
-  if (absoluteValue >= 1_000_000) {
-    return `${sign}$ ${(absoluteValue / 1_000_000).toFixed(1)}M`;
-  }
-
-  if (absoluteValue >= 1_000) {
-    return `${sign}$ ${Math.round(absoluteValue / 1_000)}k`;
-  }
-
-  return `${sign}$ ${formatMoney(absoluteValue)}`;
 }
 
 function normalize(value: string) {
@@ -104,7 +107,7 @@ function compareMonths(left: VisibleMonth, right: VisibleMonth) {
 }
 
 function formatMonthPrefix(visibleMonth: VisibleMonth) {
-  const month = String(visibleMonth.month).padStart(2, '0');
+  const month = String(visibleMonth.month).padStart(2, "0");
 
   return `${visibleMonth.year}-${month}-`;
 }
@@ -115,58 +118,17 @@ function formatMonthKey(visibleMonth: VisibleMonth) {
 
 function formatMonthLabel(visibleMonth: VisibleMonth) {
   const date = new Date(visibleMonth.year, visibleMonth.month - 1, 1);
-  const month = new Intl.DateTimeFormat('es-CO', { month: 'long' }).format(date);
+  const month = new Intl.DateTimeFormat("es-CO", { month: "long" }).format(
+    date,
+  );
 
   return `${month.charAt(0).toLocaleUpperCase()}${month.slice(1)} ${visibleMonth.year}`;
 }
 
-function getDaysInMonth(visibleMonth: VisibleMonth) {
-  return new Date(visibleMonth.year, visibleMonth.month, 0).getDate();
-}
-
-function getTransactionDay(transaction: Transaction) {
-  return Number(transaction.transaction_date.slice(8, 10));
-}
-
-function buildDailyChartData(
+function groupByCategory(
   monthTransactions: Transaction[],
-  visibleMonth: VisibleMonth,
-  openingBalance: number
-): DailyChartPoint[] {
-  const days = Array.from({ length: getDaysInMonth(visibleMonth) }, (_, index) => ({
-    balance: 0,
-    day: index + 1,
-    expense: 0,
-    income: 0,
-  }));
-
-  for (const transaction of monthTransactions) {
-    const dayIndex = getTransactionDay(transaction) - 1;
-    const point = days[dayIndex];
-
-    if (!point) {
-      continue;
-    }
-
-    if (transaction.type === 'income') {
-      point.income += transaction.amount;
-    } else {
-      point.expense += transaction.amount;
-    }
-  }
-
-  let runningBalance = openingBalance;
-  return days.map((point) => {
-    runningBalance += point.income - point.expense;
-
-    return {
-      ...point,
-      balance: runningBalance,
-    };
-  });
-}
-
-function groupByCategory(monthTransactions: Transaction[], type: Transaction['type']): CategoryChartPoint[] {
+  type: Transaction["type"],
+): CategoryChartPoint[] {
   const totals = new Map<string, number>();
 
   for (const transaction of monthTransactions) {
@@ -176,7 +138,7 @@ function groupByCategory(monthTransactions: Transaction[], type: Transaction['ty
 
     totals.set(
       transaction.category_description,
-      (totals.get(transaction.category_description) ?? 0) + transaction.amount
+      (totals.get(transaction.category_description) ?? 0) + transaction.amount,
     );
   }
 
@@ -189,71 +151,39 @@ function groupByCategory(monthTransactions: Transaction[], type: Transaction['ty
     }));
 }
 
-function getTopCategoriesWithOther(categoryData: CategoryChartPoint[], limit: number): CategoryChartPoint[] {
+function getTopCategoriesWithOther(
+  categoryData: CategoryChartPoint[],
+  limit: number,
+): CategoryChartPoint[] {
   if (categoryData.length <= limit) {
     return categoryData;
   }
 
   const topCategories = categoryData.slice(0, limit);
-  const otherAmount = categoryData.slice(limit).reduce((total, category) => total + category.amount, 0);
+  const otherAmount = categoryData
+    .slice(limit)
+    .reduce((total, category) => total + category.amount, 0);
 
   return [
     ...topCategories,
     {
       amount: otherAmount,
       color: CHART_CATEGORY_COLORS[limit % CHART_CATEGORY_COLORS.length],
-      label: 'Otros',
+      label: "Otros",
     },
   ];
 }
 
-function getChartDomain(values: number[]): [number, number] {
-  const min = Math.min(0, ...values);
-  const max = Math.max(0, ...values);
-
-  if (min === max) {
-    return [min - 1, max + 1];
-  }
-
-  const padding = Math.max((max - min) * 0.1, 1);
-
-  return [Math.floor(min - padding), Math.ceil(max + padding)];
-}
-
-function getBalanceAxisLabels(domain: [number, number]) {
-  const [min, max] = domain;
-  const middle = min + (max - min) / 2;
-
-  return [max, middle, min].map((value) => Math.round(value));
-}
-
-function getZeroLineTop(domain: [number, number]): DimensionValue | null {
-  const [min, max] = domain;
-
-  if (min >= 0 || max <= 0) {
-    return null;
-  }
-
-  return `${((max - 0) / (max - min)) * 100}%`;
-}
-
-function getMonthStartBalance(dailyData: DailyChartPoint[], openingBalance: number) {
-  const firstDay = dailyData[0];
-
-  if (!firstDay) {
-    return openingBalance;
-  }
-
-  return firstDay.balance - firstDay.income + firstDay.expense;
-}
-
-function transactionMatchesDescriptionSearch(transaction: Transaction, search: string) {
+function transactionMatchesDescriptionSearch(
+  transaction: Transaction,
+  search: string,
+) {
   const needle = normalize(search);
   if (!needle) {
     return true;
   }
 
-  return normalize(transaction.description ?? '').includes(needle);
+  return normalize(transaction.description ?? "").includes(needle);
 }
 
 function transactionMatchesTag(transaction: Transaction, tag: Tag | null) {
@@ -262,32 +192,9 @@ function transactionMatchesTag(transaction: Transaction, tag: Tag | null) {
   }
 
   return transaction.tags
-    .split(',')
+    .split(",")
     .map((value) => normalize(value))
     .includes(normalize(tag.description));
-}
-
-function buildBudgetSummary(rows: MonthlyBudgetProgressRow[]): MonthlyBudgetSummary {
-  return rows.reduce(
-    (summary, row) => {
-      const planned = row.planned_amount;
-      const spent = row.spent_amount;
-
-      return {
-        planned_total: summary.planned_total + planned,
-        spent_total: summary.spent_total + spent,
-        remaining_total: summary.remaining_total + planned - spent,
-        unbudgeted_expense_total:
-          summary.unbudgeted_expense_total + (row.has_budget === 0 && spent > 0 ? spent : 0),
-      };
-    },
-    {
-      planned_total: 0,
-      remaining_total: 0,
-      spent_total: 0,
-      unbudgeted_expense_total: 0,
-    }
-  );
 }
 
 export default function HomeScreen() {
@@ -307,40 +214,56 @@ export default function HomeScreen() {
   } = useCashioData();
   const { settings } = useCashioSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [descriptionSearch, setDescriptionSearch] = useState('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [descriptionSearch, setDescriptionSearch] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null,
+  );
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
-  const [selectedTransactionIds, setSelectedTransactionIds] = useState<number[]>([]);
-  const [visibleMonth, setVisibleMonth] = useState<VisibleMonth>(() => getCurrentMonth());
-  const [activeView, setActiveView] = useState<ActiveView>('list');
-  const [inlineMessage, setInlineMessage] = useState('');
-  const [budgetMessage, setBudgetMessage] = useState('');
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<
+    number[]
+  >([]);
+  const [visibleMonth, setVisibleMonth] = useState<VisibleMonth>(() =>
+    getCurrentMonth(),
+  );
+  const [activeView, setActiveView] = useState<ActiveView>("list");
+  const [inlineMessage, setInlineMessage] = useState("");
+  const [budgetMessage, setBudgetMessage] = useState("");
   const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
   const visibleMonthKey = formatMonthKey(visibleMonth);
   const visibleMonthLabel = formatMonthLabel(visibleMonth);
   const shouldAccumulatePreviousBalances = settings.accumulatePreviousBalances;
-  const selectedTransactionIdSet = useMemo(() => new Set(selectedTransactionIds), [selectedTransactionIds]);
+  const selectedTransactionIdSet = useMemo(
+    () => new Set(selectedTransactionIds),
+    [selectedTransactionIds],
+  );
   const selectedTransactionCount = selectedTransactionIds.length;
   const isSelectionMode = selectedTransactionCount > 0;
 
   const selectedCategory = useMemo(
-    () => categories.find((category) => category.id === selectedCategoryId) ?? null,
-    [categories, selectedCategoryId]
+    () =>
+      categories.find((category) => category.id === selectedCategoryId) ?? null,
+    [categories, selectedCategoryId],
   );
 
   const selectedTag = useMemo(
     () => tags.find((tag) => tag.id === selectedTagId) ?? null,
-    [tags, selectedTagId]
+    [tags, selectedTagId],
   );
 
   const monthlyTransactions = useMemo(
-    () => transactions.filter((transaction) => transaction.transaction_date.startsWith(visibleMonthPrefix)),
-    [transactions, visibleMonthPrefix]
+    () =>
+      transactions.filter((transaction) =>
+        transaction.transaction_date.startsWith(visibleMonthPrefix),
+      ),
+    [transactions, visibleMonthPrefix],
   );
 
   const visibleMonthSummary = useMemo(
-    () => monthlySummaries.find((monthlySummary) => monthlySummary.month === visibleMonthKey) ?? null,
-    [monthlySummaries, visibleMonthKey]
+    () =>
+      monthlySummaries.find(
+        (monthlySummary) => monthlySummary.month === visibleMonthKey,
+      ) ?? null,
+    [monthlySummaries, visibleMonthKey],
   );
 
   const openingBalance = useMemo(() => {
@@ -350,8 +273,10 @@ export default function HomeScreen() {
 
     return monthlySummaries.reduce(
       (total, monthlySummary) =>
-        monthlySummary.month < visibleMonthKey ? total + monthlySummary.net_total : total,
-      0
+        monthlySummary.month < visibleMonthKey
+          ? total + monthlySummary.net_total
+          : total,
+      0,
     );
   }, [monthlySummaries, shouldAccumulatePreviousBalances, visibleMonthKey]);
 
@@ -360,10 +285,11 @@ export default function HomeScreen() {
       monthlyTransactions.filter(
         (transaction) =>
           transactionMatchesDescriptionSearch(transaction, descriptionSearch) &&
-          (!selectedCategory || transaction.category_id === selectedCategory.id) &&
-          transactionMatchesTag(transaction, selectedTag)
+          (!selectedCategory ||
+            transaction.category_id === selectedCategory.id) &&
+          transactionMatchesTag(transaction, selectedTag),
       ),
-    [descriptionSearch, monthlyTransactions, selectedCategory, selectedTag]
+    [descriptionSearch, monthlyTransactions, selectedCategory, selectedTag],
   );
 
   const summary = useMemo<MonthlySummary>(() => {
@@ -379,19 +305,14 @@ export default function HomeScreen() {
     };
   }, [openingBalance, visibleMonthSummary]);
 
-  const dailyChartData = useMemo(
-    () => buildDailyChartData(monthlyTransactions, visibleMonth, openingBalance),
-    [monthlyTransactions, openingBalance, visibleMonth]
-  );
-
   const expenseCategoryData = useMemo(
-    () => groupByCategory(monthlyTransactions, 'expense'),
-    [monthlyTransactions]
+    () => groupByCategory(monthlyTransactions, "expense"),
+    [monthlyTransactions],
   );
 
   const budgetSummary = useMemo(
     () => buildBudgetSummary(monthlyBudgetProgress),
-    [monthlyBudgetProgress]
+    [monthlyBudgetProgress],
   );
 
   const hasActiveFilters = !!selectedCategory || !!selectedTag;
@@ -410,23 +331,27 @@ export default function HomeScreen() {
   }
 
   function selectTransaction(id: number) {
-    setSelectedTransactionIds((currentIds) => (currentIds.includes(id) ? currentIds : [...currentIds, id]));
+    setSelectedTransactionIds((currentIds) =>
+      currentIds.includes(id) ? currentIds : [...currentIds, id],
+    );
   }
 
   function toggleTransactionSelection(id: number) {
     setSelectedTransactionIds((currentIds) =>
-      currentIds.includes(id) ? currentIds.filter((currentId) => currentId !== id) : [...currentIds, id]
+      currentIds.includes(id)
+        ? currentIds.filter((currentId) => currentId !== id)
+        : [...currentIds, id],
     );
   }
 
   async function deleteSelectedTransactions(ids: number[]) {
-    setInlineMessage('');
+    setInlineMessage("");
 
     try {
       await removeTransactions(ids);
       setSelectedTransactionIds([]);
     } catch {
-      setInlineMessage('No se pudieron eliminar los registros.');
+      setInlineMessage("No se pudieron eliminar los registros.");
     }
   }
 
@@ -434,33 +359,31 @@ export default function HomeScreen() {
     const ids = [...selectedTransactionIds];
     const count = ids.length;
     const message =
-      count === 1 ? '¿Quieres eliminar el registro seleccionado?' : `¿Quieres eliminar ${count} registros seleccionados?`;
+      count === 1
+        ? "¿Quieres eliminar el registro seleccionado?"
+        : `¿Quieres eliminar ${count} registros seleccionados?`;
 
     if (count === 0) {
       return;
     }
 
-    if (Platform.OS === 'web') {
+    if (Platform.OS === "web") {
       if (confirm(message)) {
         void deleteSelectedTransactions(ids);
       }
       return;
     }
 
-    Alert.alert(
-      'Eliminar registros',
-      message,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => {
-            void deleteSelectedTransactions(ids);
-          },
+    Alert.alert("Eliminar registros", message, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: () => {
+          void deleteSelectedTransactions(ids);
         },
-      ]
-    );
+      },
+    ]);
   }
 
   function handleListPress() {
@@ -469,7 +392,7 @@ export default function HomeScreen() {
       return;
     }
 
-    setActiveView('list');
+    setActiveView("list");
   }
 
   function handleChartsPress() {
@@ -478,7 +401,7 @@ export default function HomeScreen() {
       return;
     }
 
-    setActiveView('charts');
+    setActiveView("charts");
   }
 
   function handleBudgetsPress() {
@@ -487,8 +410,8 @@ export default function HomeScreen() {
       return;
     }
 
-    setBudgetMessage('');
-    setActiveView('budgets');
+    setBudgetMessage("");
+    setActiveView("budgets");
   }
 
   function handleReportsPress() {
@@ -497,11 +420,11 @@ export default function HomeScreen() {
       return;
     }
 
-    setActiveView('reports');
+    setActiveView("reports");
   }
 
   async function handleSaveBudget(categoryId: number, plannedAmount: number) {
-    setBudgetMessage('');
+    setBudgetMessage("");
 
     try {
       await saveMonthlyBudgetAllocation({
@@ -510,35 +433,42 @@ export default function HomeScreen() {
         plannedAmount,
       });
     } catch {
-      setBudgetMessage('No se pudo guardar el presupuesto.');
+      setBudgetMessage("No se pudo guardar el presupuesto.");
     }
   }
 
   async function handleCopyPreviousBudget() {
-    setBudgetMessage('');
+    setBudgetMessage("");
 
     try {
       const previousMonthKey = formatMonthKey(addMonths(visibleMonth, -1));
-      const copiedCount = await copyBudgetFromPreviousMonth(previousMonthKey, visibleMonthKey);
+      const copiedCount = await copyBudgetFromPreviousMonth(
+        previousMonthKey,
+        visibleMonthKey,
+      );
       setBudgetMessage(
         copiedCount > 0
-          ? 'Presupuesto copiado desde el mes anterior.'
-          : 'No hay categorías nuevas para copiar desde el mes anterior.'
+          ? "Presupuesto copiado desde el mes anterior."
+          : "No hay categorías nuevas para copiar desde el mes anterior.",
       );
     } catch {
-      setBudgetMessage('No se pudo copiar el presupuesto anterior.');
+      setBudgetMessage("No se pudo copiar el presupuesto anterior.");
     }
   }
 
   const goToPreviousMonth = useCallback(() => {
-    setVisibleMonth((currentVisibleMonth) => addMonths(currentVisibleMonth, -1));
+    setVisibleMonth((currentVisibleMonth) =>
+      addMonths(currentVisibleMonth, -1),
+    );
   }, []);
 
   const goToNextMonth = useCallback(() => {
     setVisibleMonth((currentVisibleMonth) => {
       const nextMonth = addMonths(currentVisibleMonth, 1);
 
-      return compareMonths(nextMonth, getCurrentMonth()) <= 0 ? nextMonth : currentVisibleMonth;
+      return compareMonths(nextMonth, getCurrentMonth()) <= 0
+        ? nextMonth
+        : currentVisibleMonth;
     });
   }, []);
 
@@ -553,7 +483,7 @@ export default function HomeScreen() {
         goToNextMonth();
       }
     },
-    [goToNextMonth, goToPreviousMonth]
+    [goToNextMonth, goToPreviousMonth],
   );
 
   const monthSwipeGesture = useMemo(
@@ -566,32 +496,43 @@ export default function HomeScreen() {
         .onEnd((event) => {
           handleMonthSwipe(event.translationX);
         }),
-    [handleMonthSwipe, isSelectionMode]
+    [handleMonthSwipe, isSelectionMode],
   );
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={[styles.phoneSurface, { borderColor: theme.backgroundSelected }]}>
+        <ThemedView
+          style={[
+            styles.phoneSurface,
+            { borderColor: theme.backgroundSelected },
+          ]}
+        >
           {isSelectionMode ? (
             <SelectionHeader
               count={selectedTransactionCount}
               onCancel={cancelSelection}
               onDelete={handleDeleteSelectedTransactions}
             />
-          ) : activeView === 'reports' || activeView === 'budgets' ? (
+          ) : activeView === "reports" || activeView === "budgets" ? (
             <ThemedView style={styles.header}>
-              <IconButton label="Abrir menú" onPress={() => navigation.openDrawer()}>
+              <IconButton
+                label="Abrir menú"
+                onPress={() => navigation.openDrawer()}
+              >
                 <AppIcon color={theme.text} name="menu" size={30} />
               </IconButton>
               <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
-                {activeView === 'budgets' ? 'Presupuesto' : 'Reportes'}
+                {activeView === "budgets" ? "Presupuesto" : "Reportes"}
               </ThemedText>
               <View style={styles.headerSpacer} />
             </ThemedView>
           ) : (
             <ThemedView style={styles.header}>
-              <IconButton label="Abrir menú" onPress={() => navigation.openDrawer()}>
+              <IconButton
+                label="Abrir menú"
+                onPress={() => navigation.openDrawer()}
+              >
                 <AppIcon color={theme.text} name="menu" size={30} />
               </IconButton>
 
@@ -606,31 +547,40 @@ export default function HomeScreen() {
                     value={descriptionSearch}
                   />
                 </ThemedView>
-                <IconButton label="Filtrar" selected={hasActiveFilters} onPress={() => setIsFilterOpen(true)}>
+                <IconButton
+                  label="Filtrar"
+                  selected={hasActiveFilters}
+                  onPress={() => setIsFilterOpen(true)}
+                >
                   <AppIcon color={theme.text} name="filter" size={30} />
                 </IconButton>
               </View>
             </ThemedView>
           )}
 
-          {activeView === 'budgets' ? (
+          {activeView === "budgets" ? (
             <BudgetSummary
               monthLabel={visibleMonthLabel}
               summary={budgetSummary}
             />
-          ) : activeView !== 'reports' && (
-            <BalanceSummary
-              balance={summary.balance}
-              expense={summary.expense}
-              income={summary.income}
-              monthLabel={visibleMonthLabel}
-              openingBalance={summary.openingBalance}
-              showOpeningBalance={shouldAccumulatePreviousBalances}
-            />
+          ) : (
+            activeView !== "reports" && (
+              <BalanceSummary
+                balance={summary.balance}
+                expense={summary.expense}
+                income={summary.income}
+                monthLabel={visibleMonthLabel}
+                openingBalance={summary.openingBalance}
+                showOpeningBalance={shouldAccumulatePreviousBalances}
+              />
+            )
           )}
 
-          {activeView === 'reports' ? (
-            <ScrollView contentContainerStyle={styles.reportContent} style={styles.list}>
+          {activeView === "reports" ? (
+            <ScrollView
+              contentContainerStyle={styles.reportContent}
+              style={styles.list}
+            >
               <ReportExportPanel
                 defaultMonth={visibleMonthKey}
                 isLoading={isLoading}
@@ -640,14 +590,20 @@ export default function HomeScreen() {
             </ScrollView>
           ) : (
             <GestureDetector gesture={monthSwipeGesture}>
-              {activeView === 'list' ? (
-                <ScrollView contentContainerStyle={styles.listContent} style={styles.list}>
+              {activeView === "list" ? (
+                <ScrollView
+                  contentContainerStyle={styles.listContent}
+                  style={styles.list}
+                >
                   {filteredTransactions.length === 0 ? (
                     <ThemedView style={styles.emptyState}>
                       <ThemedText type="subtitle" style={styles.emptyTitle}>
                         Sin registros
                       </ThemedText>
-                      <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+                      <ThemedText
+                        themeColor="textSecondary"
+                        style={styles.emptyText}
+                      >
                         No hay registros en este mes.
                       </ThemedText>
                     </ThemedView>
@@ -668,21 +624,28 @@ export default function HomeScreen() {
                     ))
                   )}
                 </ScrollView>
-              ) : activeView === 'charts' ? (
-                <ScrollView contentContainerStyle={styles.chartContent} style={styles.list}>
+              ) : activeView === "charts" ? (
+                <ScrollView
+                  contentContainerStyle={styles.chartContent}
+                  style={styles.list}
+                >
                   <MonthlyChartsPanel
-                    dailyData={dailyChartData}
                     expenseCategoryData={expenseCategoryData}
                     monthTransactionCount={monthlyTransactions.length}
                     summary={summary}
                   />
                 </ScrollView>
               ) : (
-                <ScrollView contentContainerStyle={styles.budgetContent} style={styles.list}>
+                <ScrollView
+                  contentContainerStyle={styles.budgetContent}
+                  style={styles.list}
+                >
                   <MonthlyBudgetPanel
                     budgetMessage={budgetMessage}
                     onCopyPreviousBudget={() => void handleCopyPreviousBudget()}
-                    onSaveBudget={(categoryId, plannedAmount) => void handleSaveBudget(categoryId, plannedAmount)}
+                    onSaveBudget={(categoryId, plannedAmount) =>
+                      void handleSaveBudget(categoryId, plannedAmount)
+                    }
                     rows={monthlyBudgetProgress}
                     summary={budgetSummary}
                   />
@@ -691,35 +654,69 @@ export default function HomeScreen() {
             </GestureDetector>
           )}
 
-          {activeView !== 'reports' && activeView !== 'budgets' && !!inlineMessage && (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.inlineMessage}>
-              {inlineMessage}
-            </ThemedText>
-          )}
+          {activeView !== "reports" &&
+            activeView !== "budgets" &&
+            !!inlineMessage && (
+              <ThemedText
+                type="small"
+                themeColor="textSecondary"
+                style={styles.inlineMessage}
+              >
+                {inlineMessage}
+              </ThemedText>
+            )}
 
-          {!isSelectionMode && activeView !== 'reports' && activeView !== 'budgets' && (
-            <Pressable
-              accessibilityLabel="Agregar registro"
-              onPress={() => router.push('/new-transaction')}
-              style={({ pressed }) => [
-                styles.fab,
-                pressed && styles.fabPressed,
-              ]}>
-              <AppIcon color={AppPalette.foregroundInverse} name="plus" size={36} />
-            </Pressable>
-          )}
+          {!isSelectionMode &&
+            activeView !== "reports" &&
+            activeView !== "budgets" && (
+              <Pressable
+                accessibilityLabel="Agregar registro"
+                onPress={() => router.push("/new-transaction")}
+                style={({ pressed }) => [
+                  styles.fab,
+                  pressed && styles.fabPressed,
+                ]}
+              >
+                <AppIcon
+                  color={AppPalette.foregroundInverse}
+                  name="plus"
+                  size={36}
+                />
+              </Pressable>
+            )}
 
-          <ThemedView style={[styles.bottomBar, { borderTopColor: theme.backgroundSelected }]}>
-            <IconButton label="Listado de registros" selected={activeView === 'list'} onPress={handleListPress}>
+          <ThemedView
+            style={[
+              styles.bottomBar,
+              { borderTopColor: theme.backgroundSelected },
+            ]}
+          >
+            <IconButton
+              label="Listado de registros"
+              selected={activeView === "list"}
+              onPress={handleListPress}
+            >
               <AppIcon color={theme.text} name="list" size={34} />
             </IconButton>
-            <IconButton label="Gráficas" selected={activeView === 'charts'} onPress={handleChartsPress}>
+            <IconButton
+              label="Gráficas"
+              selected={activeView === "charts"}
+              onPress={handleChartsPress}
+            >
               <AppIcon color={theme.text} name="bar-chart-2" size={34} />
             </IconButton>
-            <IconButton label="Presupuesto" selected={activeView === 'budgets'} onPress={handleBudgetsPress}>
+            <IconButton
+              label="Presupuesto"
+              selected={activeView === "budgets"}
+              onPress={handleBudgetsPress}
+            >
               <AppIcon color={theme.text} name="target" size={34} />
             </IconButton>
-            <IconButton label="Reportes" selected={activeView === 'reports'} onPress={handleReportsPress}>
+            <IconButton
+              label="Reportes"
+              selected={activeView === "reports"}
+              onPress={handleReportsPress}
+            >
               <AppIcon color={theme.text} name="file-text" size={34} />
             </IconButton>
           </ThemedView>
@@ -758,34 +755,64 @@ function TransactionRow({
 
   return (
     <Pressable
-      accessibilityHint={selectionMode ? 'Toca para alternar selección' : 'Mantén pulsado para seleccionar'}
+      accessibilityHint={
+        selectionMode
+          ? "Toca para alternar selección"
+          : "Mantén pulsado para seleccionar"
+      }
       accessibilityLabel={`Registro ${transaction.description || transaction.category_description}`}
       accessibilityState={{ selected }}
       delayLongPress={300}
       onLongPress={onLongPress}
       onPress={onPress}
-      style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView type={selected ? 'backgroundSelected' : 'background'} style={styles.transactionRow}>
-        <TypeIcon color={theme.text} selected={selected} type={transaction.type} />
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <ThemedView
+        type={selected ? "backgroundSelected" : "background"}
+        style={styles.transactionRow}
+      >
+        <TypeIcon
+          color={theme.text}
+          selected={selected}
+          type={transaction.type}
+        />
         <View style={styles.transactionBody}>
           <ThemedText type="subtitle" style={styles.amount}>
             {formatMoney(transaction.amount)}
           </ThemedText>
           <View style={styles.metadataRow}>
-            <AppIcon color={theme.textSecondary} name="folder" size={12} style={styles.metadataIcon} />
+            <AppIcon
+              color={theme.textSecondary}
+              name="folder"
+              size={12}
+              style={styles.metadataIcon}
+            />
             <ThemedText type="small" style={styles.metadataText}>
               {transaction.category_description}
             </ThemedText>
           </View>
           {!!transaction.description && (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
+            <ThemedText
+              type="small"
+              themeColor="textSecondary"
+              style={styles.description}
+            >
               {transaction.description}
             </ThemedText>
           )}
           {!!transaction.tags && (
             <View style={styles.metadataRow}>
-              <AppIcon color={theme.textSecondary} name="tag" size={12} style={styles.metadataIcon} />
-              <ThemedText type="small" themeColor="textSecondary" style={[styles.description, styles.metadataText]}>
+              <AppIcon
+                color={theme.textSecondary}
+                name="tag"
+                size={12}
+                style={styles.metadataIcon}
+              />
+              <ThemedText
+                type="small"
+                themeColor="textSecondary"
+                style={[styles.description, styles.metadataText]}
+              >
                 {transaction.tags}
               </ThemedText>
             </View>
@@ -809,7 +836,10 @@ function SelectionHeader({
   onDelete: () => void;
 }) {
   const theme = useTheme();
-  const label = count === 1 ? '1 registro seleccionado' : `${count} registros seleccionados`;
+  const label =
+    count === 1
+      ? "1 registro seleccionado"
+      : `${count} registros seleccionados`;
 
   return (
     <ThemedView type="backgroundSelected" style={styles.selectionHeader}>
@@ -819,7 +849,10 @@ function SelectionHeader({
       <ThemedText type="smallBold" style={styles.selectionTitle}>
         {label}
       </ThemedText>
-      <FlatIconButton label="Eliminar registros seleccionados" onPress={onDelete}>
+      <FlatIconButton
+        label="Eliminar registros seleccionados"
+        onPress={onDelete}
+      >
         <AppIcon color={theme.text} name="trash-2" size={28} />
       </FlatIconButton>
     </ThemedView>
@@ -858,7 +891,12 @@ function BalanceSummary({
           </ThemedText>
         </View>
         {showOpeningBalance && (
-          <View style={[styles.summaryOpeningRow, { borderTopColor: theme.textSecondary }]}>
+          <View
+            style={[
+              styles.summaryOpeningRow,
+              { borderTopColor: theme.textSecondary },
+            ]}
+          >
             <ThemedText type="smallBold" style={styles.summaryDetail}>
               Saldo anterior
             </ThemedText>
@@ -880,202 +918,16 @@ function BalanceSummary({
   );
 }
 
-function BudgetSummary({
-  monthLabel,
-  summary,
-}: {
-  monthLabel: string;
-  summary: MonthlyBudgetSummary;
-}) {
-  return (
-    <View style={styles.summaryWrap}>
-      <ThemedText type="smallBold" style={styles.summaryMonth}>
-        {monthLabel}
-      </ThemedText>
-      <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
-        <View style={styles.summaryMainRow}>
-          <ThemedText type="subtitle" style={styles.summaryTitle}>
-            Disponible
-          </ThemedText>
-          <ThemedText type="subtitle" style={styles.summaryAmount}>
-            $ {formatMoney(summary.remaining_total)}
-          </ThemedText>
-        </View>
-        <View style={styles.summaryDetailRow}>
-          <ThemedText type="smallBold" style={styles.summaryDetail}>
-            Presupuestado: $ {formatMoney(summary.planned_total)}
-          </ThemedText>
-          <ThemedText type="smallBold" style={styles.summaryDetail}>
-            Gastado: $ {formatMoney(summary.spent_total)}
-          </ThemedText>
-        </View>
-        {summary.unbudgeted_expense_total > 0 && (
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.summaryDetail}>
-            Sin presupuesto: $ {formatMoney(summary.unbudgeted_expense_total)}
-          </ThemedText>
-        )}
-      </ThemedView>
-    </View>
-  );
-}
-
-function MonthlyBudgetPanel({
-  budgetMessage,
-  onCopyPreviousBudget,
-  onSaveBudget,
-  rows,
-  summary,
-}: {
-  budgetMessage: string;
-  onCopyPreviousBudget: () => void;
-  onSaveBudget: (categoryId: number, plannedAmount: number) => void;
-  rows: MonthlyBudgetProgressRow[];
-  summary: MonthlyBudgetSummary;
-}) {
-  const hasBudgetRows = rows.some((row) => row.has_budget === 1 || row.spent_amount > 0);
-
-  return (
-    <View style={styles.budgetPanel}>
-      <View style={styles.budgetActions}>
-        <MenuButton label="Copiar mes anterior" onPress={onCopyPreviousBudget} />
-      </View>
-
-      {!!budgetMessage && (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.budgetMessage}>
-          {budgetMessage}
-        </ThemedText>
-      )}
-
-      {!hasBudgetRows && summary.planned_total === 0 ? (
-        <ThemedView style={styles.emptyState}>
-          <ThemedText type="subtitle" style={styles.emptyTitle}>
-            Sin presupuesto
-          </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-            Asigna valores a las categorías o copia el mes anterior.
-          </ThemedText>
-        </ThemedView>
-      ) : null}
-
-      <View style={styles.budgetRows}>
-        {rows.map((row) => (
-          <BudgetCategoryRow
-            key={row.category_id}
-            onSaveBudget={onSaveBudget}
-            row={row}
-          />
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function BudgetCategoryRow({
-  onSaveBudget,
-  row,
-}: {
-  onSaveBudget: (categoryId: number, plannedAmount: number) => void;
-  row: MonthlyBudgetProgressRow;
-}) {
-  const theme = useTheme();
-  const [draftAmount, setDraftAmount] = useState<number | null>(
-    row.planned_amount > 0 ? row.planned_amount : null
-  );
-  const plannedAmount = row.planned_amount;
-  const spentAmount = row.spent_amount;
-  const remainingAmount = plannedAmount - spentAmount;
-  const progress = plannedAmount > 0 ? spentAmount / plannedAmount : spentAmount > 0 ? 1 : 0;
-  const progressWidth: DimensionValue = `${Math.min(Math.max(progress * 100, spentAmount > 0 ? 4 : 0), 100)}%`;
-  const isUnbudgeted = row.has_budget === 0 && spentAmount > 0;
-  const isOver = plannedAmount > 0 && spentAmount > plannedAmount;
-  const isNearLimit = plannedAmount > 0 && !isOver && progress >= 0.8;
-  const statusLabel = isUnbudgeted ? 'Sin presupuesto' : isOver ? 'Excedido' : isNearLimit ? 'Cerca del límite' : 'En curso';
-  const statusColor = isOver || isUnbudgeted
-    ? AppPalette.brandOrange
-    : isNearLimit
-      ? '#eab308'
-      : AppPalette.incomeGreen;
-
-  useEffect(() => {
-    setDraftAmount(row.planned_amount > 0 ? row.planned_amount : null);
-  }, [row.planned_amount]);
-
-  function commitBudget() {
-    const nextAmount = draftAmount ?? 0;
-
-    if (nextAmount === row.planned_amount) {
-      return;
-    }
-
-    onSaveBudget(row.category_id, nextAmount);
-  }
-
-  return (
-    <ThemedView type="backgroundSelected" style={styles.budgetRow}>
-      <View style={styles.budgetRowHeader}>
-        <View style={styles.budgetCategoryCopy}>
-          <ThemedText type="smallBold" style={styles.budgetCategoryName} numberOfLines={1}>
-            {row.category_description}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {statusLabel}
-          </ThemedText>
-        </View>
-        <CurrencyInput
-          delimiter="."
-          keyboardType="numeric"
-          minValue={0}
-          onBlur={commitBudget}
-          onChangeValue={setDraftAmount}
-          placeholder="$ 0"
-          placeholderTextColor={theme.textSecondary}
-          precision={0}
-          prefix="$ "
-          separator=","
-          style={[
-            styles.budgetInput,
-            { borderColor: theme.background, color: theme.text },
-          ]}
-          value={draftAmount}
-        />
-      </View>
-
-      <View style={styles.budgetMetaRow}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.budgetMetaText}>
-          Gastado: $ {formatMoney(spentAmount)}
-        </ThemedText>
-        <ThemedText type="smallBold" style={styles.budgetMetaText}>
-          Disponible: $ {formatMoney(remainingAmount)}
-        </ThemedText>
-      </View>
-
-      <View style={[styles.budgetTrack, { backgroundColor: theme.background }]}>
-        <View style={[styles.budgetBar, { backgroundColor: statusColor, width: progressWidth }]} />
-      </View>
-    </ThemedView>
-  );
-}
-
 function MonthlyChartsPanel({
-  dailyData,
   expenseCategoryData,
   monthTransactionCount,
   summary,
 }: {
-  dailyData: DailyChartPoint[];
   expenseCategoryData: CategoryChartPoint[];
   monthTransactionCount: number;
   summary: MonthlySummary;
 }) {
-  const theme = useTheme();
-  const { width } = useWindowDimensions();
-  const chartWidth = Math.max(210, Math.min(300, width - 128));
-  const lineDomain = getChartDomain(dailyData.map((point) => point.balance));
-  const balanceAxisLabels = getBalanceAxisLabels(lineDomain);
-  const zeroLineTop = getZeroLineTop(lineDomain);
-  const monthStartBalance = getMonthStartBalance(dailyData, summary.openingBalance);
   const pieData = getTopCategoriesWithOther(expenseCategoryData, 5);
-  const lineColor = summary.balance >= 0 ? AppPalette.incomeGreen : AppPalette.brandOrange;
 
   if (monthTransactionCount === 0 && summary.openingBalance === 0) {
     return (
@@ -1093,60 +945,19 @@ function MonthlyChartsPanel({
   return (
     <View style={styles.chartsPanel}>
       <ThemedView type="backgroundSelected" style={styles.chartMetricGrid}>
-        <ChartMetric label="Ingresos" value={`$ ${formatMoney(summary.income)}`} />
-        <ChartMetric label="Egresos" value={`$ ${formatMoney(summary.expense)}`} />
-        <ChartMetric label="Saldo" value={`$ ${formatMoney(summary.balance)}`} />
+        <ChartMetric
+          label="Ingresos"
+          value={`$ ${formatMoney(summary.income)}`}
+        />
+        <ChartMetric
+          label="Egresos"
+          value={`$ ${formatMoney(summary.expense)}`}
+        />
+        <ChartMetric
+          label="Saldo"
+          value={`$ ${formatMoney(summary.balance)}`}
+        />
       </ThemedView>
-
-      <ChartCard title="Saldo acumulado diario">
-        <View style={styles.balanceChartRow}>
-          <View style={styles.balanceAxisLabels}>
-            {balanceAxisLabels.map((value, index) => (
-              <ThemedText key={`${value}-${index}`} type="small" themeColor="textSecondary" style={styles.balanceAxisLabel}>
-                {formatCompactMoney(value)}
-              </ThemedText>
-            ))}
-          </View>
-          <View style={[styles.chartFrame, { width: chartWidth }]}>
-            {zeroLineTop && (
-              <View pointerEvents="none" style={[styles.zeroLine, { borderTopColor: theme.textSecondary, top: zeroLineTop }]} />
-            )}
-            <CartesianChart
-              axisOptions={{
-                formatXLabel: (value) => `${value}`,
-                formatYLabel: () => '',
-                labelColor: theme.textSecondary,
-                lineColor: theme.textSecondary,
-                lineWidth: { frame: 0, grid: 1 },
-                tickCount: { x: 4, y: 4 },
-              }}
-              data={dailyData}
-              domain={{ x: [1, dailyData.length], y: lineDomain }}
-              domainPadding={{ bottom: Spacing.two, left: Spacing.two, right: Spacing.two, top: Spacing.two }}
-              explicitSize={{ height: 190, width: chartWidth }}
-              padding={{ bottom: Spacing.two, left: Spacing.two, right: Spacing.two, top: Spacing.two }}
-              xKey="day"
-              yKeys={['balance']}>
-              {({ points }) => (
-                <Line
-                  color={lineColor}
-                  curveType="natural"
-                  points={points.balance}
-                  strokeCap="round"
-                  strokeJoin="round"
-                  strokeWidth={3}
-                />
-              )}
-            </CartesianChart>
-          </View>
-        </View>
-        <View style={styles.chartFooter}>
-          <ThemedText type="small" themeColor="textSecondary">
-            Inicio: {formatCompactMoney(monthStartBalance)}
-          </ThemedText>
-          <ThemedText type="smallBold">Final: $ {formatMoney(summary.balance)}</ThemedText>
-        </View>
-      </ChartCard>
 
       {expenseCategoryData.length === 0 ? (
         <ThemedView type="backgroundSelected" style={styles.chartCard}>
@@ -1161,22 +972,16 @@ function MonthlyChartsPanel({
         <>
           <ChartCard title="Egresos por categoría">
             <View style={styles.pieChartRow}>
-              <PolarChart
-                colorKey="color"
-                data={pieData}
-                explicitSize={{ height: 176, width: 176 }}
-                labelKey="label"
-                valueKey="amount">
-                <Pie.Chart innerRadius="58%" size={168} startAngle={-90}>
-                  {() => <Pie.Slice />}
-                </Pie.Chart>
-              </PolarChart>
+              <DonutChart data={pieData} total={summary.expense} />
               <ChartLegend data={pieData} total={summary.expense} />
             </View>
           </ChartCard>
 
-          <ChartCard title="Gasto por categoría">
-            <CategoryExpenseBars data={expenseCategoryData} total={summary.expense} />
+          <ChartCard title="Acumulado">
+            <CategoryExpenseBars
+              data={expenseCategoryData}
+              total={summary.expense}
+            />
           </ChartCard>
         </>
       )}
@@ -1184,22 +989,93 @@ function MonthlyChartsPanel({
   );
 }
 
-function CategoryExpenseBars({ data, total }: { data: CategoryChartPoint[]; total: number }) {
+function DonutChart({
+  data,
+  total,
+}: {
+  data: CategoryChartPoint[];
+  total: number;
+}) {
+  const theme = useTheme();
+  const center = DONUT_CHART_SIZE / 2;
+  const radius = (DONUT_CHART_SIZE - DONUT_CHART_STROKE_WIDTH) / 2;
+  const circumference = 2 * Math.PI * radius;
+  let currentOffset = 0;
+
+  return (
+    <View style={styles.donutChartFrame}>
+      <Svg
+        height={DONUT_CHART_SIZE}
+        viewBox={`0 0 ${DONUT_CHART_SIZE} ${DONUT_CHART_SIZE}`}
+        width={DONUT_CHART_SIZE}
+      >
+        <Circle
+          cx={center}
+          cy={center}
+          fill="none"
+          r={radius}
+          stroke={theme.background}
+          strokeWidth={DONUT_CHART_STROKE_WIDTH}
+        />
+        <G transform={`rotate(-90 ${center} ${center})`}>
+          {data.map((item) => {
+            const sliceLength =
+              total > 0 ? (item.amount / total) * circumference : 0;
+            const dashOffset = -currentOffset;
+            currentOffset += sliceLength;
+
+            return (
+              <Circle
+                key={item.label}
+                cx={center}
+                cy={center}
+                fill="none"
+                r={radius}
+                stroke={item.color}
+                strokeDasharray={[sliceLength, circumference - sliceLength]}
+                strokeDashoffset={dashOffset}
+                strokeWidth={DONUT_CHART_STROKE_WIDTH}
+              />
+            );
+          })}
+        </G>
+      </Svg>
+    </View>
+  );
+}
+
+function CategoryExpenseBars({
+  data,
+  total,
+}: {
+  data: CategoryChartPoint[];
+  total: number;
+}) {
   const theme = useTheme();
   const maxAmount = Math.max(...data.map((item) => item.amount), 1);
 
   return (
     <View style={styles.categoryExpenseList}>
       {data.map((item) => {
-        const percentage = total > 0 ? Math.round((item.amount / total) * 100) : 0;
+        const percentage =
+          total > 0 ? Math.round((item.amount / total) * 100) : 0;
         const barWidth: DimensionValue = `${Math.max((item.amount / maxAmount) * 100, 4)}%`;
 
         return (
           <View key={item.label} style={styles.categoryExpenseItem}>
             <View style={styles.categoryExpenseHeader}>
               <View style={styles.categoryExpenseLabelWrap}>
-                <View style={[styles.chartLegendSwatch, { backgroundColor: item.color }]} />
-                <ThemedText type="smallBold" style={styles.categoryExpenseLabel} numberOfLines={1}>
+                <View
+                  style={[
+                    styles.chartLegendSwatch,
+                    { backgroundColor: item.color },
+                  ]}
+                />
+                <ThemedText
+                  type="smallBold"
+                  style={styles.categoryExpenseLabel}
+                  numberOfLines={1}
+                >
                   {item.label}
                 </ThemedText>
               </View>
@@ -1207,10 +1083,24 @@ function CategoryExpenseBars({ data, total }: { data: CategoryChartPoint[]; tota
                 $ {formatMoney(item.amount)}
               </ThemedText>
             </View>
-            <View style={[styles.categoryExpenseTrack, { backgroundColor: theme.background }]}>
-              <View style={[styles.categoryExpenseBar, { backgroundColor: item.color, width: barWidth }]} />
+            <View
+              style={[
+                styles.categoryExpenseTrack,
+                { backgroundColor: theme.background },
+              ]}
+            >
+              <View
+                style={[
+                  styles.categoryExpenseBar,
+                  { backgroundColor: item.color, width: barWidth },
+                ]}
+              />
             </View>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.categoryExpensePercent}>
+            <ThemedText
+              type="small"
+              themeColor="textSecondary"
+              style={styles.categoryExpensePercent}
+            >
               {percentage}%
             </ThemedText>
           </View>
@@ -1223,7 +1113,11 @@ function CategoryExpenseBars({ data, total }: { data: CategoryChartPoint[]; tota
 function ChartMetric({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.chartMetric}>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.chartMetricLabel}>
+      <ThemedText
+        type="small"
+        themeColor="textSecondary"
+        style={styles.chartMetricLabel}
+      >
         {label}
       </ThemedText>
       <ThemedText type="smallBold" style={styles.chartMetricValue}>
@@ -1233,7 +1127,13 @@ function ChartMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ChartCard({ children, title }: { children: ReactNode; title: string }) {
+function ChartCard({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) {
   return (
     <ThemedView type="backgroundSelected" style={styles.chartCard}>
       <ThemedText type="smallBold" style={styles.chartTitle}>
@@ -1244,17 +1144,29 @@ function ChartCard({ children, title }: { children: ReactNode; title: string }) 
   );
 }
 
-function ChartLegend({ data, total }: { data: CategoryChartPoint[]; total: number }) {
+function ChartLegend({
+  data,
+  total,
+}: {
+  data: CategoryChartPoint[];
+  total: number;
+}) {
   return (
     <View style={styles.chartLegend}>
       {data.map((item) => (
         <View key={item.label} style={styles.chartLegendRow}>
-          <View style={[styles.chartLegendSwatch, { backgroundColor: item.color }]} />
-          <ThemedText type="small" style={styles.chartLegendLabel} numberOfLines={1}>
+          <View
+            style={[styles.chartLegendSwatch, { backgroundColor: item.color }]}
+          />
+          <ThemedText
+            type="small"
+            style={styles.chartLegendLabel}
+            numberOfLines={1}
+          >
             {item.label}
           </ThemedText>
           <ThemedText type="smallBold" style={styles.chartLegendValue}>
-            {total > 0 ? `${Math.round((item.amount / total) * 100)}%` : '0%'}
+            {total > 0 ? `${Math.round((item.amount / total) * 100)}%` : "0%"}
           </ThemedText>
         </View>
       ))}
@@ -1286,29 +1198,32 @@ function FilterModal({
   const theme = useTheme();
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isTagOpen, setIsTagOpen] = useState(false);
-  const [categorySearch, setCategorySearch] = useState('');
-  const [tagSearch, setTagSearch] = useState('');
+  const [categorySearch, setCategorySearch] = useState("");
+  const [tagSearch, setTagSearch] = useState("");
 
   const categoryItems = useMemo(
     () => [
-      { label: 'Todas', value: 0 },
-      ...categories.map((category) => ({ label: category.description, value: category.id })),
+      { label: "Todas", value: 0 },
+      ...categories.map((category) => ({
+        label: category.description,
+        value: category.id,
+      })),
     ],
-    [categories]
+    [categories],
   );
 
   const tagItems = useMemo(
     () => [
-      { label: 'Todos', value: 0 },
+      { label: "Todos", value: 0 },
       ...tags.map((tag) => ({ label: tag.description, value: tag.id })),
     ],
-    [tags]
+    [tags],
   );
 
   function clearAndClose() {
     onClear();
-    setCategorySearch('');
-    setTagSearch('');
+    setCategorySearch("");
+    setTagSearch("");
     setIsCategoryOpen(false);
     setIsTagOpen(false);
   }
@@ -1316,23 +1231,32 @@ function FilterModal({
   function closeModal() {
     setIsCategoryOpen(false);
     setIsTagOpen(false);
-    setCategorySearch('');
-    setTagSearch('');
+    setCategorySearch("");
+    setTagSearch("");
     onClose();
   }
 
-  function setCategoryFilterValue(nextValue: (currentValue: number | null) => number | null) {
+  function setCategoryFilterValue(
+    nextValue: (currentValue: number | null) => number | null,
+  ) {
     const next = nextValue(selectedCategoryId ?? 0);
     setSelectedCategoryId(next === 0 ? null : next);
   }
 
-  function setTagFilterValue(nextValue: (currentValue: number | null) => number | null) {
+  function setTagFilterValue(
+    nextValue: (currentValue: number | null) => number | null,
+  ) {
     const next = nextValue(selectedTagId ?? 0);
     setSelectedTagId(next === 0 ? null : next);
   }
 
   return (
-    <Modal animationType="slide" transparent visible={isVisible} onRequestClose={closeModal}>
+    <Modal
+      animationType="slide"
+      transparent
+      visible={isVisible}
+      onRequestClose={closeModal}
+    >
       <Pressable style={styles.modalBackdrop} onPress={closeModal}>
         <Pressable onPress={(event) => event.stopPropagation()}>
           <ThemedView type="backgroundElement" style={styles.filterPanel}>
@@ -1340,7 +1264,12 @@ function FilterModal({
               Filtros
             </ThemedText>
 
-            <View style={[styles.filterDropdownField, { zIndex: isCategoryOpen ? 30 : 10 }]}>
+            <View
+              style={[
+                styles.filterDropdownField,
+                { zIndex: isCategoryOpen ? 30 : 10 },
+              ]}
+            >
               <ThemedText type="smallBold">Categorías</ThemedText>
               <DropDownPicker<number>
                 ArrowDownIconComponent={({ style }) => (
@@ -1365,7 +1294,10 @@ function FilterModal({
                 )}
                 dropDownContainerStyle={[
                   styles.filterDropdownMenu,
-                  { backgroundColor: theme.background, borderColor: theme.backgroundSelected },
+                  {
+                    backgroundColor: theme.background,
+                    borderColor: theme.backgroundSelected,
+                  },
                 ]}
                 items={categoryItems}
                 labelStyle={styles.filterDropdownLabel}
@@ -1391,13 +1323,21 @@ function FilterModal({
                   styles.filterDropdownSearchInput,
                   { borderColor: theme.backgroundSelected, color: theme.text },
                 ]}
-                selectedItemContainerStyle={{ backgroundColor: theme.backgroundSelected }}
-                selectedItemLabelStyle={{ color: theme.text, fontWeight: '700' }}
+                selectedItemContainerStyle={{
+                  backgroundColor: theme.backgroundSelected,
+                }}
+                selectedItemLabelStyle={{
+                  color: theme.text,
+                  fontWeight: "700",
+                }}
                 setOpen={setIsCategoryOpen}
                 setValue={setCategoryFilterValue}
                 style={[
                   styles.filterDropdown,
-                  { backgroundColor: theme.background, borderColor: theme.backgroundSelected },
+                  {
+                    backgroundColor: theme.background,
+                    borderColor: theme.backgroundSelected,
+                  },
                 ]}
                 textStyle={{ color: theme.text }}
                 value={selectedCategoryId ?? 0}
@@ -1406,7 +1346,12 @@ function FilterModal({
               />
             </View>
 
-            <View style={[styles.filterDropdownField, { zIndex: isTagOpen ? 30 : 10 }]}>
+            <View
+              style={[
+                styles.filterDropdownField,
+                { zIndex: isTagOpen ? 30 : 10 },
+              ]}
+            >
               <ThemedText type="smallBold">Tags</ThemedText>
               <DropDownPicker<number>
                 ArrowDownIconComponent={({ style }) => (
@@ -1431,7 +1376,10 @@ function FilterModal({
                 )}
                 dropDownContainerStyle={[
                   styles.filterDropdownMenu,
-                  { backgroundColor: theme.background, borderColor: theme.backgroundSelected },
+                  {
+                    backgroundColor: theme.background,
+                    borderColor: theme.backgroundSelected,
+                  },
                 ]}
                 items={tagItems}
                 labelStyle={styles.filterDropdownLabel}
@@ -1457,13 +1405,21 @@ function FilterModal({
                   styles.filterDropdownSearchInput,
                   { borderColor: theme.backgroundSelected, color: theme.text },
                 ]}
-                selectedItemContainerStyle={{ backgroundColor: theme.backgroundSelected }}
-                selectedItemLabelStyle={{ color: theme.text, fontWeight: '700' }}
+                selectedItemContainerStyle={{
+                  backgroundColor: theme.backgroundSelected,
+                }}
+                selectedItemLabelStyle={{
+                  color: theme.text,
+                  fontWeight: "700",
+                }}
                 setOpen={setIsTagOpen}
                 setValue={setTagFilterValue}
                 style={[
                   styles.filterDropdown,
-                  { backgroundColor: theme.background, borderColor: theme.backgroundSelected },
+                  {
+                    backgroundColor: theme.background,
+                    borderColor: theme.backgroundSelected,
+                  },
                 ]}
                 textStyle={{ color: theme.text }}
                 value={selectedTagId ?? 0}
@@ -1483,9 +1439,18 @@ function FilterModal({
   );
 }
 
-function MenuButton({ label, onPress }: { label: string; onPress: () => void }) {
+function MenuButton({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
       <ThemedView type="backgroundSelected" style={styles.menuButton}>
         <ThemedText type="smallBold">{label}</ThemedText>
       </ThemedView>
@@ -1505,8 +1470,15 @@ function IconButton({
   selected?: boolean;
 }) {
   return (
-    <Pressable accessibilityLabel={label} onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView type={selected ? 'backgroundSelected' : 'background'} style={styles.iconButton}>
+    <Pressable
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <ThemedView
+        type={selected ? "backgroundSelected" : "background"}
+        style={styles.iconButton}
+      >
         {children}
       </ThemedView>
     </Pressable>
@@ -1523,15 +1495,34 @@ function FlatIconButton({
   onPress: () => void;
 }) {
   return (
-    <Pressable accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.flatIconButton, pressed && styles.pressed]}>
+    <Pressable
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.flatIconButton,
+        pressed && styles.pressed,
+      ]}
+    >
       {children}
     </Pressable>
   );
 }
 
-function TypeIcon({ color, selected, type }: { color: string; selected?: boolean; type: Transaction['type'] }) {
-  const iconColor = type === 'income' ? AppPalette.incomeGreen : color;
-  const iconName = selected ? 'check' : type === 'income' ? 'arrow-up' : 'arrow-down';
+function TypeIcon({
+  color,
+  selected,
+  type,
+}: {
+  color: string;
+  selected?: boolean;
+  type: Transaction["type"];
+}) {
+  const iconColor = type === "income" ? AppPalette.incomeGreen : color;
+  const iconName = selected
+    ? "check"
+    : type === "income"
+      ? "arrow-up"
+      : "arrow-down";
 
   return (
     <View style={[styles.typeIcon, { borderColor: iconColor }]}>
@@ -1545,84 +1536,84 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   safeArea: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
     paddingHorizontal: Spacing.three,
-    paddingTop: Platform.OS === 'web' ? Spacing.three : 0,
+    paddingTop: Platform.OS === "web" ? Spacing.three : 0,
   },
   phoneSurface: {
-    borderWidth: Platform.OS === 'web' ? 1 : 0,
+    borderWidth: Platform.OS === "web" ? 1 : 0,
     flex: 1,
     maxWidth: 430,
-    position: 'relative',
-    width: '100%',
+    position: "relative",
+    width: "100%",
   },
   header: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: Spacing.two,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
     paddingTop: Spacing.four,
   },
   headerActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     flex: 1,
     gap: Spacing.two,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
     minWidth: 0,
   },
   reportHeaderTitle: {
     flex: 1,
     fontSize: 18,
     lineHeight: 24,
-    textAlign: 'center',
+    textAlign: "center",
   },
   headerSpacer: {
     height: 48,
     width: 48,
   },
   selectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: Spacing.two,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.four,
     paddingBottom: Spacing.two,
   },
   selectionTitle: {
     flex: 1,
-    textAlign: 'center',
+    textAlign: "center",
   },
   searchWrap: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: Spacing.two,
     flex: 1,
     height: 38,
-    justifyContent: 'center',
+    justifyContent: "center",
     minWidth: 0,
     paddingHorizontal: Spacing.three,
   },
   searchInput: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
     minWidth: 0,
     paddingVertical: 0,
-    textAlign: 'center',
-    width: '100%',
+    textAlign: "center",
+    width: "100%",
   },
   iconButton: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: Spacing.two,
     height: 48,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 48,
   },
   flatIconButton: {
-    alignItems: 'center',
+    alignItems: "center",
     height: 48,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 48,
   },
   list: {
@@ -1649,72 +1640,9 @@ const styles = StyleSheet.create({
   chartsPanel: {
     gap: Spacing.three,
   },
-  budgetPanel: {
-    gap: Spacing.three,
-  },
-  budgetActions: {
-    alignItems: 'flex-start',
-  },
-  budgetMessage: {
-    textAlign: 'center',
-  },
-  budgetRows: {
-    gap: Spacing.three,
-  },
-  budgetRow: {
-    borderRadius: Spacing.two,
-    gap: Spacing.two,
-    padding: Spacing.three,
-  },
-  budgetRowHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: Spacing.two,
-    justifyContent: 'space-between',
-  },
-  budgetCategoryCopy: {
-    flex: 1,
-    gap: Spacing.half,
-    minWidth: 0,
-  },
-  budgetCategoryName: {
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  budgetInput: {
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-    flexShrink: 0,
-    fontSize: 14,
-    fontWeight: '700',
-    height: 40,
-    minWidth: 112,
-    paddingHorizontal: Spacing.two,
-    textAlign: 'right',
-  },
-  budgetMetaRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: Spacing.two,
-    justifyContent: 'space-between',
-  },
-  budgetMetaText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  budgetTrack: {
-    borderRadius: 6,
-    height: 10,
-    overflow: 'hidden',
-    width: '100%',
-  },
-  budgetBar: {
-    borderRadius: 6,
-    height: '100%',
-  },
   chartMetricGrid: {
     borderRadius: Spacing.two,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.two,
     padding: Spacing.two,
   },
@@ -1740,53 +1668,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
   },
-  balanceChartRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: Spacing.one,
-    justifyContent: 'center',
-  },
-  balanceAxisLabels: {
-    height: 174,
-    justifyContent: 'space-between',
-    width: 42,
-  },
-  balanceAxisLabel: {
-    fontSize: 9,
-    lineHeight: 11,
-    textAlign: 'right',
-  },
-  chartFrame: {
-    alignItems: 'center',
-    minHeight: 180,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  chartFooter: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
-  zeroLine: {
-    borderTopWidth: 2,
-    left: 0,
-    opacity: 0.65,
-    position: 'absolute',
-    right: 0,
-    zIndex: 1,
-  },
   pieChartRow: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: Spacing.three,
+  },
+  donutChartFrame: {
+    height: DONUT_CHART_SIZE,
+    width: DONUT_CHART_SIZE,
   },
   chartLegend: {
     gap: Spacing.one,
-    width: '100%',
+    width: "100%",
   },
   chartLegendRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: Spacing.two,
     minHeight: 22,
   },
@@ -1801,7 +1697,7 @@ const styles = StyleSheet.create({
   },
   chartLegendValue: {
     minWidth: 42,
-    textAlign: 'right',
+    textAlign: "right",
   },
   categoryExpenseList: {
     gap: Spacing.three,
@@ -1810,15 +1706,15 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   categoryExpenseHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: Spacing.two,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   categoryExpenseLabelWrap: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.two,
     minWidth: 0,
   },
@@ -1828,25 +1724,25 @@ const styles = StyleSheet.create({
   },
   categoryExpenseAmount: {
     flexShrink: 0,
-    textAlign: 'right',
+    textAlign: "right",
   },
   categoryExpenseTrack: {
     borderRadius: 6,
     height: 10,
-    overflow: 'hidden',
-    width: '100%',
+    overflow: "hidden",
+    width: "100%",
   },
   categoryExpenseBar: {
     borderRadius: 6,
-    height: '100%',
+    height: "100%",
   },
   categoryExpensePercent: {
-    textAlign: 'right',
+    textAlign: "right",
   },
   transactionRow: {
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     borderRadius: Spacing.two,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.two,
     minHeight: 64,
     padding: Spacing.two,
@@ -1867,8 +1763,8 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   metadataRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: Spacing.one,
   },
   metadataText: {
@@ -1876,14 +1772,14 @@ const styles = StyleSheet.create({
   },
   dateText: {
     minWidth: 96,
-    textAlign: 'right',
+    textAlign: "right",
   },
   typeIcon: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 15,
     borderWidth: 2,
     height: 30,
-    justifyContent: 'center',
+    justifyContent: "center",
     marginTop: Spacing.half,
     width: 30,
   },
@@ -1895,7 +1791,7 @@ const styles = StyleSheet.create({
   summaryMonth: {
     fontSize: 18,
     lineHeight: 22,
-    textAlign: 'center',
+    textAlign: "center",
   },
   summaryPanel: {
     borderRadius: Spacing.two,
@@ -1904,9 +1800,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
   },
   summaryMainRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   summaryTitle: {
     fontSize: 18,
@@ -1915,17 +1811,17 @@ const styles = StyleSheet.create({
   summaryAmount: {
     fontSize: 18,
     lineHeight: 22,
-    textAlign: 'right',
+    textAlign: "right",
   },
   summaryDetailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     gap: Spacing.two,
   },
   summaryOpeningRow: {
     borderTopWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     gap: Spacing.two,
     paddingTop: Spacing.half,
   },
@@ -1938,27 +1834,27 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     fontSize: 12,
     lineHeight: 16,
-    textAlign: 'right',
+    textAlign: "right",
   },
   bottomBar: {
-    alignItems: 'center',
+    alignItems: "center",
     borderTopWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    justifyContent: "space-around",
     paddingBottom: BottomTabInset + Spacing.three,
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
   },
   fab: {
-    alignItems: 'center',
+    alignItems: "center",
     backgroundColor: AppPalette.brandOrange,
-    borderColor: 'transparent',
+    borderColor: "transparent",
     borderRadius: Spacing.two,
     borderWidth: 2,
     bottom: BottomTabInset + 104,
     height: 48,
-    justifyContent: 'center',
-    position: 'absolute',
+    justifyContent: "center",
+    position: "absolute",
     right: Spacing.three,
     width: 64,
     zIndex: 2,
@@ -1969,13 +1865,13 @@ const styles = StyleSheet.create({
   inlineMessage: {
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.two,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyState: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
     gap: Spacing.two,
-    justifyContent: 'center',
+    justifyContent: "center",
     minHeight: 360,
   },
   emptyTitle: {
@@ -1983,22 +1879,22 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   emptyText: {
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalBackdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
     flex: 1,
-    justifyContent: 'flex-start',
+    justifyContent: "flex-start",
     padding: Spacing.three,
     paddingTop: Spacing.six,
   },
   filterPanel: {
-    alignSelf: 'center',
+    alignSelf: "center",
     borderRadius: Spacing.two,
     gap: Spacing.three,
     maxWidth: MaxContentWidth,
     padding: Spacing.three,
-    width: '100%',
+    width: "100%",
   },
   panelTitle: {
     fontSize: 24,
@@ -2019,7 +1915,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   filterDropdownLabel: {
-    fontWeight: '700',
+    fontWeight: "700",
   },
   filterDropdownMenu: {
     borderRadius: Spacing.two,
@@ -2038,9 +1934,9 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   filterActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.two,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   pressed: {
     opacity: 0.7,
