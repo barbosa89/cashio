@@ -20,6 +20,11 @@ import DropDownPicker from "react-native-dropdown-picker";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AccountBalancePanel } from "@/components/account-balance";
+import {
+    AccountSelector,
+    getAccountScopeLabel,
+} from "@/components/accounts";
 import { AppIcon } from "@/components/app-icon";
 import {
     BudgetSummaryCard,
@@ -44,14 +49,22 @@ import {
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useCashioSettings } from "@/hooks/use-cashio-settings";
 import { useTheme } from "@/hooks/use-theme";
-import type { Category, MonthlyBudgetItem, Tag, Transaction } from "@/lib/database";
+import type {
+    Account,
+    AccountScope,
+    Category,
+    MonthlyBudgetItem,
+    MonthlySummaryRow,
+    Tag,
+    Transaction,
+} from "@/lib/database";
 
 type VisibleMonth = {
   month: number;
   year: number;
 };
 
-type ActiveView = "list" | "charts" | "budgets" | "reports";
+type ActiveView = "list" | "charts" | "balance" | "budgets" | "reports";
 
 type MonthlySummary = {
   balance: number;
@@ -112,7 +125,7 @@ function groupByCategory(
   const totals = new Map<string, number>();
 
   for (const transaction of monthTransactions) {
-    if (transaction.type !== type) {
+    if (transaction.type !== type || transaction.is_transfer === 1) {
       continue;
     }
 
@@ -129,6 +142,51 @@ function groupByCategory(
       ...metric,
       color: CHART_CATEGORY_COLORS[index % CHART_CATEGORY_COLORS.length],
     }));
+}
+
+function accountMatchesScope(transaction: Transaction, accountScope: AccountScope) {
+  return accountScope === "all" || transaction.account_id === accountScope;
+}
+
+function aggregateMonthlySummaries(
+  monthlySummaries: MonthlySummaryRow[],
+  accountScope: AccountScope,
+): MonthlySummaryRow[] {
+  const totalsByMonth = new Map<string, MonthlySummaryRow>();
+
+  for (const monthlySummary of monthlySummaries) {
+    if (accountScope !== "all" && monthlySummary.account_id !== accountScope) {
+      continue;
+    }
+
+    const current = totalsByMonth.get(monthlySummary.month);
+    if (!current) {
+      totalsByMonth.set(monthlySummary.month, {
+        ...monthlySummary,
+        account_id: accountScope === "all" ? 0 : monthlySummary.account_id,
+      });
+      continue;
+    }
+
+    current.income_total += monthlySummary.income_total;
+    current.expense_total += monthlySummary.expense_total;
+    current.transfer_in_total += monthlySummary.transfer_in_total;
+    current.transfer_out_total += monthlySummary.transfer_out_total;
+    current.net_total += monthlySummary.net_total;
+    current.transaction_count += monthlySummary.transaction_count;
+  }
+
+  return [...totalsByMonth.values()].sort((left, right) =>
+    left.month.localeCompare(right.month),
+  );
+}
+
+function getInitialBalanceForScope(accounts: Account[], accountScope: AccountScope) {
+  if (accountScope === "all") {
+    return accounts.reduce((total, account) => total + account.initial_balance, 0);
+  }
+
+  return accounts.find((account) => account.id === accountScope)?.initial_balance ?? 0;
 }
 
 function transactionMatchesDescriptionSearch(
@@ -158,12 +216,15 @@ export default function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<{ openDrawer: () => void }>();
   const {
+    accountBalances,
+    accounts,
     categories,
     addCategoryToMonthlyBudget,
     copyBudgetFromPreviousMonth,
     isLoading,
     monthlyBudgetData,
     monthlySummaries,
+    refreshAccountBalances,
     refreshMonthlyBudgetData,
     removeCategoryFromMonthlyBudget,
     removeTransactions,
@@ -185,6 +246,8 @@ export default function HomeScreen() {
     getCurrentMonth(),
   );
   const [activeView, setActiveView] = useState<ActiveView>("list");
+  const [selectedAccountScope, setSelectedAccountScope] = useState<AccountScope>(1);
+  const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
   const [inlineMessage, setInlineMessage] = useState("");
   const [budgetMessage, setBudgetMessage] = useState("");
   const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
@@ -197,6 +260,12 @@ export default function HomeScreen() {
   );
   const selectedTransactionCount = selectedTransactionIds.length;
   const isSelectionMode = selectedTransactionCount > 0;
+  const selectedAccountLabel = getAccountScopeLabel(accounts, selectedAccountScope);
+
+  const visibleMonthlySummaries = useMemo(
+    () => aggregateMonthlySummaries(monthlySummaries, selectedAccountScope),
+    [monthlySummaries, selectedAccountScope],
+  );
 
   const selectedCategory = useMemo(
     () =>
@@ -209,20 +278,28 @@ export default function HomeScreen() {
     [tags, selectedTagId],
   );
 
-  const monthlyTransactions = useMemo(
+  const accountScopedTransactions = useMemo(
     () =>
       transactions.filter((transaction) =>
+        accountMatchesScope(transaction, selectedAccountScope),
+      ),
+    [selectedAccountScope, transactions],
+  );
+
+  const monthlyTransactions = useMemo(
+    () =>
+      accountScopedTransactions.filter((transaction) =>
         transaction.transaction_date.startsWith(visibleMonthPrefix),
       ),
-    [transactions, visibleMonthPrefix],
+    [accountScopedTransactions, visibleMonthPrefix],
   );
 
   const visibleMonthSummary = useMemo(
     () =>
-      monthlySummaries.find(
+      visibleMonthlySummaries.find(
         (monthlySummary) => monthlySummary.month === visibleMonthKey,
       ) ?? null,
-    [monthlySummaries, visibleMonthKey],
+    [visibleMonthlySummaries, visibleMonthKey],
   );
 
   const openingBalance = useMemo(() => {
@@ -230,14 +307,20 @@ export default function HomeScreen() {
       return 0;
     }
 
-    return monthlySummaries.reduce(
+    return visibleMonthlySummaries.reduce(
       (total, monthlySummary) =>
         monthlySummary.month < visibleMonthKey
           ? total + monthlySummary.net_total
           : total,
-      0,
+      getInitialBalanceForScope(accounts, selectedAccountScope),
     );
-  }, [monthlySummaries, shouldAccumulatePreviousBalances, visibleMonthKey]);
+  }, [
+    accounts,
+    selectedAccountScope,
+    shouldAccumulatePreviousBalances,
+    visibleMonthKey,
+    visibleMonthlySummaries,
+  ]);
 
   const filteredTransactions = useMemo(
     () =>
@@ -274,8 +357,34 @@ export default function HomeScreen() {
   const hasActiveFilters = !!selectedCategory || !!selectedTag;
 
   useEffect(() => {
-    void refreshMonthlyBudgetData(visibleMonthKey);
-  }, [categories, refreshMonthlyBudgetData, transactions, visibleMonthKey]);
+    if (selectedAccountScope === "all") {
+      return;
+    }
+
+    if (accounts.some((account) => account.id === selectedAccountScope)) {
+      return;
+    }
+
+    const defaultAccountId =
+      accounts.find((account) => account.is_default === 1)?.id ?? accounts[0]?.id;
+    if (defaultAccountId) {
+      setSelectedAccountScope(defaultAccountId);
+    }
+  }, [accounts, selectedAccountScope]);
+
+  useEffect(() => {
+    void refreshMonthlyBudgetData(selectedAccountScope, visibleMonthKey);
+  }, [
+    categories,
+    refreshMonthlyBudgetData,
+    selectedAccountScope,
+    transactions,
+    visibleMonthKey,
+  ]);
+
+  useEffect(() => {
+    void refreshAccountBalances(visibleMonthKey);
+  }, [accounts, monthlySummaries, refreshAccountBalances, visibleMonthKey]);
 
   function clearFilters() {
     setSelectedCategoryId(null);
@@ -360,6 +469,15 @@ export default function HomeScreen() {
     setActiveView("charts");
   }
 
+  function handleBalancePress() {
+    if (isSelectionMode) {
+      cancelSelection();
+      return;
+    }
+
+    setActiveView("balance");
+  }
+
   function handleBudgetsPress() {
     if (isSelectionMode) {
       cancelSelection();
@@ -383,7 +501,7 @@ export default function HomeScreen() {
     setBudgetMessage("");
 
     try {
-      await addCategoryToMonthlyBudget(visibleMonthKey, categoryId);
+      await addCategoryToMonthlyBudget(selectedAccountScope, visibleMonthKey, categoryId);
     } catch {
       setBudgetMessage("No se pudo agregar la categoría al presupuesto.");
     }
@@ -394,6 +512,7 @@ export default function HomeScreen() {
 
     try {
       await saveMonthlyBudgetAmount({
+        accountScope: selectedAccountScope,
         categoryId,
         month: visibleMonthKey,
         plannedAmount,
@@ -407,7 +526,7 @@ export default function HomeScreen() {
     setBudgetMessage("");
 
     try {
-      await removeCategoryFromMonthlyBudget(visibleMonthKey, categoryId);
+      await removeCategoryFromMonthlyBudget(selectedAccountScope, visibleMonthKey, categoryId);
     } catch {
       setBudgetMessage("No se pudo quitar la categoría del presupuesto.");
     }
@@ -444,6 +563,7 @@ export default function HomeScreen() {
     try {
       const previousMonthKey = formatMonthKey(addMonths(visibleMonth, -1));
       const copiedCount = await copyBudgetFromPreviousMonth(
+        selectedAccountScope,
         previousMonthKey,
         visibleMonthKey,
       );
@@ -515,7 +635,7 @@ export default function HomeScreen() {
               onCancel={cancelSelection}
               onDelete={handleDeleteSelectedTransactions}
             />
-          ) : activeView === "reports" || activeView === "budgets" ? (
+          ) : activeView === "reports" || activeView === "budgets" || activeView === "balance" ? (
             <ThemedView style={styles.header}>
               <IconButton
                 label="Abrir menú"
@@ -524,9 +644,19 @@ export default function HomeScreen() {
                 <AppIcon color={theme.text} name="menu" size={30} />
               </IconButton>
               <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
-                {activeView === "budgets" ? "Presupuesto" : "Reportes"}
+                {activeView === "budgets"
+                  ? `Presupuesto · ${selectedAccountLabel}`
+                  : activeView === "balance"
+                    ? `Balance · ${selectedAccountLabel}`
+                    : `Reportes · ${selectedAccountLabel}`}
               </ThemedText>
-              <View style={styles.headerSpacer} />
+              <IconButton
+                label="Seleccionar cuenta"
+                selected={selectedAccountScope !== 1}
+                onPress={() => setIsAccountSelectorOpen(true)}
+              >
+                <AppIcon color={theme.text} name="bank" size={30} />
+              </IconButton>
             </ThemedView>
           ) : (
             <ThemedView style={styles.header}>
@@ -555,18 +685,29 @@ export default function HomeScreen() {
                 >
                   <AppIcon color={theme.text} name="filter" size={30} />
                 </IconButton>
+                <IconButton
+                  label="Seleccionar cuenta"
+                  selected={selectedAccountScope !== 1}
+                  onPress={() => setIsAccountSelectorOpen(true)}
+                >
+                  <AppIcon color={theme.text} name="bank" size={30} />
+                </IconButton>
               </View>
             </ThemedView>
           )}
 
           {activeView === "budgets" ? (
-            <BudgetSummaryCard
-              monthLabel={visibleMonthLabel}
-              summary={budgetSummary}
-            />
+            <>
+              <BudgetSummaryCard
+                monthLabel={visibleMonthLabel}
+                summary={budgetSummary}
+              />
+              <AccountScopeHint label={selectedAccountLabel} />
+            </>
           ) : (
-            activeView !== "reports" && (
+            activeView !== "reports" && activeView !== "balance" && (
               <BalanceSummary
+                accountLabel={selectedAccountLabel}
                 balance={summary.balance}
                 expense={summary.expense}
                 income={summary.income}
@@ -585,8 +726,8 @@ export default function HomeScreen() {
               <ReportExportPanel
                 defaultMonth={visibleMonthKey}
                 isLoading={isLoading}
-                monthlySummaries={monthlySummaries}
-                transactions={transactions}
+                monthlySummaries={visibleMonthlySummaries}
+                transactions={accountScopedTransactions}
               />
             </ScrollView>
           ) : (
@@ -632,9 +773,19 @@ export default function HomeScreen() {
                 >
                   <MonthlyChartsPanel
                     expenseCategoryData={expenseCategoryData}
-                    monthlySummaries={monthlySummaries}
+                    monthlySummaries={visibleMonthlySummaries}
                     summary={summary}
                     visibleYear={visibleMonth.year}
+                  />
+                </ScrollView>
+              ) : activeView === "balance" ? (
+                <ScrollView
+                  contentContainerStyle={styles.balanceContent}
+                  style={styles.list}
+                >
+                  <AccountBalancePanel
+                    monthLabel={visibleMonthLabel}
+                    rows={accountBalances}
                   />
                 </ScrollView>
               ) : (
@@ -653,6 +804,7 @@ export default function HomeScreen() {
                     onSaveAmount={(categoryId, plannedAmount) =>
                       void handleSaveBudgetAmount(categoryId, plannedAmount)
                     }
+                    readOnly={selectedAccountScope === "all"}
                   />
                 </ScrollView>
               )}
@@ -661,6 +813,7 @@ export default function HomeScreen() {
 
           {activeView !== "reports" &&
             activeView !== "budgets" &&
+            activeView !== "balance" &&
             !!inlineMessage && (
               <ThemedText
                 type="small"
@@ -673,7 +826,8 @@ export default function HomeScreen() {
 
           {!isSelectionMode &&
             activeView !== "reports" &&
-            activeView !== "budgets" && (
+            activeView !== "budgets" &&
+            activeView !== "balance" && (
               <Pressable
                 accessibilityLabel="Agregar registro"
                 onPress={() => router.push("/new-transaction")}
@@ -711,6 +865,13 @@ export default function HomeScreen() {
               <AppIcon color={theme.text} name="bar-chart-2" size={34} />
             </IconButton>
             <IconButton
+              label="Balance"
+              selected={activeView === "balance"}
+              onPress={handleBalancePress}
+            >
+              <AppIcon color={theme.text} name="columns" size={34} />
+            </IconButton>
+            <IconButton
               label="Presupuesto"
               selected={activeView === "budgets"}
               onPress={handleBudgetsPress}
@@ -738,6 +899,17 @@ export default function HomeScreen() {
         setSelectedCategoryId={setSelectedCategoryId}
         setSelectedTagId={setSelectedTagId}
         tags={tags}
+      />
+      <AccountSelector
+        accounts={accounts}
+        isVisible={isAccountSelectorOpen}
+        onClose={() => setIsAccountSelectorOpen(false)}
+        onSelect={(accountScope) => {
+          cancelSelection();
+          setBudgetMessage("");
+          setSelectedAccountScope(accountScope);
+        }}
+        selectedAccountScope={selectedAccountScope}
       />
     </ThemedView>
   );
@@ -796,6 +968,35 @@ function TransactionRow({
               {transaction.category_description}
             </ThemedText>
           </View>
+          <View style={styles.metadataRow}>
+            <AppIcon
+              color={theme.textSecondary}
+              name="bank"
+              size={12}
+              style={styles.metadataIcon}
+            />
+            <ThemedText type="small" style={styles.metadataText}>
+              {transaction.account_name}
+            </ThemedText>
+          </View>
+          {transaction.is_transfer === 1 && (
+            <View style={styles.metadataRow}>
+              <AppIcon
+                color={theme.textSecondary}
+                name="repeat"
+                size={12}
+                style={styles.metadataIcon}
+              />
+              <ThemedText
+                type="small"
+                themeColor="textSecondary"
+                style={styles.metadataText}
+              >
+                Traslado {transaction.type === "expense" ? "a" : "desde"}{" "}
+                {transaction.transfer_peer_account_name ?? "otra cuenta"}
+              </ThemedText>
+            </View>
+          )}
           {!!transaction.description && (
             <ThemedText
               type="small"
@@ -865,6 +1066,7 @@ function SelectionHeader({
 }
 
 function BalanceSummary({
+  accountLabel,
   balance,
   expense,
   income,
@@ -872,6 +1074,7 @@ function BalanceSummary({
   openingBalance,
   showOpeningBalance,
 }: {
+  accountLabel: string;
   balance: number;
   expense: number;
   income: number;
@@ -885,6 +1088,9 @@ function BalanceSummary({
     <View style={styles.summaryWrap}>
       <ThemedText type="smallBold" style={styles.summaryMonth}>
         {monthLabel}
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.summaryAccount}>
+        {accountLabel}
       </ThemedText>
       <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
         <View style={styles.summaryMainRow}>
@@ -920,6 +1126,14 @@ function BalanceSummary({
         </View>
       </ThemedView>
     </View>
+  );
+}
+
+function AccountScopeHint({ label }: { label: string }) {
+  return (
+    <ThemedText type="small" themeColor="textSecondary" style={styles.accountHint}>
+      {label}
+    </ThemedText>
   );
 }
 
@@ -1382,6 +1596,10 @@ const styles = StyleSheet.create({
     paddingBottom: BottomTabInset + Spacing.five,
     paddingHorizontal: Spacing.three,
   },
+  balanceContent: {
+    paddingBottom: BottomTabInset + Spacing.five,
+    paddingHorizontal: Spacing.three,
+  },
   reportContent: {
     paddingBottom: BottomTabInset + Spacing.five,
     paddingHorizontal: Spacing.three,
@@ -1438,6 +1656,13 @@ const styles = StyleSheet.create({
   summaryMonth: {
     fontSize: 18,
     lineHeight: 22,
+    textAlign: "center",
+  },
+  summaryAccount: {
+    textAlign: "center",
+  },
+  accountHint: {
+    marginTop: Spacing.one,
     textAlign: "center",
   },
   summaryPanel: {

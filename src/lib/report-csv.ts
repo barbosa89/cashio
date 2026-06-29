@@ -22,6 +22,7 @@ type BuildMonthlyReportInput = {
 const CSV_HEADERS = [
   'ID',
   'Fecha',
+  'Cuenta',
   'Tipo',
   'Monto',
   'Descripción',
@@ -91,8 +92,12 @@ function serializeRow(values: Array<string | number>, protectedIndexes: number[]
     .join(';');
 }
 
-function transactionTypeLabel(type: Transaction['type']) {
-  return type === 'income' ? 'Ingreso' : 'Egreso';
+function transactionTypeLabel(transaction: Transaction) {
+  if (transaction.is_transfer === 1) {
+    return transaction.type === 'income' ? 'Traslado entra' : 'Traslado sale';
+  }
+
+  return transaction.type === 'income' ? 'Ingreso' : 'Egreso';
 }
 
 export function getCurrentMonthKey(date = new Date()) {
@@ -159,6 +164,7 @@ export function buildMonthlyReportCsv({
     serializeRow([
       '',
       getPreviousMonthLastDate(range.startMonth),
+      '',
       'Saldo',
       openingBalance,
       'Saldo anterior',
@@ -172,7 +178,8 @@ export function buildMonthlyReportCsv({
         [
           transaction.id,
           transaction.transaction_date,
-          transactionTypeLabel(transaction.type),
+          transaction.account_name,
+          transactionTypeLabel(transaction),
           transaction.amount,
           transaction.description ?? '',
           transaction.category_description,
@@ -180,7 +187,7 @@ export function buildMonthlyReportCsv({
           transaction.created_at,
           transaction.updated_at,
         ],
-        [4, 5, 6]
+        [5, 6, 7]
       )
     ),
   ];

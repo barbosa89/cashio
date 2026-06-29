@@ -31,7 +31,7 @@ import { DROPDOWN_LIST_MODE, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
 import { CashioValidationError } from "@/lib/cashio-repository";
-import type { Category, TransactionType } from "@/lib/database";
+import type { Account, Category, TransactionType } from "@/lib/database";
 
 type TransactionFormProps = {
   onSaved?: () => void;
@@ -55,6 +55,10 @@ function canUseCategory(category: Category, transactionType: TransactionType) {
   );
 }
 
+function getDefaultAccountId(accounts: Account[]) {
+  return accounts.find((account) => account.is_default === 1)?.id ?? accounts[0]?.id ?? null;
+}
+
 function formatDateValue(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -75,10 +79,12 @@ function parseDateValue(value: string) {
 export const TransactionForm = forwardRef<TransactionFormHandle, TransactionFormProps>(
 function TransactionForm({ onSaved }, ref) {
   const theme = useTheme();
-  const { categories, tags, isLoading, addCategory, addTag, addTransaction } =
+  const { accounts, categories, tags, isLoading, addCategory, addTag, addTransaction } =
     useCashioData();
   const [transactionType, setTransactionType] =
     useState<TransactionType>("expense");
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  const [selectedDestinationAccountId, setSelectedDestinationAccountId] = useState<number | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
   const [description, setDescription] = useState("");
   const [transactionDate, setTransactionDate] = useState(() =>
@@ -93,13 +99,35 @@ function TransactionForm({ onSaved }, ref) {
     null,
   );
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isDestinationAccountOpen, setIsDestinationAccountOpen] = useState(false);
   const [isTagsOpen, setIsTagsOpen] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const selectedTagBadgeBackground = theme.text;
   const selectedTagTextColor = theme.background;
+
+  const accountItems = useMemo(
+    (): Array<ItemType<DropdownValue>> =>
+      accounts.map((account) => ({
+        label: account.name,
+        value: account.id,
+      })),
+    [accounts],
+  );
+
+  const destinationAccountItems = useMemo(
+    (): Array<ItemType<DropdownValue>> =>
+      accounts
+        .filter((account) => account.id !== selectedAccountId)
+        .map((account) => ({
+          label: account.name,
+          value: account.id,
+        })),
+    [accounts, selectedAccountId],
+  );
 
   const availableCategories = useMemo(
     () =>
@@ -155,6 +183,29 @@ function TransactionForm({ onSaved }, ref) {
     }
   }, [categories, selectedCategoryId, transactionType]);
 
+  useEffect(() => {
+    if (selectedAccountId && accounts.some((account) => account.id === selectedAccountId)) {
+      return;
+    }
+
+    setSelectedAccountId(getDefaultAccountId(accounts));
+  }, [accounts, selectedAccountId]);
+
+  useEffect(() => {
+    if (transactionType === "income") {
+      setSelectedDestinationAccountId(null);
+      setIsDestinationAccountOpen(false);
+      return;
+    }
+
+    if (
+      selectedDestinationAccountId &&
+      selectedDestinationAccountId === selectedAccountId
+    ) {
+      setSelectedDestinationAccountId(null);
+    }
+  }, [selectedAccountId, selectedDestinationAccountId, transactionType]);
+
   function handleError(error: unknown) {
     if (error instanceof CashioValidationError) {
       setMessage(error.message);
@@ -165,13 +216,17 @@ function TransactionForm({ onSaved }, ref) {
 
   function resetForm() {
     setTransactionType("expense");
+    setSelectedAccountId(getDefaultAccountId(accounts));
+    setSelectedDestinationAccountId(null);
     setAmount(null);
     setDescription("");
     setSelectedCategoryId(null);
     setSelectedTagIds([]);
     setCategorySearch("");
     setTagSearch("");
+    setIsAccountOpen(false);
     setIsCategoryOpen(false);
+    setIsDestinationAccountOpen(false);
     setIsTagsOpen(false);
     setIsDatePickerOpen(false);
     setMessage("");
@@ -187,6 +242,34 @@ function TransactionForm({ onSaved }, ref) {
     nextValue: (currentValue: DropdownValue | null) => DropdownValue | null,
   ) {
     setSelectedCategoryId((currentValue) => {
+      const next = nextValue(currentValue);
+
+      if (typeof next === "number" || next === null) {
+        return next;
+      }
+
+      return currentValue;
+    });
+  }
+
+  function setAccountDropdownValue(
+    nextValue: (currentValue: DropdownValue | null) => DropdownValue | null,
+  ) {
+    setSelectedAccountId((currentValue) => {
+      const next = nextValue(currentValue);
+
+      if (typeof next === "number" || next === null) {
+        return next;
+      }
+
+      return currentValue;
+    });
+  }
+
+  function setDestinationAccountDropdownValue(
+    nextValue: (currentValue: DropdownValue | null) => DropdownValue | null,
+  ) {
+    setSelectedDestinationAccountId((currentValue) => {
       const next = nextValue(currentValue);
 
       if (typeof next === "number" || next === null) {
@@ -314,9 +397,12 @@ function TransactionForm({ onSaved }, ref) {
 
     try {
       await addTransaction({
+        accountId: selectedAccountId ?? 0,
         type: transactionType,
         amount: amount ?? 0,
         description,
+        destinationAccountId:
+          transactionType === "expense" ? selectedDestinationAccountId : null,
         transactionDate,
         categoryId: selectedCategoryId ?? 0,
         tagIds: selectedTagIds,
@@ -332,7 +418,9 @@ function TransactionForm({ onSaved }, ref) {
   }
 
   function closeDropdowns() {
+    setIsAccountOpen(false);
     setIsCategoryOpen(false);
+    setIsDestinationAccountOpen(false);
     setIsTagsOpen(false);
   }
 
@@ -365,7 +453,7 @@ function TransactionForm({ onSaved }, ref) {
 
   return (
     <ThemedView type="backgroundElement" style={styles.panel}>
-      {(isCategoryOpen || isTagsOpen) && (
+      {(isAccountOpen || isCategoryOpen || isDestinationAccountOpen || isTagsOpen) && (
         <Pressable
           accessibilityLabel="Cerrar selector"
           onPress={closeDropdowns}
@@ -385,6 +473,76 @@ function TransactionForm({ onSaved }, ref) {
           onPress={() => setTransactionType("income")}
         />
       </ThemedView>
+
+      <Field
+        label="Cuenta"
+        style={[styles.dropdownField, { zIndex: isAccountOpen ? 40 : 10 }]}
+      >
+        <DropDownPicker<DropdownValue>
+          ArrowDownIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="chevron-down" size={22} />
+            </View>
+          )}
+          ArrowUpIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="chevron-up" size={22} />
+            </View>
+          )}
+          CloseIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="x" size={24} />
+            </View>
+          )}
+          TickIconComponent={({ style }) => (
+            <View style={style}>
+              <AppIcon color={theme.text} name="check" size={20} />
+            </View>
+          )}
+          dropDownContainerStyle={[
+            styles.dropdownMenu,
+            {
+              backgroundColor: theme.background,
+              borderColor: theme.backgroundSelected,
+            },
+          ]}
+          items={accountItems}
+          labelStyle={styles.dropdownLabel}
+          listItemContainerStyle={styles.dropdownItem}
+          listItemLabelStyle={{ color: theme.text }}
+          listMode={DROPDOWN_LIST_MODE}
+          modalAnimationType="slide"
+          modalContentContainerStyle={[
+            styles.dropdownModal,
+            { backgroundColor: theme.background },
+          ]}
+          onOpen={() => {
+            setIsCategoryOpen(false);
+            setIsDestinationAccountOpen(false);
+            setIsTagsOpen(false);
+          }}
+          open={isAccountOpen}
+          placeholder="Seleccionar cuenta"
+          placeholderStyle={{ color: theme.textSecondary }}
+          selectedItemContainerStyle={{
+            backgroundColor: theme.backgroundSelected,
+          }}
+          selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
+          setOpen={setIsAccountOpen}
+          setValue={setAccountDropdownValue}
+          style={[
+            styles.dropdown,
+            {
+              backgroundColor: theme.background,
+              borderColor: theme.backgroundSelected,
+            },
+          ]}
+          textStyle={{ color: theme.text }}
+          value={selectedAccountId}
+          zIndex={isAccountOpen ? 4000 : 1000}
+          zIndexInverse={1000}
+        />
+      </Field>
 
       <Field label="Monto">
         <CurrencyInput
@@ -516,7 +674,11 @@ function TransactionForm({ onSaved }, ref) {
             { backgroundColor: theme.background },
           ]}
           onChangeSearchText={setCategorySearch}
-          onOpen={() => setIsTagsOpen(false)}
+          onOpen={() => {
+            setIsAccountOpen(false);
+            setIsDestinationAccountOpen(false);
+            setIsTagsOpen(false);
+          }}
           onSelectItem={handleSelectCategory}
           open={isCategoryOpen}
           placeholder="Buscar o seleccionar categoría"
@@ -557,6 +719,81 @@ function TransactionForm({ onSaved }, ref) {
           zIndexInverse={1000}
         />
       </Field>
+
+      {transactionType === "expense" && (
+        <Field
+          label="Cuenta destino"
+          style={[
+            styles.dropdownField,
+            { zIndex: isDestinationAccountOpen ? 30 : 10 },
+          ]}
+        >
+          <DropDownPicker<DropdownValue>
+            ArrowDownIconComponent={({ style }) => (
+              <View style={style}>
+                <AppIcon color={theme.text} name="chevron-down" size={22} />
+              </View>
+            )}
+            ArrowUpIconComponent={({ style }) => (
+              <View style={style}>
+                <AppIcon color={theme.text} name="chevron-up" size={22} />
+              </View>
+            )}
+            CloseIconComponent={({ style }) => (
+              <View style={style}>
+                <AppIcon color={theme.text} name="x" size={24} />
+              </View>
+            )}
+            TickIconComponent={({ style }) => (
+              <View style={style}>
+                <AppIcon color={theme.text} name="check" size={20} />
+              </View>
+            )}
+            dropDownContainerStyle={[
+              styles.dropdownMenu,
+              {
+                backgroundColor: theme.background,
+                borderColor: theme.backgroundSelected,
+              },
+            ]}
+            items={destinationAccountItems}
+            labelStyle={styles.dropdownLabel}
+            listItemContainerStyle={styles.dropdownItem}
+            listItemLabelStyle={{ color: theme.text }}
+            listMode={DROPDOWN_LIST_MODE}
+            modalAnimationType="slide"
+            modalContentContainerStyle={[
+              styles.dropdownModal,
+              { backgroundColor: theme.background },
+            ]}
+            onOpen={() => {
+              setIsAccountOpen(false);
+              setIsCategoryOpen(false);
+              setIsTagsOpen(false);
+            }}
+            open={isDestinationAccountOpen}
+            placeholder="Opcional: traslado a otra cuenta"
+            placeholderStyle={{ color: theme.textSecondary }}
+            selectedItemContainerStyle={{
+              backgroundColor: theme.backgroundSelected,
+            }}
+            selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
+            setOpen={setIsDestinationAccountOpen}
+            setValue={setDestinationAccountDropdownValue}
+            style={[
+              styles.dropdown,
+              {
+                backgroundColor: theme.background,
+                borderColor: theme.backgroundSelected,
+              },
+            ]}
+            textStyle={{ color: theme.text }}
+            value={selectedDestinationAccountId}
+            zIndex={isDestinationAccountOpen ? 3000 : 1000}
+            zIndexInverse={1000}
+          />
+        </Field>
+      )}
 
       <Field
         label="Tags"
@@ -619,7 +856,11 @@ function TransactionForm({ onSaved }, ref) {
           multiple
           multipleText={`${selectedTagIds.length} tags seleccionados`}
           onChangeSearchText={setTagSearch}
-          onOpen={() => setIsCategoryOpen(false)}
+          onOpen={() => {
+            setIsAccountOpen(false);
+            setIsCategoryOpen(false);
+            setIsDestinationAccountOpen(false);
+          }}
           onSelectItem={handleSelectTags}
           open={isTagsOpen}
           placeholder="Buscar o seleccionar tags"

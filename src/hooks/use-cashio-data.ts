@@ -4,30 +4,46 @@ import { useCallback, useState } from 'react';
 
 import {
   addMonthlyBudgetCategory,
+  createAccount,
   createCategory,
   createTag,
   createTransaction,
   copyPreviousMonthBudget,
+  deleteAccount,
   deleteCategory,
   deleteTag,
   deleteTransactions,
   getMonthlyBudgetData,
+  listAccountBalances,
+  listAccounts,
   listCategories,
   listMonthlySummaries,
   listTags,
   listTransactions,
   removeMonthlyBudgetCategory,
+  updateAccount,
   updateMonthlyBudgetAmount,
   updateCategory,
   updateTag,
   type CreateTransactionInput,
+  type SaveAccountInput,
   type SaveCategoryInput,
   type SaveMonthlyBudgetAmountInput,
   type SaveTagInput,
 } from '@/lib/cashio-repository';
-import type { Category, MonthlyBudgetData, MonthlySummaryRow, Tag, Transaction } from '@/lib/database';
+import type {
+  Account,
+  AccountBalanceRow,
+  AccountScope,
+  Category,
+  MonthlyBudgetData,
+  MonthlySummaryRow,
+  Tag,
+  Transaction,
+} from '@/lib/database';
 
 const EMPTY_MONTHLY_BUDGET_DATA: MonthlyBudgetData = {
+  accountScope: 1,
   availableCategories: [],
   items: [],
   summary: {
@@ -41,6 +57,8 @@ const EMPTY_MONTHLY_BUDGET_DATA: MonthlyBudgetData = {
 
 export function useCashioData() {
   const db = useSQLiteContext();
+  const [accountBalances, setAccountBalances] = useState<AccountBalanceRow[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [monthlyBudgetData, setMonthlyBudgetData] = useState<MonthlyBudgetData>(EMPTY_MONTHLY_BUDGET_DATA);
   const [monthlySummaries, setMonthlySummaries] = useState<MonthlySummaryRow[]>([]);
@@ -49,13 +67,15 @@ export function useCashioData() {
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [nextCategories, nextTags, nextTransactions, nextMonthlySummaries] = await Promise.all([
+    const [nextAccounts, nextCategories, nextTags, nextTransactions, nextMonthlySummaries] = await Promise.all([
+      listAccounts(db),
       listCategories(db),
       listTags(db),
       listTransactions(db),
       listMonthlySummaries(db),
     ]);
 
+    setAccounts(nextAccounts);
     setCategories(nextCategories);
     setMonthlySummaries(nextMonthlySummaries);
     setTags(nextTags);
@@ -67,6 +87,40 @@ export function useCashioData() {
     useCallback(() => {
       void refresh();
     }, [refresh])
+  );
+
+  const refreshAccountBalances = useCallback(
+    async (month: string) => {
+      const nextAccountBalances = await listAccountBalances(db, month);
+      setAccountBalances(nextAccountBalances);
+      return nextAccountBalances;
+    },
+    [db]
+  );
+
+  const addAccount = useCallback(
+    async (input: SaveAccountInput) => {
+      const account = await createAccount(db, input);
+      await refresh();
+      return account;
+    },
+    [db, refresh]
+  );
+
+  const editAccount = useCallback(
+    async (id: number, input: SaveAccountInput) => {
+      await updateAccount(db, id, input);
+      await refresh();
+    },
+    [db, refresh]
+  );
+
+  const removeAccount = useCallback(
+    async (id: number) => {
+      await deleteAccount(db, id);
+      await refresh();
+    },
+    [db, refresh]
   );
 
   const addCategory = useCallback(
@@ -120,8 +174,8 @@ export function useCashioData() {
   );
 
   const refreshMonthlyBudgetData = useCallback(
-    async (month: string) => {
-      const nextMonthlyBudgetData = await getMonthlyBudgetData(db, month);
+    async (accountScope: AccountScope, month: string) => {
+      const nextMonthlyBudgetData = await getMonthlyBudgetData(db, accountScope, month);
       setMonthlyBudgetData(nextMonthlyBudgetData);
       return nextMonthlyBudgetData;
     },
@@ -129,9 +183,9 @@ export function useCashioData() {
   );
 
   const addCategoryToMonthlyBudget = useCallback(
-    async (month: string, categoryId: number) => {
-      await addMonthlyBudgetCategory(db, month, categoryId);
-      await refreshMonthlyBudgetData(month);
+    async (accountScope: AccountScope, month: string, categoryId: number) => {
+      await addMonthlyBudgetCategory(db, accountScope, month, categoryId);
+      await refreshMonthlyBudgetData(accountScope, month);
     },
     [db, refreshMonthlyBudgetData]
   );
@@ -139,23 +193,23 @@ export function useCashioData() {
   const saveMonthlyBudgetAmount = useCallback(
     async (input: SaveMonthlyBudgetAmountInput) => {
       await updateMonthlyBudgetAmount(db, input);
-      await refreshMonthlyBudgetData(input.month);
+      await refreshMonthlyBudgetData(input.accountScope, input.month);
     },
     [db, refreshMonthlyBudgetData]
   );
 
   const removeCategoryFromMonthlyBudget = useCallback(
-    async (month: string, categoryId: number) => {
-      await removeMonthlyBudgetCategory(db, month, categoryId);
-      await refreshMonthlyBudgetData(month);
+    async (accountScope: AccountScope, month: string, categoryId: number) => {
+      await removeMonthlyBudgetCategory(db, accountScope, month, categoryId);
+      await refreshMonthlyBudgetData(accountScope, month);
     },
     [db, refreshMonthlyBudgetData]
   );
 
   const copyBudgetFromPreviousMonth = useCallback(
-    async (fromMonth: string, toMonth: string) => {
-      const copiedCount = await copyPreviousMonthBudget(db, fromMonth, toMonth);
-      await refreshMonthlyBudgetData(toMonth);
+    async (accountScope: AccountScope, fromMonth: string, toMonth: string) => {
+      const copiedCount = await copyPreviousMonthBudget(db, accountScope, fromMonth, toMonth);
+      await refreshMonthlyBudgetData(accountScope, toMonth);
       return copiedCount;
     },
     [db, refreshMonthlyBudgetData]
@@ -178,6 +232,8 @@ export function useCashioData() {
   );
 
   return {
+    accountBalances,
+    accounts,
     categories,
     monthlyBudgetData,
     monthlySummaries,
@@ -185,6 +241,10 @@ export function useCashioData() {
     transactions,
     isLoading,
     refresh,
+    refreshAccountBalances,
+    addAccount,
+    editAccount,
+    removeAccount,
     addCategory,
     editCategory,
     removeCategory,

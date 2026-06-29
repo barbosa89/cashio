@@ -64,6 +64,7 @@ export default function TabLayout() {
           }}
         >
           <Drawer.Screen name="index" options={{ title: "Inicio" }} />
+          <Drawer.Screen name="accounts" options={{ title: "Cuentas" }} />
           <Drawer.Screen name="categories" options={{ title: "Categorías" }} />
           <Drawer.Screen name="tags" options={{ title: "Tags" }} />
           <Drawer.Screen name="backup" options={{ title: "Copia de seguridad" }} />
@@ -93,7 +94,7 @@ function CashioDrawerContent(props: DrawerContentComponentProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  function navigateTo(path: "/" | "/categories" | "/tags" | "/backup" | "/settings") {
+  function navigateTo(path: "/" | "/accounts" | "/categories" | "/tags" | "/backup" | "/settings") {
     props.navigation.closeDrawer();
     router.push(path as never);
   }
@@ -119,6 +120,12 @@ function CashioDrawerContent(props: DrawerContentComponentProps) {
         icon="home"
         label="Inicio"
         onPress={() => navigateTo("/")}
+      />
+      <DrawerMenuItem
+        active={pathname.startsWith("/accounts")}
+        icon="bank"
+        label="Cuentas"
+        onPress={() => navigateTo("/accounts")}
       />
       <DrawerMenuItem
         active={pathname.startsWith("/categories")}
@@ -155,7 +162,7 @@ function DrawerMenuItem({
   onPress,
 }: {
   active: boolean;
-  icon: "cloud" | "folder" | "home" | "settings" | "tag";
+  icon: "bank" | "cloud" | "folder" | "home" | "settings" | "tag";
   label: string;
   onPress: () => void;
 }) {

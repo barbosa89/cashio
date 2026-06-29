@@ -17,6 +17,7 @@ type MonthlyBudgetPanelProps = {
   onCopyPreviousBudget: () => void;
   onRemoveCategory: (item: MonthlyBudgetItem) => void;
   onSaveAmount: (categoryId: number, plannedAmount: number) => void;
+  readOnly?: boolean;
 };
 
 export function MonthlyBudgetPanel({
@@ -26,26 +27,35 @@ export function MonthlyBudgetPanel({
   onCopyPreviousBudget,
   onRemoveCategory,
   onSaveAmount,
+  readOnly = false,
 }: MonthlyBudgetPanelProps) {
   const hasBudgetItems = budgetData.items.length > 0;
 
   return (
     <View style={styles.panel}>
-      <View style={styles.actionRow}>
-        <BudgetActions budgetMessage={budgetMessage} onCopyPreviousBudget={onCopyPreviousBudget} />
-        <AddBudgetCategory
-          availableCategories={budgetData.availableCategories}
-          onAddCategory={onAddCategory}
-        />
-      </View>
+      {readOnly ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.readOnlyText}>
+          Vista consolidada de todas las cuentas. Selecciona una cuenta para editar su presupuesto.
+        </ThemedText>
+      ) : (
+        <View style={styles.actionRow}>
+          <BudgetActions budgetMessage={budgetMessage} onCopyPreviousBudget={onCopyPreviousBudget} />
+          <AddBudgetCategory
+            availableCategories={budgetData.availableCategories}
+            onAddCategory={onAddCategory}
+          />
+        </View>
+      )}
 
       {!hasBudgetItems ? (
         <ThemedView style={styles.emptyState}>
           <ThemedText type="subtitle" style={styles.emptyTitle}>
-            Sin categorías presupuestadas
+            {readOnly ? 'Sin presupuesto consolidado' : 'Sin categorías presupuestadas'}
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-            Agrega categorías para planear cuánto esperas gastar este mes.
+            {readOnly
+              ? 'No hay categorías presupuestadas en las cuentas para este mes.'
+              : 'Agrega categorías para planear cuánto esperas gastar este mes.'}
           </ThemedText>
         </ThemedView>
       ) : (
@@ -56,6 +66,7 @@ export function MonthlyBudgetPanel({
               key={item.category_id}
               onRemoveCategory={onRemoveCategory}
               onSaveAmount={onSaveAmount}
+              readOnly={readOnly}
             />
           ))}
         </View>
@@ -77,6 +88,9 @@ const styles = StyleSheet.create({
   },
   rows: {
     gap: Spacing.two,
+  },
+  readOnlyText: {
+    textAlign: 'center',
   },
   emptyState: {
     alignItems: 'center',
