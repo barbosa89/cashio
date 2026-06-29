@@ -15,18 +15,22 @@ import {
     StyleSheet,
     TextInput,
     View,
-    type DimensionValue,
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, G } from "react-native-svg";
 
 import { AppIcon } from "@/components/app-icon";
 import {
     BudgetSummaryCard,
     MonthlyBudgetPanel,
 } from "@/components/monthly-budget";
+import {
+    CHART_CATEGORY_COLORS,
+    MonthlyChartsPanel,
+    formatMoney,
+    type CategoryChartPoint,
+} from "@/components/monthly-charts";
 import { ReportExportPanel } from "@/components/report-export-panel";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -49,12 +53,6 @@ type VisibleMonth = {
 
 type ActiveView = "list" | "charts" | "budgets" | "reports";
 
-type CategoryChartPoint = {
-  amount: number;
-  color: string;
-  label: string;
-};
-
 type MonthlySummary = {
   balance: number;
   expense: number;
@@ -63,23 +61,6 @@ type MonthlySummary = {
 };
 
 const MONTH_SWIPE_THRESHOLD = 72;
-const DONUT_CHART_SIZE = 168;
-const DONUT_CHART_STROKE_WIDTH = 36;
-const CHART_CATEGORY_COLORS = [
-  "#f97316",
-  "#3b82f6",
-  "#10b981",
-  "#ef4444",
-  "#a855f7",
-  "#14b8a6",
-  "#eab308",
-];
-
-function formatMoney(value: number) {
-  return new Intl.NumberFormat("es-CO", {
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 function normalize(value: string) {
   return value.trim().toLocaleLowerCase();
@@ -148,29 +129,6 @@ function groupByCategory(
       ...metric,
       color: CHART_CATEGORY_COLORS[index % CHART_CATEGORY_COLORS.length],
     }));
-}
-
-function getTopCategoriesWithOther(
-  categoryData: CategoryChartPoint[],
-  limit: number,
-): CategoryChartPoint[] {
-  if (categoryData.length <= limit) {
-    return categoryData;
-  }
-
-  const topCategories = categoryData.slice(0, limit);
-  const otherAmount = categoryData
-    .slice(limit)
-    .reduce((total, category) => total + category.amount, 0);
-
-  return [
-    ...topCategories,
-    {
-      amount: otherAmount,
-      color: CHART_CATEGORY_COLORS[limit % CHART_CATEGORY_COLORS.length],
-      label: "Otros",
-    },
-  ];
 }
 
 function transactionMatchesDescriptionSearch(
@@ -674,8 +632,9 @@ export default function HomeScreen() {
                 >
                   <MonthlyChartsPanel
                     expenseCategoryData={expenseCategoryData}
-                    monthTransactionCount={monthlyTransactions.length}
+                    monthlySummaries={monthlySummaries}
                     summary={summary}
+                    visibleYear={visibleMonth.year}
                   />
                 </ScrollView>
               ) : (
@@ -960,230 +919,6 @@ function BalanceSummary({
           </ThemedText>
         </View>
       </ThemedView>
-    </View>
-  );
-}
-
-function MonthlyChartsPanel({
-  expenseCategoryData,
-  monthTransactionCount,
-  summary,
-}: {
-  expenseCategoryData: CategoryChartPoint[];
-  monthTransactionCount: number;
-  summary: MonthlySummary;
-}) {
-  const pieData = getTopCategoriesWithOther(expenseCategoryData, 5);
-
-  if (monthTransactionCount === 0 && summary.openingBalance === 0) {
-    return (
-      <ThemedView style={styles.emptyState}>
-        <ThemedText type="subtitle" style={styles.emptyTitle}>
-          Sin datos
-        </ThemedText>
-        <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-          No hay datos para graficar este mes.
-        </ThemedText>
-      </ThemedView>
-    );
-  }
-
-  return (
-    <View style={styles.chartsPanel}>
-      {expenseCategoryData.length === 0 ? (
-        <ThemedView type="backgroundSelected" style={styles.chartCard}>
-          <ThemedText type="smallBold" style={styles.chartTitle}>
-            Egresos por categoría
-          </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-            Sin egresos este mes.
-          </ThemedText>
-        </ThemedView>
-      ) : (
-        <>
-          <ChartCard title="Egresos por categoría">
-            <View style={styles.pieChartRow}>
-              <DonutChart data={pieData} total={summary.expense} />
-              <ChartLegend data={pieData} total={summary.expense} />
-            </View>
-          </ChartCard>
-
-          <ChartCard title="Acumulado">
-            <CategoryExpenseBars
-              data={expenseCategoryData}
-              total={summary.expense}
-            />
-          </ChartCard>
-        </>
-      )}
-    </View>
-  );
-}
-
-function DonutChart({
-  data,
-  total,
-}: {
-  data: CategoryChartPoint[];
-  total: number;
-}) {
-  const theme = useTheme();
-  const center = DONUT_CHART_SIZE / 2;
-  const radius = (DONUT_CHART_SIZE - DONUT_CHART_STROKE_WIDTH) / 2;
-  const circumference = 2 * Math.PI * radius;
-  let currentOffset = 0;
-
-  return (
-    <View style={styles.donutChartFrame}>
-      <Svg
-        height={DONUT_CHART_SIZE}
-        viewBox={`0 0 ${DONUT_CHART_SIZE} ${DONUT_CHART_SIZE}`}
-        width={DONUT_CHART_SIZE}
-      >
-        <Circle
-          cx={center}
-          cy={center}
-          fill="none"
-          r={radius}
-          stroke={theme.background}
-          strokeWidth={DONUT_CHART_STROKE_WIDTH}
-        />
-        <G transform={`rotate(-90 ${center} ${center})`}>
-          {data.map((item) => {
-            const sliceLength =
-              total > 0 ? (item.amount / total) * circumference : 0;
-            const dashOffset = -currentOffset;
-            currentOffset += sliceLength;
-
-            return (
-              <Circle
-                key={item.label}
-                cx={center}
-                cy={center}
-                fill="none"
-                r={radius}
-                stroke={item.color}
-                strokeDasharray={[sliceLength, circumference - sliceLength]}
-                strokeDashoffset={dashOffset}
-                strokeWidth={DONUT_CHART_STROKE_WIDTH}
-              />
-            );
-          })}
-        </G>
-      </Svg>
-    </View>
-  );
-}
-
-function CategoryExpenseBars({
-  data,
-  total,
-}: {
-  data: CategoryChartPoint[];
-  total: number;
-}) {
-  const theme = useTheme();
-  const maxAmount = Math.max(...data.map((item) => item.amount), 1);
-
-  return (
-    <View style={styles.categoryExpenseList}>
-      {data.map((item) => {
-        const percentage =
-          total > 0 ? Math.round((item.amount / total) * 100) : 0;
-        const barWidth: DimensionValue = `${Math.max((item.amount / maxAmount) * 100, 4)}%`;
-
-        return (
-          <View key={item.label} style={styles.categoryExpenseItem}>
-            <View style={styles.categoryExpenseHeader}>
-              <View style={styles.categoryExpenseLabelWrap}>
-                <View
-                  style={[
-                    styles.chartLegendSwatch,
-                    { backgroundColor: item.color },
-                  ]}
-                />
-                <ThemedText
-                  type="smallBold"
-                  style={styles.categoryExpenseLabel}
-                  numberOfLines={1}
-                >
-                  {item.label}
-                </ThemedText>
-              </View>
-              <ThemedText type="smallBold" style={styles.categoryExpenseAmount}>
-                $ {formatMoney(item.amount)}
-              </ThemedText>
-            </View>
-            <View
-              style={[
-                styles.categoryExpenseTrack,
-                { backgroundColor: theme.background },
-              ]}
-            >
-              <View
-                style={[
-                  styles.categoryExpenseBar,
-                  { backgroundColor: item.color, width: barWidth },
-                ]}
-              />
-            </View>
-            <ThemedText
-              type="small"
-              themeColor="textSecondary"
-              style={styles.categoryExpensePercent}
-            >
-              {percentage}%
-            </ThemedText>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-function ChartCard({
-  children,
-  title,
-}: {
-  children: ReactNode;
-  title: string;
-}) {
-  return (
-    <ThemedView type="backgroundSelected" style={styles.chartCard}>
-      <ThemedText type="smallBold" style={styles.chartTitle}>
-        {title}
-      </ThemedText>
-      {children}
-    </ThemedView>
-  );
-}
-
-function ChartLegend({
-  data,
-  total,
-}: {
-  data: CategoryChartPoint[];
-  total: number;
-}) {
-  return (
-    <View style={styles.chartLegend}>
-      {data.map((item) => (
-        <View key={item.label} style={styles.chartLegendRow}>
-          <View
-            style={[styles.chartLegendSwatch, { backgroundColor: item.color }]}
-          />
-          <ThemedText
-            type="small"
-            style={styles.chartLegendLabel}
-            numberOfLines={1}
-          >
-            {item.label}
-          </ThemedText>
-          <ThemedText type="smallBold" style={styles.chartLegendValue}>
-            {total > 0 ? `${Math.round((item.amount / total) * 100)}%` : "0%"}
-          </ThemedText>
-        </View>
-      ))}
     </View>
   );
 }
@@ -1650,89 +1385,6 @@ const styles = StyleSheet.create({
   reportContent: {
     paddingBottom: BottomTabInset + Spacing.five,
     paddingHorizontal: Spacing.three,
-  },
-  chartsPanel: {
-    gap: Spacing.three,
-  },
-  chartCard: {
-    borderRadius: Spacing.two,
-    gap: Spacing.two,
-    padding: Spacing.three,
-  },
-  chartTitle: {
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  pieChartRow: {
-    alignItems: "center",
-    gap: Spacing.three,
-  },
-  donutChartFrame: {
-    height: DONUT_CHART_SIZE,
-    width: DONUT_CHART_SIZE,
-  },
-  chartLegend: {
-    gap: Spacing.one,
-    width: "100%",
-  },
-  chartLegendRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: Spacing.two,
-    minHeight: 22,
-  },
-  chartLegendSwatch: {
-    borderRadius: 5,
-    height: 10,
-    width: 10,
-  },
-  chartLegendLabel: {
-    flex: 1,
-    minWidth: 0,
-  },
-  chartLegendValue: {
-    minWidth: 42,
-    textAlign: "right",
-  },
-  categoryExpenseList: {
-    gap: Spacing.three,
-  },
-  categoryExpenseItem: {
-    gap: Spacing.one,
-  },
-  categoryExpenseHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: Spacing.two,
-    justifyContent: "space-between",
-  },
-  categoryExpenseLabelWrap: {
-    alignItems: "center",
-    flex: 1,
-    flexDirection: "row",
-    gap: Spacing.two,
-    minWidth: 0,
-  },
-  categoryExpenseLabel: {
-    flex: 1,
-    minWidth: 0,
-  },
-  categoryExpenseAmount: {
-    flexShrink: 0,
-    textAlign: "right",
-  },
-  categoryExpenseTrack: {
-    borderRadius: 6,
-    height: 10,
-    overflow: "hidden",
-    width: "100%",
-  },
-  categoryExpenseBar: {
-    borderRadius: 6,
-    height: "100%",
-  },
-  categoryExpensePercent: {
-    textAlign: "right",
   },
   transactionRow: {
     alignItems: "flex-start",
