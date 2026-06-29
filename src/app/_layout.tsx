@@ -1,5 +1,5 @@
-import "react-native-gesture-handler";
 import "@/lib/backup/backup-scheduler";
+import "react-native-gesture-handler";
 
 import { useFonts } from "expo-font";
 import {
@@ -16,7 +16,14 @@ import {
 } from "expo-router/drawer";
 import { SQLiteProvider } from "expo-sqlite";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
-import { Alert, LogBox, Platform, Pressable, StyleSheet, useColorScheme } from "react-native";
+import {
+    Alert,
+    LogBox,
+    Platform,
+    Pressable,
+    StyleSheet,
+    useColorScheme,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AnimatedSplashOverlay } from "@/components/animated-icon";
@@ -26,9 +33,15 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { restoreLatestBackup, runOpportunisticBackup } from "@/lib/backup/backup-service";
 import { syncBackupTaskRegistration } from "@/lib/backup/backup-scheduler";
-import { hasSeenRestorePrompt, markRestorePromptSeen } from "@/lib/backup/storage";
+import {
+    restoreLatestBackup,
+    runOpportunisticBackup,
+} from "@/lib/backup/backup-service";
+import {
+    hasSeenRestorePrompt,
+    markRestorePromptSeen,
+} from "@/lib/backup/storage";
 import { migrateDatabase } from "@/lib/database";
 
 LogBox.ignoreLogs([
@@ -67,8 +80,14 @@ export default function TabLayout() {
           <Drawer.Screen name="accounts" options={{ title: "Cuentas" }} />
           <Drawer.Screen name="categories" options={{ title: "Categorías" }} />
           <Drawer.Screen name="tags" options={{ title: "Tags" }} />
-          <Drawer.Screen name="backup" options={{ title: "Copia de seguridad" }} />
-          <Drawer.Screen name="settings" options={{ title: "Configuraciones" }} />
+          <Drawer.Screen
+            name="backup"
+            options={{ title: "Copia de seguridad" }}
+          />
+          <Drawer.Screen
+            name="settings"
+            options={{ title: "Configuraciones" }}
+          />
           <Drawer.Screen
             name="explore"
             options={{
@@ -94,7 +113,9 @@ function CashioDrawerContent(props: DrawerContentComponentProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  function navigateTo(path: "/" | "/accounts" | "/categories" | "/tags" | "/backup" | "/settings") {
+  function navigateTo(
+    path: "/" | "/accounts" | "/categories" | "/tags" | "/backup" | "/settings",
+  ) {
     props.navigation.closeDrawer();
     router.push(path as never);
   }
@@ -162,7 +183,7 @@ function DrawerMenuItem({
   onPress,
 }: {
   active: boolean;
-  icon: "bank" | "cloud" | "folder" | "home" | "settings" | "tag";
+  icon: "bank" | "cash" | "cloud" | "folder" | "home" | "settings" | "tag";
   label: string;
   onPress: () => void;
 }) {
@@ -200,7 +221,9 @@ function DrawerMenuItem({
 
 function DatabaseProvider({ children }: { children: ReactNode }) {
   const [canUseDatabase, setCanUseDatabase] = useState(Platform.OS !== "web");
-  const [isRestoreGateReady, setIsRestoreGateReady] = useState(Platform.OS === "web");
+  const [isRestoreGateReady, setIsRestoreGateReady] = useState(
+    Platform.OS === "web",
+  );
 
   useEffect(() => {
     setCanUseDatabase(true);
@@ -225,7 +248,9 @@ function DatabaseProvider({ children }: { children: ReactNode }) {
         await restoreLatestBackup();
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "No se pudo restaurar la copia de seguridad.";
+          error instanceof Error
+            ? error.message
+            : "No se pudo restaurar la copia de seguridad.";
         Alert.alert("No se pudo restaurar", message);
       } finally {
         await markRestorePromptSeen();
@@ -255,7 +280,7 @@ function DatabaseProvider({ children }: { children: ReactNode }) {
             text: "Restaurar",
           },
         ],
-        { cancelable: false }
+        { cancelable: false },
       );
     }
 

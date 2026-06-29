@@ -21,10 +21,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AccountBalancePanel } from "@/components/account-balance";
-import {
-    AccountSelector,
-    getAccountScopeLabel,
-} from "@/components/accounts";
+import { AccountSelector, getAccountScopeLabel } from "@/components/accounts";
 import { AppIcon } from "@/components/app-icon";
 import {
     BudgetSummaryCard,
@@ -144,7 +141,10 @@ function groupByCategory(
     }));
 }
 
-function accountMatchesScope(transaction: Transaction, accountScope: AccountScope) {
+function accountMatchesScope(
+  transaction: Transaction,
+  accountScope: AccountScope,
+) {
   return accountScope === "all" || transaction.account_id === accountScope;
 }
 
@@ -181,12 +181,21 @@ function aggregateMonthlySummaries(
   );
 }
 
-function getInitialBalanceForScope(accounts: Account[], accountScope: AccountScope) {
+function getInitialBalanceForScope(
+  accounts: Account[],
+  accountScope: AccountScope,
+) {
   if (accountScope === "all") {
-    return accounts.reduce((total, account) => total + account.initial_balance, 0);
+    return accounts.reduce(
+      (total, account) => total + account.initial_balance,
+      0,
+    );
   }
 
-  return accounts.find((account) => account.id === accountScope)?.initial_balance ?? 0;
+  return (
+    accounts.find((account) => account.id === accountScope)?.initial_balance ??
+    0
+  );
 }
 
 function transactionMatchesDescriptionSearch(
@@ -246,7 +255,8 @@ export default function HomeScreen() {
     getCurrentMonth(),
   );
   const [activeView, setActiveView] = useState<ActiveView>("list");
-  const [selectedAccountScope, setSelectedAccountScope] = useState<AccountScope>(1);
+  const [selectedAccountScope, setSelectedAccountScope] =
+    useState<AccountScope>(1);
   const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
   const [inlineMessage, setInlineMessage] = useState("");
   const [budgetMessage, setBudgetMessage] = useState("");
@@ -260,7 +270,10 @@ export default function HomeScreen() {
   );
   const selectedTransactionCount = selectedTransactionIds.length;
   const isSelectionMode = selectedTransactionCount > 0;
-  const selectedAccountLabel = getAccountScopeLabel(accounts, selectedAccountScope);
+  const selectedAccountLabel = getAccountScopeLabel(
+    accounts,
+    selectedAccountScope,
+  );
 
   const visibleMonthlySummaries = useMemo(
     () => aggregateMonthlySummaries(monthlySummaries, selectedAccountScope),
@@ -366,7 +379,8 @@ export default function HomeScreen() {
     }
 
     const defaultAccountId =
-      accounts.find((account) => account.is_default === 1)?.id ?? accounts[0]?.id;
+      accounts.find((account) => account.is_default === 1)?.id ??
+      accounts[0]?.id;
     if (defaultAccountId) {
       setSelectedAccountScope(defaultAccountId);
     }
@@ -501,13 +515,20 @@ export default function HomeScreen() {
     setBudgetMessage("");
 
     try {
-      await addCategoryToMonthlyBudget(selectedAccountScope, visibleMonthKey, categoryId);
+      await addCategoryToMonthlyBudget(
+        selectedAccountScope,
+        visibleMonthKey,
+        categoryId,
+      );
     } catch {
       setBudgetMessage("No se pudo agregar la categoría al presupuesto.");
     }
   }
 
-  async function handleSaveBudgetAmount(categoryId: number, plannedAmount: number) {
+  async function handleSaveBudgetAmount(
+    categoryId: number,
+    plannedAmount: number,
+  ) {
     setBudgetMessage("");
 
     try {
@@ -526,7 +547,11 @@ export default function HomeScreen() {
     setBudgetMessage("");
 
     try {
-      await removeCategoryFromMonthlyBudget(selectedAccountScope, visibleMonthKey, categoryId);
+      await removeCategoryFromMonthlyBudget(
+        selectedAccountScope,
+        visibleMonthKey,
+        categoryId,
+      );
     } catch {
       setBudgetMessage("No se pudo quitar la categoría del presupuesto.");
     }
@@ -635,7 +660,9 @@ export default function HomeScreen() {
               onCancel={cancelSelection}
               onDelete={handleDeleteSelectedTransactions}
             />
-          ) : activeView === "reports" || activeView === "budgets" || activeView === "balance" ? (
+          ) : activeView === "reports" ||
+            activeView === "budgets" ||
+            activeView === "balance" ? (
             <ThemedView style={styles.header}>
               <IconButton
                 label="Abrir menú"
@@ -705,7 +732,8 @@ export default function HomeScreen() {
               <AccountScopeHint label={selectedAccountLabel} />
             </>
           ) : (
-            activeView !== "reports" && activeView !== "balance" && (
+            activeView !== "reports" &&
+            activeView !== "balance" && (
               <BalanceSummary
                 accountLabel={selectedAccountLabel}
                 balance={summary.balance}
@@ -1089,7 +1117,11 @@ function BalanceSummary({
       <ThemedText type="smallBold" style={styles.summaryMonth}>
         {monthLabel}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.summaryAccount}>
+      <ThemedText
+        type="small"
+        themeColor="textSecondary"
+        style={styles.summaryAccount}
+      >
         {accountLabel}
       </ThemedText>
       <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
@@ -1131,7 +1163,11 @@ function BalanceSummary({
 
 function AccountScopeHint({ label }: { label: string }) {
   return (
-    <ThemedText type="small" themeColor="textSecondary" style={styles.accountHint}>
+    <ThemedText
+      type="small"
+      themeColor="textSecondary"
+      style={styles.accountHint}
+    >
       {label}
     </ThemedText>
   );
