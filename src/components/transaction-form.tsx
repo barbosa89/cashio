@@ -3,10 +3,12 @@ import {
     useEffect,
     useImperativeHandle,
     useMemo,
+    useRef,
     useState,
     type ReactNode,
 } from "react";
 import {
+    Keyboard,
     Platform,
     Pressable,
     StyleSheet,
@@ -27,7 +29,7 @@ import DropDownPicker, {
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { DROPDOWN_LIST_MODE, Spacing } from "@/constants/theme";
+import { AppPalette, DROPDOWN_LIST_MODE, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
 import { CashioValidationError } from "@/lib/cashio-repository";
@@ -106,6 +108,10 @@ function TransactionForm({ onSaved }, ref) {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [isCreatingTag, setIsCreatingTag] = useState(false);
+  const isCreatingCategoryRef = useRef(false);
+  const isCreatingTagRef = useRef(false);
   const selectedTagBadgeBackground = theme.text;
   const selectedTagTextColor = theme.background;
 
@@ -231,6 +237,10 @@ function TransactionForm({ onSaved }, ref) {
     setIsDatePickerOpen(false);
     setMessage("");
     setIsSaving(false);
+    setIsCreatingCategory(false);
+    setIsCreatingTag(false);
+    isCreatingCategoryRef.current = false;
+    isCreatingTagRef.current = false;
     const today = new Date();
     setDraftTransactionDate(today);
     setTransactionDate(formatDateValue(today));
@@ -320,6 +330,13 @@ function TransactionForm({ onSaved }, ref) {
       return;
     }
 
+    if (isCreatingCategoryRef.current) {
+      return;
+    }
+
+    isCreatingCategoryRef.current = true;
+    setIsCreatingCategory(true);
+
     try {
       const created = await addCategory({
         description,
@@ -333,6 +350,9 @@ function TransactionForm({ onSaved }, ref) {
       }
     } catch (error) {
       handleError(error);
+    } finally {
+      isCreatingCategoryRef.current = false;
+      setIsCreatingCategory(false);
     }
   }
 
@@ -356,6 +376,13 @@ function TransactionForm({ onSaved }, ref) {
       return;
     }
 
+    if (isCreatingTagRef.current) {
+      return;
+    }
+
+    isCreatingTagRef.current = true;
+    setIsCreatingTag(true);
+
     try {
       const created = await addTag({ description });
       if (created) {
@@ -368,6 +395,9 @@ function TransactionForm({ onSaved }, ref) {
       }
     } catch (error) {
       handleError(error);
+    } finally {
+      isCreatingTagRef.current = false;
+      setIsCreatingTag(false);
     }
   }
 
@@ -661,7 +691,6 @@ function TransactionForm({ onSaved }, ref) {
             styles.dropdownCustomItem,
             { borderTopColor: theme.backgroundSelected },
           ]}
-          customItemLabelStyle={styles.dropdownCustomItemText}
           items={categoryItems}
           labelStyle={styles.dropdownLabel}
           listItemContainerStyle={styles.dropdownItem}
@@ -686,7 +715,11 @@ function TransactionForm({ onSaved }, ref) {
           renderListItem={(props) => (
             <DropdownListItem
               createLabel="Crear categoría"
+              isCreatingCustomItem={isCreatingCategory}
               itemProps={props}
+              onCreateCustomItem={(value) =>
+                void handleCreateCategoryFromText(value)
+              }
             />
           )}
           searchPlaceholder="Buscar categoría"
@@ -840,7 +873,6 @@ function TransactionForm({ onSaved }, ref) {
             styles.dropdownCustomItem,
             { borderTopColor: theme.backgroundSelected },
           ]}
-          customItemLabelStyle={styles.dropdownCustomItemText}
           items={tagItems}
           labelStyle={styles.dropdownLabel}
           listItemContainerStyle={styles.dropdownItem}
@@ -868,7 +900,9 @@ function TransactionForm({ onSaved }, ref) {
           renderListItem={(props) => (
             <DropdownListItem
               createLabel="Crear tag"
+              isCreatingCustomItem={isCreatingTag}
               itemProps={props}
+              onCreateCustomItem={(value) => void handleCreateTagFromText(value)}
             />
           )}
           searchPlaceholder="Buscar tag"
@@ -927,18 +961,32 @@ function TransactionForm({ onSaved }, ref) {
 
 function DropdownListItem({
   createLabel,
+  isCreatingCustomItem,
   itemProps,
+  onCreateCustomItem,
 }: {
   createLabel: string;
+  isCreatingCustomItem?: boolean;
   itemProps: RenderListItemPropsInterface<DropdownValue>;
+  onCreateCustomItem?: (value: string) => void;
 }) {
-  const theme = useTheme();
-  const disabled = itemProps.disabled || itemProps.selectable === false;
+  const disabled =
+    itemProps.disabled ||
+    itemProps.selectable === false ||
+    (itemProps.custom && isCreatingCustomItem);
   const displayLabel = itemProps.custom
-    ? `${createLabel} "${itemProps.label.trim()}"`
+    ? isCreatingCustomItem
+      ? "Creando..."
+      : `${createLabel} "${itemProps.label.trim()}"`
     : itemProps.label;
 
   function handlePress() {
+    if (itemProps.custom && onCreateCustomItem) {
+      Keyboard.dismiss();
+      onCreateCustomItem(String(itemProps.label ?? itemProps.value ?? ""));
+      return;
+    }
+
     const onPressItem = itemProps.onPress as unknown as (
       item: ItemType<DropdownValue>,
       custom: boolean,
@@ -953,7 +1001,12 @@ function DropdownListItem({
       onLayout={({ nativeEvent }) =>
         itemProps.setPosition(itemProps.value, nativeEvent.layout.y)
       }
-      onPress={handlePress}
+      onPress={
+        itemProps.custom && Platform.OS === "android" ? undefined : handlePress
+      }
+      onPressIn={
+        itemProps.custom && Platform.OS === "android" ? handlePress : undefined
+      }
       style={({ pressed }) => [
         itemProps.listItemContainerStyle,
         itemProps.custom && itemProps.customItemContainerStyle,
@@ -962,22 +1015,36 @@ function DropdownListItem({
         pressed && styles.pressed,
       ]}
     >
-      {itemProps.custom && (
-        <AppIcon color={theme.text} name="plus" size={16} />
+      {itemProps.custom ? (
+        <View style={styles.dropdownCreateButton}>
+          <AppIcon
+            color={AppPalette.foregroundInverse}
+            name={isCreatingCustomItem ? "loader" : "plus"}
+            size={20}
+          />
+          <ThemedText
+            type="smallBold"
+            style={styles.dropdownCreateButtonText}
+          >
+            {displayLabel}
+          </ThemedText>
+        </View>
+      ) : (
+        <>
+          <ThemedText
+            type={itemProps.isSelected ? "smallBold" : "small"}
+            style={[
+              styles.dropdownListItemText,
+              itemProps.listItemLabelStyle,
+              itemProps.isSelected && itemProps.selectedItemLabelStyle,
+              disabled && itemProps.disabledItemLabelStyle,
+            ]}
+          >
+            {displayLabel}
+          </ThemedText>
+          {itemProps.isSelected && <itemProps.TickIconComponent />}
+        </>
       )}
-      <ThemedText
-        type={itemProps.custom || itemProps.isSelected ? "smallBold" : "small"}
-        style={[
-          styles.dropdownListItemText,
-          itemProps.listItemLabelStyle,
-          itemProps.custom && itemProps.customItemLabelStyle,
-          itemProps.isSelected && itemProps.selectedItemLabelStyle,
-          disabled && itemProps.disabledItemLabelStyle,
-        ]}
-      >
-        {displayLabel}
-      </ThemedText>
-      {itemProps.isSelected && !itemProps.custom && <itemProps.TickIconComponent />}
     </Pressable>
   );
 }
@@ -1157,10 +1224,26 @@ const styles = StyleSheet.create({
   },
   dropdownCustomItem: {
     borderTopWidth: 1,
-    minHeight: 44,
+    minHeight: 72,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.two,
   },
-  dropdownCustomItemText: {
-    fontWeight: "700",
+  dropdownCreateButton: {
+    alignItems: "center",
+    backgroundColor: AppPalette.brandOrange,
+    borderRadius: Spacing.two,
+    flex: 1,
+    flexDirection: "row",
+    gap: Spacing.two,
+    justifyContent: "center",
+    minHeight: 52,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  dropdownCreateButtonText: {
+    color: AppPalette.foregroundInverse,
+    flexShrink: 1,
+    textAlign: "center",
   },
   dropdownSearchInput: {
     borderRadius: Spacing.two,
