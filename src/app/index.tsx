@@ -792,6 +792,7 @@ export default function HomeScreen() {
                         }}
                         selected={selectedTransactionIdSet.has(transaction.id)}
                         selectionMode={isSelectionMode}
+                        showAccountName={selectedAccountScope === "all"}
                         transaction={transaction}
                       />
                     ))
@@ -948,12 +949,14 @@ function TransactionRow({
   onPress,
   selected,
   selectionMode,
+  showAccountName,
   transaction,
 }: {
   onLongPress: () => void;
   onPress: () => void;
   selected: boolean;
   selectionMode: boolean;
+  showAccountName: boolean;
   transaction: Transaction;
 }) {
   const theme = useTheme();
@@ -996,17 +999,19 @@ function TransactionRow({
               {transaction.category_description}
             </ThemedText>
           </View>
-          <View style={styles.metadataRow}>
-            <AppIcon
-              color={theme.textSecondary}
-              name="bank"
-              size={12}
-              style={styles.metadataIcon}
-            />
-            <ThemedText type="small" style={styles.metadataText}>
-              {transaction.account_name}
-            </ThemedText>
-          </View>
+          {showAccountName && (
+            <View style={styles.metadataRow}>
+              <AppIcon
+                color={theme.textSecondary}
+                name="bank"
+                size={12}
+                style={styles.metadataIcon}
+              />
+              <ThemedText type="small" style={styles.metadataText}>
+                {transaction.account_name}
+              </ThemedText>
+            </View>
+          )}
           {transaction.is_transfer === 1 && (
             <View style={styles.metadataRow}>
               <AppIcon
