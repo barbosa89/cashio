@@ -24,10 +24,9 @@ import Svg, { Circle, G } from "react-native-svg";
 
 import { AppIcon } from "@/components/app-icon";
 import {
-    BudgetSummary,
+    BudgetSummaryCard,
     MonthlyBudgetPanel,
-    buildBudgetSummary,
-} from "@/components/monthly-budget-panel";
+} from "@/components/monthly-budget";
 import { ReportExportPanel } from "@/components/report-export-panel";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -41,7 +40,7 @@ import {
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useCashioSettings } from "@/hooks/use-cashio-settings";
 import { useTheme } from "@/hooks/use-theme";
-import type { Category, Tag, Transaction } from "@/lib/database";
+import type { Category, MonthlyBudgetItem, Tag, Transaction } from "@/lib/database";
 
 type VisibleMonth = {
   month: number;
@@ -202,13 +201,15 @@ export default function HomeScreen() {
   const navigation = useNavigation<{ openDrawer: () => void }>();
   const {
     categories,
+    addCategoryToMonthlyBudget,
     copyBudgetFromPreviousMonth,
     isLoading,
-    monthlyBudgetProgress,
+    monthlyBudgetData,
     monthlySummaries,
-    refreshMonthlyBudgetProgress,
+    refreshMonthlyBudgetData,
+    removeCategoryFromMonthlyBudget,
     removeTransactions,
-    saveMonthlyBudgetAllocation,
+    saveMonthlyBudgetAmount,
     tags,
     transactions,
   } = useCashioData();
@@ -310,16 +311,13 @@ export default function HomeScreen() {
     [monthlyTransactions],
   );
 
-  const budgetSummary = useMemo(
-    () => buildBudgetSummary(monthlyBudgetProgress),
-    [monthlyBudgetProgress],
-  );
+  const budgetSummary = monthlyBudgetData.summary;
 
   const hasActiveFilters = !!selectedCategory || !!selectedTag;
 
   useEffect(() => {
-    void refreshMonthlyBudgetProgress(visibleMonthKey);
-  }, [categories, refreshMonthlyBudgetProgress, transactions, visibleMonthKey]);
+    void refreshMonthlyBudgetData(visibleMonthKey);
+  }, [categories, refreshMonthlyBudgetData, transactions, visibleMonthKey]);
 
   function clearFilters() {
     setSelectedCategoryId(null);
@@ -423,11 +421,21 @@ export default function HomeScreen() {
     setActiveView("reports");
   }
 
-  async function handleSaveBudget(categoryId: number, plannedAmount: number) {
+  async function handleAddBudgetCategory(categoryId: number) {
     setBudgetMessage("");
 
     try {
-      await saveMonthlyBudgetAllocation({
+      await addCategoryToMonthlyBudget(visibleMonthKey, categoryId);
+    } catch {
+      setBudgetMessage("No se pudo agregar la categoría al presupuesto.");
+    }
+  }
+
+  async function handleSaveBudgetAmount(categoryId: number, plannedAmount: number) {
+    setBudgetMessage("");
+
+    try {
+      await saveMonthlyBudgetAmount({
         categoryId,
         month: visibleMonthKey,
         plannedAmount,
@@ -435,6 +443,41 @@ export default function HomeScreen() {
     } catch {
       setBudgetMessage("No se pudo guardar el presupuesto.");
     }
+  }
+
+  async function removeBudgetCategory(categoryId: number) {
+    setBudgetMessage("");
+
+    try {
+      await removeCategoryFromMonthlyBudget(visibleMonthKey, categoryId);
+    } catch {
+      setBudgetMessage("No se pudo quitar la categoría del presupuesto.");
+    }
+  }
+
+  function handleRemoveBudgetCategory(item: MonthlyBudgetItem) {
+    const confirmMessage =
+      item.spent_amount > 0
+        ? "Esta categoría tiene gastos en el mes. Si la quitas, aparecerá en gastos sin presupuesto."
+        : "¿Quieres quitar esta categoría del presupuesto del mes?";
+
+    if (Platform.OS === "web") {
+      if (confirm(confirmMessage)) {
+        void removeBudgetCategory(item.category_id);
+      }
+      return;
+    }
+
+    Alert.alert("Quitar categoría", confirmMessage, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Quitar",
+        style: "destructive",
+        onPress: () => {
+          void removeBudgetCategory(item.category_id);
+        },
+      },
+    ]);
   }
 
   async function handleCopyPreviousBudget() {
@@ -559,7 +602,7 @@ export default function HomeScreen() {
           )}
 
           {activeView === "budgets" ? (
-            <BudgetSummary
+            <BudgetSummaryCard
               monthLabel={visibleMonthLabel}
               summary={budgetSummary}
             />
@@ -641,13 +684,16 @@ export default function HomeScreen() {
                   style={styles.list}
                 >
                   <MonthlyBudgetPanel
+                    budgetData={monthlyBudgetData}
                     budgetMessage={budgetMessage}
-                    onCopyPreviousBudget={() => void handleCopyPreviousBudget()}
-                    onSaveBudget={(categoryId, plannedAmount) =>
-                      void handleSaveBudget(categoryId, plannedAmount)
+                    onAddCategory={(categoryId) =>
+                      void handleAddBudgetCategory(categoryId)
                     }
-                    rows={monthlyBudgetProgress}
-                    summary={budgetSummary}
+                    onCopyPreviousBudget={() => void handleCopyPreviousBudget()}
+                    onRemoveCategory={handleRemoveBudgetCategory}
+                    onSaveAmount={(categoryId, plannedAmount) =>
+                      void handleSaveBudgetAmount(categoryId, plannedAmount)
+                    }
                   />
                 </ScrollView>
               )}

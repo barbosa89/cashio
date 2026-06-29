@@ -51,15 +51,27 @@ export type MonthlyBudgetAllocation = {
   updated_at: string;
 };
 
-export type MonthlyBudgetProgressRow = {
-  allocation_id: number | null;
+export type MonthlyBudgetItem = {
+  allocation_id: number;
   category_id: number;
   category_description: string;
   category_type: CategoryType | null;
   planned_amount: number;
   spent_amount: number;
   remaining_amount: number;
-  has_budget: 0 | 1;
+};
+
+export type MonthlyBudgetAvailableCategory = {
+  category_id: number;
+  category_description: string;
+  category_type: CategoryType | null;
+};
+
+export type MonthlyBudgetUnbudgetedExpense = {
+  category_id: number;
+  category_description: string;
+  category_type: CategoryType | null;
+  spent_amount: number;
 };
 
 export type MonthlyBudgetSummary = {
@@ -67,6 +79,13 @@ export type MonthlyBudgetSummary = {
   spent_total: number;
   remaining_total: number;
   unbudgeted_expense_total: number;
+};
+
+export type MonthlyBudgetData = {
+  items: MonthlyBudgetItem[];
+  availableCategories: MonthlyBudgetAvailableCategory[];
+  unbudgetedExpenses: MonthlyBudgetUnbudgetedExpense[];
+  summary: MonthlyBudgetSummary;
 };
 
 export type SettingValueType = 'boolean' | 'number' | 'string' | 'json';
@@ -79,7 +98,7 @@ export type SettingRow = {
   updated_at: string;
 };
 
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 5;
 
 const DEFAULT_CATEGORIES: Array<{ description: string; type: CategoryType }> = [
   { description: 'Alimentación', type: 'expense' },
@@ -249,6 +268,44 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     `);
 
     currentDbVersion = 4;
+  }
+
+  if (currentDbVersion === 4) {
+    await db.execAsync(`
+      DROP TABLE IF EXISTS monthly_budget_allocations_v5;
+
+      CREATE TABLE monthly_budget_allocations_v5 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        month TEXT NOT NULL,
+        category_id INTEGER NOT NULL,
+        planned_amount REAL NOT NULL CHECK(planned_amount >= 0),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(month, category_id),
+        FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE CASCADE
+      );
+
+      INSERT INTO monthly_budget_allocations_v5
+        (id, month, category_id, planned_amount, created_at, updated_at)
+      SELECT
+        id,
+        month,
+        category_id,
+        planned_amount,
+        created_at,
+        updated_at
+      FROM monthly_budget_allocations;
+
+      DROP TABLE monthly_budget_allocations;
+      ALTER TABLE monthly_budget_allocations_v5 RENAME TO monthly_budget_allocations;
+
+      CREATE INDEX IF NOT EXISTS idx_monthly_budget_allocations_month
+        ON monthly_budget_allocations(month);
+      CREATE INDEX IF NOT EXISTS idx_monthly_budget_allocations_category_id
+        ON monthly_budget_allocations(category_id);
+    `);
+
+    currentDbVersion = 5;
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
