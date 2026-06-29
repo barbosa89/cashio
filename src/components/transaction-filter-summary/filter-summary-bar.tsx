@@ -79,6 +79,7 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: Spacing.two,
     gap: Spacing.one,
+    marginBottom: Spacing.two,
     marginHorizontal: Spacing.three,
     marginTop: Spacing.one,
     paddingHorizontal: Spacing.two,

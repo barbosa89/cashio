@@ -74,6 +74,9 @@ type MonthlySummary = {
 };
 
 const MONTH_SWIPE_THRESHOLD = 72;
+const FILTER_SUMMARY_GAP = Spacing.two;
+const FILTER_SUMMARY_ESTIMATED_HEIGHT = 70;
+const BOTTOM_BAR_ESTIMATED_HEIGHT = 72;
 
 function normalize(value: string) {
   return value.trim().toLocaleLowerCase();
@@ -1515,7 +1518,11 @@ const styles = StyleSheet.create({
     backgroundColor: AppPalette.brandOrangeActive,
   },
   fabWithFilterSummary: {
-    bottom: BottomTabInset + 184,
+    bottom:
+      BottomTabInset +
+      BOTTOM_BAR_ESTIMATED_HEIGHT +
+      FILTER_SUMMARY_ESTIMATED_HEIGHT +
+      FILTER_SUMMARY_GAP * 2,
   },
   inlineMessage: {
     paddingHorizontal: Spacing.three,
