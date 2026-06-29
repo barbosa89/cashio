@@ -8,7 +8,6 @@ import {
 } from "react";
 import {
     Alert,
-    Modal,
     Platform,
     Pressable,
     ScrollView,
@@ -16,7 +15,6 @@ import {
     TextInput,
     View,
 } from "react-native";
-import DropDownPicker from "react-native-dropdown-picker";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -37,10 +35,12 @@ import { ReportExportPanel } from "@/components/report-export-panel";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import {
+    TransactionFilterSheet,
+    type TransactionFilters,
+} from "@/components/transaction-filters";
+import {
     AppPalette,
     BottomTabInset,
-    DROPDOWN_LIST_MODE,
-    MaxContentWidth,
     Spacing,
 } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
@@ -49,7 +49,6 @@ import { useTheme } from "@/hooks/use-theme";
 import type {
     Account,
     AccountScope,
-    Category,
     MonthlyBudgetItem,
     MonthlySummaryRow,
     Tag,
@@ -244,10 +243,10 @@ export default function HomeScreen() {
   const { settings } = useCashioSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [descriptionSearch, setDescriptionSearch] = useState("");
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
-    null,
-  );
-  const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
+  const [filters, setFilters] = useState<TransactionFilters>({
+    categoryId: null,
+    tagId: null,
+  });
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<
     number[]
   >([]);
@@ -282,13 +281,13 @@ export default function HomeScreen() {
 
   const selectedCategory = useMemo(
     () =>
-      categories.find((category) => category.id === selectedCategoryId) ?? null,
-    [categories, selectedCategoryId],
+      categories.find((category) => category.id === filters.categoryId) ?? null,
+    [categories, filters.categoryId],
   );
 
   const selectedTag = useMemo(
-    () => tags.find((tag) => tag.id === selectedTagId) ?? null,
-    [tags, selectedTagId],
+    () => tags.find((tag) => tag.id === filters.tagId) ?? null,
+    [filters.tagId, tags],
   );
 
   const accountScopedTransactions = useMemo(
@@ -399,11 +398,6 @@ export default function HomeScreen() {
   useEffect(() => {
     void refreshAccountBalances(visibleMonthKey);
   }, [accounts, monthlySummaries, refreshAccountBalances, visibleMonthKey]);
-
-  function clearFilters() {
-    setSelectedCategoryId(null);
-    setSelectedTagId(null);
-  }
 
   function cancelSelection() {
     setSelectedTransactionIds([]);
@@ -926,15 +920,12 @@ export default function HomeScreen() {
         </ThemedView>
       </SafeAreaView>
 
-      <FilterModal
+      <TransactionFilterSheet
         categories={categories}
+        filters={filters}
         isVisible={isFilterOpen}
-        onClear={clearFilters}
+        onApply={setFilters}
         onClose={() => setIsFilterOpen(false)}
-        selectedCategoryId={selectedCategoryId}
-        selectedTagId={selectedTagId}
-        setSelectedCategoryId={setSelectedCategoryId}
-        setSelectedTagId={setSelectedTagId}
         tags={tags}
       />
       <AccountSelector
@@ -1179,290 +1170,6 @@ function AccountScopeHint({ label }: { label: string }) {
     >
       {label}
     </ThemedText>
-  );
-}
-
-function FilterModal({
-  categories,
-  isVisible,
-  onClear,
-  onClose,
-  selectedCategoryId,
-  selectedTagId,
-  setSelectedCategoryId,
-  setSelectedTagId,
-  tags,
-}: {
-  categories: Category[];
-  isVisible: boolean;
-  onClear: () => void;
-  onClose: () => void;
-  selectedCategoryId: number | null;
-  selectedTagId: number | null;
-  setSelectedCategoryId: (value: number | null) => void;
-  setSelectedTagId: (value: number | null) => void;
-  tags: Tag[];
-}) {
-  const theme = useTheme();
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [isTagOpen, setIsTagOpen] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
-  const [tagSearch, setTagSearch] = useState("");
-
-  const categoryItems = useMemo(
-    () => [
-      { label: "Todas", value: 0 },
-      ...categories.map((category) => ({
-        label: category.description,
-        value: category.id,
-      })),
-    ],
-    [categories],
-  );
-
-  const tagItems = useMemo(
-    () => [
-      { label: "Todos", value: 0 },
-      ...tags.map((tag) => ({ label: tag.description, value: tag.id })),
-    ],
-    [tags],
-  );
-
-  function clearAndClose() {
-    onClear();
-    setCategorySearch("");
-    setTagSearch("");
-    setIsCategoryOpen(false);
-    setIsTagOpen(false);
-  }
-
-  function closeModal() {
-    setIsCategoryOpen(false);
-    setIsTagOpen(false);
-    setCategorySearch("");
-    setTagSearch("");
-    onClose();
-  }
-
-  function setCategoryFilterValue(
-    nextValue: (currentValue: number | null) => number | null,
-  ) {
-    const next = nextValue(selectedCategoryId ?? 0);
-    setSelectedCategoryId(next === 0 ? null : next);
-  }
-
-  function setTagFilterValue(
-    nextValue: (currentValue: number | null) => number | null,
-  ) {
-    const next = nextValue(selectedTagId ?? 0);
-    setSelectedTagId(next === 0 ? null : next);
-  }
-
-  return (
-    <Modal
-      animationType="slide"
-      transparent
-      visible={isVisible}
-      onRequestClose={closeModal}
-    >
-      <Pressable style={styles.modalBackdrop} onPress={closeModal}>
-        <Pressable onPress={(event) => event.stopPropagation()}>
-          <ThemedView type="backgroundElement" style={styles.filterPanel}>
-            <ThemedText type="subtitle" style={styles.panelTitle}>
-              Filtros
-            </ThemedText>
-
-            <View
-              style={[
-                styles.filterDropdownField,
-                { zIndex: isCategoryOpen ? 30 : 10 },
-              ]}
-            >
-              <ThemedText type="smallBold">Categorías</ThemedText>
-              <DropDownPicker<number>
-                ArrowDownIconComponent={({ style }) => (
-                  <View style={style}>
-                    <AppIcon color={theme.text} name="chevron-down" size={22} />
-                  </View>
-                )}
-                ArrowUpIconComponent={({ style }) => (
-                  <View style={style}>
-                    <AppIcon color={theme.text} name="chevron-up" size={22} />
-                  </View>
-                )}
-                CloseIconComponent={({ style }) => (
-                  <View style={style}>
-                    <AppIcon color={theme.text} name="x" size={24} />
-                  </View>
-                )}
-                TickIconComponent={({ style }) => (
-                  <View style={style}>
-                    <AppIcon color={theme.text} name="check" size={20} />
-                  </View>
-                )}
-                dropDownContainerStyle={[
-                  styles.filterDropdownMenu,
-                  {
-                    backgroundColor: theme.background,
-                    borderColor: theme.backgroundSelected,
-                  },
-                ]}
-                items={categoryItems}
-                labelStyle={styles.filterDropdownLabel}
-                listItemContainerStyle={styles.filterDropdownItem}
-                listItemLabelStyle={{ color: theme.text }}
-                listMode={DROPDOWN_LIST_MODE}
-                maxHeight={180}
-                modalAnimationType="slide"
-                modalContentContainerStyle={[
-                  styles.dropdownModal,
-                  { backgroundColor: theme.background },
-                ]}
-                onChangeSearchText={setCategorySearch}
-                onOpen={() => setIsTagOpen(false)}
-                open={isCategoryOpen}
-                placeholder="Todas"
-                placeholderStyle={{ color: theme.textSecondary }}
-                searchPlaceholder="Buscar categoría"
-                searchPlaceholderTextColor={theme.textSecondary}
-                searchable
-                searchTextInputProps={{ value: categorySearch }}
-                searchTextInputStyle={[
-                  styles.filterDropdownSearchInput,
-                  { borderColor: theme.backgroundSelected, color: theme.text },
-                ]}
-                selectedItemContainerStyle={{
-                  backgroundColor: theme.backgroundSelected,
-                }}
-                selectedItemLabelStyle={{
-                  color: theme.text,
-                  fontWeight: "700",
-                }}
-                setOpen={setIsCategoryOpen}
-                setValue={setCategoryFilterValue}
-                style={[
-                  styles.filterDropdown,
-                  {
-                    backgroundColor: theme.background,
-                    borderColor: theme.backgroundSelected,
-                  },
-                ]}
-                textStyle={{ color: theme.text }}
-                value={selectedCategoryId ?? 0}
-                zIndex={isCategoryOpen ? 3000 : 1000}
-                zIndexInverse={1000}
-              />
-            </View>
-
-            <View
-              style={[
-                styles.filterDropdownField,
-                { zIndex: isTagOpen ? 30 : 10 },
-              ]}
-            >
-              <ThemedText type="smallBold">Tags</ThemedText>
-              <DropDownPicker<number>
-                ArrowDownIconComponent={({ style }) => (
-                  <View style={style}>
-                    <AppIcon color={theme.text} name="chevron-down" size={22} />
-                  </View>
-                )}
-                ArrowUpIconComponent={({ style }) => (
-                  <View style={style}>
-                    <AppIcon color={theme.text} name="chevron-up" size={22} />
-                  </View>
-                )}
-                CloseIconComponent={({ style }) => (
-                  <View style={style}>
-                    <AppIcon color={theme.text} name="x" size={24} />
-                  </View>
-                )}
-                TickIconComponent={({ style }) => (
-                  <View style={style}>
-                    <AppIcon color={theme.text} name="check" size={20} />
-                  </View>
-                )}
-                dropDownContainerStyle={[
-                  styles.filterDropdownMenu,
-                  {
-                    backgroundColor: theme.background,
-                    borderColor: theme.backgroundSelected,
-                  },
-                ]}
-                items={tagItems}
-                labelStyle={styles.filterDropdownLabel}
-                listItemContainerStyle={styles.filterDropdownItem}
-                listItemLabelStyle={{ color: theme.text }}
-                listMode={DROPDOWN_LIST_MODE}
-                maxHeight={180}
-                modalAnimationType="slide"
-                modalContentContainerStyle={[
-                  styles.dropdownModal,
-                  { backgroundColor: theme.background },
-                ]}
-                onChangeSearchText={setTagSearch}
-                onOpen={() => setIsCategoryOpen(false)}
-                open={isTagOpen}
-                placeholder="Todos"
-                placeholderStyle={{ color: theme.textSecondary }}
-                searchPlaceholder="Buscar tag"
-                searchPlaceholderTextColor={theme.textSecondary}
-                searchable
-                searchTextInputProps={{ value: tagSearch }}
-                searchTextInputStyle={[
-                  styles.filterDropdownSearchInput,
-                  { borderColor: theme.backgroundSelected, color: theme.text },
-                ]}
-                selectedItemContainerStyle={{
-                  backgroundColor: theme.backgroundSelected,
-                }}
-                selectedItemLabelStyle={{
-                  color: theme.text,
-                  fontWeight: "700",
-                }}
-                setOpen={setIsTagOpen}
-                setValue={setTagFilterValue}
-                style={[
-                  styles.filterDropdown,
-                  {
-                    backgroundColor: theme.background,
-                    borderColor: theme.backgroundSelected,
-                  },
-                ]}
-                textStyle={{ color: theme.text }}
-                value={selectedTagId ?? 0}
-                zIndex={isTagOpen ? 3000 : 1000}
-                zIndexInverse={1000}
-              />
-            </View>
-
-            <View style={styles.filterActions}>
-              <MenuButton label="Limpiar" onPress={clearAndClose} />
-              <MenuButton label="Aplicar" onPress={closeModal} />
-            </View>
-          </ThemedView>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-function MenuButton({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => pressed && styles.pressed}
-    >
-      <ThemedView type="backgroundSelected" style={styles.menuButton}>
-        <ThemedText type="smallBold">{label}</ThemedText>
-      </ThemedView>
-    </Pressable>
   );
 }
 
@@ -1797,63 +1504,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: "center",
-  },
-  modalBackdrop: {
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
-    flex: 1,
-    justifyContent: "flex-start",
-    padding: Spacing.three,
-    paddingTop: Spacing.six,
-  },
-  filterPanel: {
-    alignSelf: "center",
-    borderRadius: Spacing.two,
-    gap: Spacing.three,
-    maxWidth: MaxContentWidth,
-    padding: Spacing.three,
-    width: "100%",
-  },
-  panelTitle: {
-    fontSize: 24,
-    lineHeight: 30,
-  },
-  menuButton: {
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-  },
-  filterDropdownField: {
-    gap: Spacing.two,
-  },
-  filterDropdown: {
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-    minHeight: 44,
-    paddingHorizontal: Spacing.three,
-  },
-  filterDropdownLabel: {
-    fontWeight: "700",
-  },
-  filterDropdownMenu: {
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-  },
-  dropdownModal: {
-    padding: Spacing.three,
-  },
-  filterDropdownItem: {
-    minHeight: 44,
-  },
-  filterDropdownSearchInput: {
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-    fontSize: 16,
-    minHeight: 40,
-  },
-  filterActions: {
-    flexDirection: "row",
-    gap: Spacing.two,
-    justifyContent: "flex-end",
   },
   pressed: {
     opacity: 0.7,
