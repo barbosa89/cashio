@@ -990,21 +990,6 @@ function MonthlyChartsPanel({
 
   return (
     <View style={styles.chartsPanel}>
-      <ThemedView type="backgroundSelected" style={styles.chartMetricGrid}>
-        <ChartMetric
-          label="Ingresos"
-          value={`$ ${formatMoney(summary.income)}`}
-        />
-        <ChartMetric
-          label="Egresos"
-          value={`$ ${formatMoney(summary.expense)}`}
-        />
-        <ChartMetric
-          label="Saldo"
-          value={`$ ${formatMoney(summary.balance)}`}
-        />
-      </ThemedView>
-
       {expenseCategoryData.length === 0 ? (
         <ThemedView type="backgroundSelected" style={styles.chartCard}>
           <ThemedText type="smallBold" style={styles.chartTitle}>
@@ -1152,23 +1137,6 @@ function CategoryExpenseBars({
           </View>
         );
       })}
-    </View>
-  );
-}
-
-function ChartMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.chartMetric}>
-      <ThemedText
-        type="small"
-        themeColor="textSecondary"
-        style={styles.chartMetricLabel}
-      >
-        {label}
-      </ThemedText>
-      <ThemedText type="smallBold" style={styles.chartMetricValue}>
-        {value}
-      </ThemedText>
     </View>
   );
 }
@@ -1685,25 +1653,6 @@ const styles = StyleSheet.create({
   },
   chartsPanel: {
     gap: Spacing.three,
-  },
-  chartMetricGrid: {
-    borderRadius: Spacing.two,
-    flexDirection: "row",
-    gap: Spacing.two,
-    padding: Spacing.two,
-  },
-  chartMetric: {
-    flex: 1,
-    gap: Spacing.half,
-    minWidth: 0,
-  },
-  chartMetricLabel: {
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  chartMetricValue: {
-    fontSize: 12,
-    lineHeight: 16,
   },
   chartCard: {
     borderRadius: Spacing.two,
