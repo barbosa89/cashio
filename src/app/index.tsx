@@ -660,9 +660,17 @@ export default function HomeScreen() {
               onCancel={cancelSelection}
               onDelete={handleDeleteSelectedTransactions}
             />
-          ) : activeView === "reports" ||
-            activeView === "budgets" ||
-            activeView === "balance" ? (
+          ) : activeView === "balance" ? (
+            <ThemedView style={styles.header}>
+              <IconButton
+                label="Abrir menú"
+                onPress={() => navigation.openDrawer()}
+              >
+                <AppIcon color={theme.text} name="menu" size={30} />
+              </IconButton>
+              <View style={styles.headerSpacer} />
+            </ThemedView>
+          ) : activeView === "reports" || activeView === "budgets" ? (
             <ThemedView style={styles.header}>
               <IconButton
                 label="Abrir menú"
@@ -673,9 +681,7 @@ export default function HomeScreen() {
               <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
                 {activeView === "budgets"
                   ? `Presupuesto · ${selectedAccountLabel}`
-                  : activeView === "balance"
-                    ? `Balance · ${selectedAccountLabel}`
-                    : `Reportes · ${selectedAccountLabel}`}
+                  : `Reportes · ${selectedAccountLabel}`}
               </ThemedText>
               <IconButton
                 label="Seleccionar cuenta"
