@@ -35,6 +35,10 @@ import { ReportExportPanel } from "@/components/report-export-panel";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import {
+    FilterSummaryBar,
+    buildTransactionFilterSummary,
+} from "@/components/transaction-filter-summary";
+import {
     TransactionFilterSheet,
     type TransactionFilters,
 } from "@/components/transaction-filters";
@@ -346,6 +350,11 @@ export default function HomeScreen() {
     [descriptionSearch, monthlyTransactions, selectedCategory, selectedTag],
   );
 
+  const filteredSummary = useMemo(
+    () => buildTransactionFilterSummary(filteredTransactions),
+    [filteredTransactions],
+  );
+
   const summary = useMemo<MonthlySummary>(() => {
     const income = visibleMonthSummary?.income_total ?? 0;
     const expense = visibleMonthSummary?.expense_total ?? 0;
@@ -367,6 +376,8 @@ export default function HomeScreen() {
   const budgetSummary = monthlyBudgetData.summary;
 
   const hasActiveFilters = !!selectedCategory || !!selectedTag;
+  const shouldShowFilterSummary =
+    activeView === "list" && hasActiveFilters && !isSelectionMode;
 
   useEffect(() => {
     if (selectedAccountScope === "all") {
@@ -765,7 +776,11 @@ export default function HomeScreen() {
             <GestureDetector gesture={monthSwipeGesture}>
               {activeView === "list" ? (
                 <ScrollView
-                  contentContainerStyle={styles.listContent}
+                  contentContainerStyle={[
+                    styles.listContent,
+                    shouldShowFilterSummary &&
+                      styles.listContentWithFilterSummary,
+                  ]}
                   style={styles.list}
                 >
                   {filteredTransactions.length === 0 ? (
@@ -856,6 +871,10 @@ export default function HomeScreen() {
               </ThemedText>
             )}
 
+          {shouldShowFilterSummary && (
+            <FilterSummaryBar summary={filteredSummary} />
+          )}
+
           {!isSelectionMode &&
             activeView !== "reports" &&
             activeView !== "budgets" &&
@@ -865,6 +884,7 @@ export default function HomeScreen() {
                 onPress={() => router.push("/new-transaction")}
                 style={({ pressed }) => [
                   styles.fab,
+                  shouldShowFilterSummary && styles.fabWithFilterSummary,
                   pressed && styles.fabPressed,
                 ]}
               >
@@ -1345,6 +1365,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingBottom: BottomTabInset + 152,
   },
+  listContentWithFilterSummary: {
+    paddingBottom: BottomTabInset + 216,
+  },
   chartContent: {
     paddingBottom: BottomTabInset + 152,
     paddingHorizontal: Spacing.three,
@@ -1490,6 +1513,9 @@ const styles = StyleSheet.create({
   },
   fabPressed: {
     backgroundColor: AppPalette.brandOrangeActive,
+  },
+  fabWithFilterSummary: {
+    bottom: BottomTabInset + 184,
   },
   inlineMessage: {
     paddingHorizontal: Spacing.three,
