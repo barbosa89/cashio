@@ -13,7 +13,7 @@ export type Account = {
   sort_order: number;
   created_at: string;
   updated_at: string;
-  transaction_count: number;
+  has_transactions: number;
 };
 
 export type Category = {

@@ -231,11 +231,14 @@ export async function listAccounts(db: SQLiteDatabase, includeArchived = false) 
         accounts.sort_order,
         accounts.created_at,
         accounts.updated_at,
-        COUNT(transactions.id) AS transaction_count
+        EXISTS (
+          SELECT 1
+          FROM transactions
+          WHERE transactions.account_id = accounts.id
+          LIMIT 1
+        ) AS has_transactions
       FROM accounts
-      LEFT JOIN transactions ON transactions.account_id = accounts.id
       WHERE (? = 1 OR accounts.is_archived = 0)
-      GROUP BY accounts.id
       ORDER BY accounts.sort_order ASC, accounts.name COLLATE NOCASE ASC
     `,
     includeArchived ? 1 : 0
@@ -273,7 +276,7 @@ export async function createAccount(db: SQLiteDatabase, input: SaveAccountInput)
           sort_order,
           created_at,
           updated_at,
-          0 AS transaction_count
+          0 AS has_transactions
         FROM accounts
         WHERE id = ?
       `,
@@ -325,12 +328,19 @@ export async function deleteAccount(db: SQLiteDatabase, id: number) {
     throw new CashioValidationError('La cuenta principal no se puede eliminar.');
   }
 
-  const usage = await db.getFirstAsync<{ count: number }>(
-    'SELECT COUNT(*) AS count FROM transactions WHERE account_id = ?',
+  const usage = await db.getFirstAsync<{ has_transactions: number }>(
+    `
+      SELECT EXISTS (
+        SELECT 1
+        FROM transactions
+        WHERE account_id = ?
+        LIMIT 1
+      ) AS has_transactions
+    `,
     id
   );
 
-  if ((usage?.count ?? 0) > 0) {
+  if ((usage?.has_transactions ?? 0) === 1) {
     throw new CashioValidationError('No se puede eliminar una cuenta asociada a registros.');
   }
 

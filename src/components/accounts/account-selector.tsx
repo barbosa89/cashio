@@ -62,7 +62,7 @@ export function AccountSelector({
                 <AccountOption
                   key={account.id}
                   label={account.name}
-                  note={account.is_default === 1 ? 'Principal' : undefined}
+                  note={account.is_default === 1 ? 'Por defecto' : undefined}
                   onPress={() => selectAccount(account.id)}
                   selected={selectedAccountScope === account.id}
                 />

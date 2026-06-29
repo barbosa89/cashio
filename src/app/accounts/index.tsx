@@ -70,7 +70,7 @@ export default function AccountsIndexScreen() {
 
 function AccountRow({ account, onDelete }: { account: Account; onDelete: () => void }) {
   const theme = useTheme();
-  const canDelete = account.transaction_count === 0 && account.is_default === 0;
+  const canDelete = account.has_transactions === 0 && account.is_default === 0;
 
   return (
     <ThemedView style={styles.row}>
@@ -81,7 +81,7 @@ function AccountRow({ account, onDelete }: { account: Account; onDelete: () => v
           </ThemedText>
           {account.is_default === 1 && (
             <ThemedText type="small" themeColor="textSecondary">
-              Principal
+              Por defecto
             </ThemedText>
           )}
         </View>
@@ -89,9 +89,6 @@ function AccountRow({ account, onDelete }: { account: Account; onDelete: () => v
           Saldo inicial: $ {formatMoney(account.initial_balance)}
         </ThemedText>
       </View>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.countText}>
-        {account.transaction_count} tx
-      </ThemedText>
       <View style={styles.rowActions}>
         <Pressable
           accessibilityLabel={`Editar ${account.name}`}
@@ -117,10 +114,6 @@ function AccountRow({ account, onDelete }: { account: Account; onDelete: () => v
 }
 
 const styles = StyleSheet.create({
-  countText: {
-    minWidth: 48,
-    textAlign: 'left',
-  },
   disabled: {
     opacity: 0.45,
   },
