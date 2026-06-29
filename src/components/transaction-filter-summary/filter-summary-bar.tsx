@@ -3,7 +3,6 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AppPalette, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 import {
   formatFilterSummaryMoney,
@@ -15,14 +14,6 @@ type FilterSummaryBarProps = {
 };
 
 export function FilterSummaryBar({ summary }: FilterSummaryBarProps) {
-  const theme = useTheme();
-  const netColor =
-    summary.net > 0
-      ? AppPalette.incomeGreen
-      : summary.net < 0
-        ? AppPalette.brandOrange
-        : theme.text;
-
   return (
     <ThemedView type="backgroundSelected" style={styles.container}>
       <View style={styles.headerRow}>
@@ -41,7 +32,6 @@ export function FilterSummaryBar({ summary }: FilterSummaryBarProps) {
           label="Egresos"
           value={summary.expense}
         />
-        <SummaryMetric color={netColor} label="Neto" value={summary.net} />
       </View>
     </ThemedView>
   );

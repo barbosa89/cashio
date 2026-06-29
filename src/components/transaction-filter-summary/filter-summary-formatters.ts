@@ -3,7 +3,6 @@ import type { Transaction } from '@/lib/database';
 export type TransactionFilterSummary = {
   expense: number;
   income: number;
-  net: number;
 };
 
 export function buildTransactionFilterSummary(
@@ -24,7 +23,6 @@ export function buildTransactionFilterSummary(
   return {
     expense,
     income,
-    net: income - expense,
   };
 }
 
