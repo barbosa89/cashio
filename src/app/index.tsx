@@ -668,6 +668,9 @@ export default function HomeScreen() {
               >
                 <AppIcon color={theme.text} name="menu" size={30} />
               </IconButton>
+              <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
+                Balance de cuentas
+              </ThemedText>
               <View style={styles.headerSpacer} />
             </ThemedView>
           ) : activeView === "reports" || activeView === "budgets" ? (

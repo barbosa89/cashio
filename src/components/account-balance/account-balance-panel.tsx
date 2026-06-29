@@ -28,9 +28,6 @@ export function AccountBalancePanel({ monthLabel, rows }: AccountBalancePanelPro
 
   return (
     <View style={styles.panel}>
-      <ThemedText type="subtitle" style={styles.title}>
-        Balance de cuentas
-      </ThemedText>
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.monthLabel}>
         {monthLabel}
       </ThemedText>
@@ -161,9 +158,6 @@ const styles = StyleSheet.create({
   },
   rows: {
     gap: Spacing.two,
-  },
-  title: {
-    textAlign: 'center',
   },
   totalCard: {
     borderRadius: Spacing.two,
