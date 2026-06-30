@@ -42,6 +42,10 @@ type TransactionFormProps = {
 
 type DropdownValue = number | string;
 
+const SEARCHABLE_DROPDOWN_FLAT_LIST_PROPS = {
+  keyboardShouldPersistTaps: "always" as const,
+};
+
 export type TransactionFormHandle = {
   reset: () => void;
 };
@@ -714,6 +718,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
             styles.dropdownCustomItem,
             { borderTopColor: theme.backgroundSelected },
           ]}
+          flatListProps={SEARCHABLE_DROPDOWN_FLAT_LIST_PROPS}
           items={categoryItems}
           labelStyle={styles.dropdownLabel}
           listItemContainerStyle={styles.dropdownItem}
@@ -896,6 +901,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
             styles.dropdownCustomItem,
             { borderTopColor: theme.backgroundSelected },
           ]}
+          flatListProps={SEARCHABLE_DROPDOWN_FLAT_LIST_PROPS}
           items={tagItems}
           labelStyle={styles.dropdownLabel}
           listItemContainerStyle={styles.dropdownItem}
@@ -1002,6 +1008,7 @@ function DropdownListItem({
       ? "Creando..."
       : `${createLabel} "${itemProps.label.trim()}"`
     : itemProps.label;
+  const isBusy = !!(itemProps.custom && isCreatingCustomItem);
 
   function handlePress() {
     if (itemProps.custom && onCreateCustomItem) {
@@ -1020,16 +1027,18 @@ function DropdownListItem({
 
   return (
     <Pressable
+      accessibilityLabel={String(displayLabel)}
+      accessibilityRole="button"
+      accessibilityState={{
+        busy: isBusy,
+        disabled,
+        selected: itemProps.isSelected,
+      }}
       disabled={disabled}
       onLayout={({ nativeEvent }) =>
         itemProps.setPosition(itemProps.value, nativeEvent.layout.y)
       }
-      onPress={
-        itemProps.custom && Platform.OS === "android" ? undefined : handlePress
-      }
-      onPressIn={
-        itemProps.custom && Platform.OS === "android" ? handlePress : undefined
-      }
+      onPress={handlePress}
       style={({ pressed }) => [
         itemProps.listItemContainerStyle,
         itemProps.custom && itemProps.customItemContainerStyle,
