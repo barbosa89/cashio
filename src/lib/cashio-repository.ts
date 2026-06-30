@@ -1088,6 +1088,7 @@ export async function listAccountBalances(db: SQLiteDatabase, month: string) {
       SELECT
         accounts.id AS account_id,
         accounts.name AS account_name,
+        accounts.is_default AS is_default,
         accounts.initial_balance AS initial_balance,
         COALESCE(monthly_summaries.income_total, 0) AS income_total,
         COALESCE(monthly_summaries.expense_total, 0) AS expense_total,

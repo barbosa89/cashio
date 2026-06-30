@@ -57,9 +57,21 @@ function AccountBalanceContent({ row }: { row: AccountBalanceRow }) {
   return (
     <View style={styles.cardContent}>
       <View style={styles.cardHeader}>
-        <ThemedText type="smallBold" style={styles.accountName}>
-          {row.account_name}
-        </ThemedText>
+        <View style={styles.accountTitleRow}>
+          <ThemedText type="smallBold" style={styles.accountName}>
+            {row.account_name}
+          </ThemedText>
+          {row.is_default === 1 && (
+            <ThemedText
+              numberOfLines={1}
+              type="smallBold"
+              themeColor="textSecondary"
+              style={styles.defaultLabel}
+            >
+              Por defecto
+            </ThemedText>
+          )}
+        </View>
         <ThemedText type="subtitle" style={styles.balanceAmount}>
           $ {formatBalanceMoney(row.balance_total)}
         </ThemedText>
@@ -105,9 +117,16 @@ function BalanceMetric({
 
 const styles = StyleSheet.create({
   accountName: {
-    flex: 1,
     fontSize: 18,
     lineHeight: 24,
+    minWidth: 0,
+  },
+  accountTitleRow: {
+    alignItems: 'baseline',
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.one,
     minWidth: 0,
   },
   balanceAmount: {
@@ -126,6 +145,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.two,
     justifyContent: 'space-between',
+  },
+  defaultLabel: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   emptyState: {
     alignItems: 'center',
