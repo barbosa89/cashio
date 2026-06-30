@@ -124,6 +124,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const isCreatingCategoryRef = useRef(false);
   const isCreatingTagRef = useRef(false);
+  const appliedInitialAccountIdRef = useRef<number | null | undefined>(undefined);
   const selectedTagBadgeBackground = theme.text;
   const selectedTagTextColor = theme.background;
 
@@ -202,11 +203,21 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
   }, [categories, selectedCategoryId, transactionType]);
 
   useEffect(() => {
+    if (accounts.length === 0) {
+      return;
+    }
+
+    if (appliedInitialAccountIdRef.current !== initialAccountId) {
+      appliedInitialAccountIdRef.current = initialAccountId;
+      setSelectedAccountId(getPreferredAccountId(accounts, initialAccountId));
+      return;
+    }
+
     if (selectedAccountId && accounts.some((account) => account.id === selectedAccountId)) {
       return;
     }
 
-    setSelectedAccountId(getPreferredAccountId(accounts, initialAccountId));
+    setSelectedAccountId(getDefaultAccountId(accounts));
   }, [accounts, initialAccountId, selectedAccountId]);
 
   useEffect(() => {
