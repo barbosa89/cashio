@@ -1,35 +1,45 @@
-import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Switch, View, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from "expo-router";
+import {
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppIcon } from '@/components/app-icon';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { AppPalette, Spacing } from '@/constants/theme';
-import { useCashioSettings } from '@/hooks/use-cashio-settings';
-import { useTheme } from '@/hooks/use-theme';
+import { AppIcon } from "@/components/app-icon";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { AppPalette, Spacing } from "@/constants/theme";
+import { useCashioSettings } from "@/hooks/use-cashio-settings";
+import { useTheme } from "@/hooks/use-theme";
 
 export default function SettingsScreen() {
   const theme = useTheme();
-  const {
-    errorMessage,
-    isLoading,
-    settings,
-    setAccumulatePreviousBalances,
-  } = useCashioSettings();
+  const { errorMessage, isLoading, settings, setAccumulatePreviousBalances } =
+    useCashioSettings();
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={[styles.phoneSurface, { borderColor: theme.backgroundSelected }]}>
+        <ThemedView
+          style={[
+            styles.phoneSurface,
+            { borderColor: theme.backgroundSelected },
+          ]}
+        >
           <ScrollView contentContainerStyle={styles.content}>
             <ThemedView style={styles.titleRow}>
               <Pressable
                 accessibilityLabel="Volver al índice de transacciones"
-                onPress={() => router.replace('/')}
+                onPress={() => router.replace("/")}
                 style={({ pressed }) => pressed && styles.pressed}
               >
-                <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
+                <ThemedView
+                  style={[styles.backButton, { borderColor: theme.text }]}
+                >
                   <AppIcon color={theme.text} name="arrow-left" size={22} />
                 </ThemedView>
               </Pressable>
@@ -52,15 +62,22 @@ export default function SettingsScreen() {
                   <ThemedText type="smallBold" style={styles.settingTitle}>
                     Acumular saldos
                   </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.settingDescription}>
-                    Incluye el saldo histórico de meses anteriores en el mes visible.
+                  <ThemedText
+                    type="small"
+                    themeColor="textSecondary"
+                    style={styles.settingDescription}
+                  >
+                    Incluye el saldo histórico de meses anteriores en el mes
+                    visible.
                   </ThemedText>
                 </View>
                 <Switch
                   accessibilityLabel="Acumular saldos"
                   disabled={isLoading}
                   ios_backgroundColor={theme.backgroundSelected}
-                  onValueChange={(value) => void setAccumulatePreviousBalances(value)}
+                  onValueChange={(value) =>
+                    void setAccumulatePreviousBalances(value)
+                  }
                   thumbColor={AppPalette.foregroundInverse}
                   trackColor={{
                     false: theme.backgroundSelected,
@@ -85,11 +102,11 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   backButton: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 17,
     borderWidth: 1,
     height: 34,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 34,
   },
   container: {
@@ -105,19 +122,19 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
   },
   phoneSurface: {
-    borderWidth: Platform.OS === 'web' ? 1 : 0,
+    borderWidth: Platform.OS === "web" ? 1 : 0,
     flex: 1,
     maxWidth: 430,
-    width: '100%',
+    width: "100%",
   },
   pressed: {
     opacity: 0.6,
   },
   safeArea: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
     paddingHorizontal: Spacing.three,
-    paddingTop: Platform.OS === 'web' ? Spacing.three : 0,
+    paddingTop: Platform.OS === "web" ? Spacing.three : 0,
   },
   settingCopy: {
     flex: 1,
@@ -128,10 +145,10 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   settingRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: Spacing.three,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   settingsPanel: {
     borderRadius: Spacing.two,
@@ -142,7 +159,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     lineHeight: 34,
   },
   titleCopy: {
@@ -150,15 +167,15 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   titleIcon: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: Spacing.two,
     height: 52,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 52,
   },
   titleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: Spacing.three,
   },
 });
