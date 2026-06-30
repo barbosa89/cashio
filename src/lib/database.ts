@@ -115,6 +115,7 @@ export type MonthlyBudgetData = {
 export type AccountBalanceRow = {
   account_id: number;
   account_name: string;
+  is_default: number;
   initial_balance: number;
   income_total: number;
   expense_total: number;

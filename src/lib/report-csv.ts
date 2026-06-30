@@ -14,6 +14,7 @@ export type MonthlyReportFile = {
 
 type BuildMonthlyReportInput = {
   currentMonth?: string;
+  initialBalance?: number;
   monthlySummaries: MonthlySummaryRow[];
   range: MonthlyReportRange;
   transactions: Transaction[];
@@ -135,6 +136,7 @@ export function validateMonthlyReportRange(
 
 export function buildMonthlyReportCsv({
   currentMonth = getCurrentMonthKey(),
+  initialBalance = 0,
   monthlySummaries,
   range,
   transactions,
@@ -148,7 +150,7 @@ export function buildMonthlyReportCsv({
   const openingBalance = monthlySummaries.reduce(
     (total, summary) =>
       summary.month < range.startMonth ? total + summary.net_total : total,
-    0
+    initialBalance
   );
   const reportTransactions = transactions
     .filter((transaction) => {
