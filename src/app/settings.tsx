@@ -16,10 +16,64 @@ import { AppPalette, Spacing } from "@/constants/theme";
 import { useCashioSettings } from "@/hooks/use-cashio-settings";
 import { useTheme } from "@/hooks/use-theme";
 
+type SettingToggleCardProps = {
+  description: string;
+  disabled: boolean;
+  onValueChange: (value: boolean) => void;
+  title: string;
+  value: boolean;
+};
+
+function SettingToggleCard({
+  description,
+  disabled,
+  onValueChange,
+  title,
+  value,
+}: SettingToggleCardProps) {
+  const theme = useTheme();
+
+  return (
+    <ThemedView type="backgroundElement" style={styles.settingsPanel}>
+      <View style={styles.settingRow}>
+        <View style={styles.settingCopy}>
+          <ThemedText type="smallBold" style={styles.settingTitle}>
+            {title}
+          </ThemedText>
+          <ThemedText
+            type="small"
+            themeColor="textSecondary"
+            style={styles.settingDescription}
+          >
+            {description}
+          </ThemedText>
+        </View>
+        <Switch
+          accessibilityLabel={title}
+          disabled={disabled}
+          ios_backgroundColor={theme.backgroundSelected}
+          onValueChange={onValueChange}
+          thumbColor={AppPalette.foregroundInverse}
+          trackColor={{
+            false: theme.backgroundSelected,
+            true: AppPalette.brandOrange,
+          }}
+          value={value}
+        />
+      </View>
+    </ThemedView>
+  );
+}
+
 export default function SettingsScreen() {
   const theme = useTheme();
-  const { errorMessage, isLoading, settings, setAccumulatePreviousBalances } =
-    useCashioSettings();
+  const {
+    errorMessage,
+    isLoading,
+    settings,
+    setAccumulatePreviousBalances,
+    setAutoCopyPreviousMonthBudget,
+  } = useCashioSettings();
 
   return (
     <ThemedView style={styles.container}>
@@ -56,37 +110,23 @@ export default function SettingsScreen() {
               </View>
             </ThemedView>
 
-            <ThemedView type="backgroundElement" style={styles.settingsPanel}>
-              <View style={styles.settingRow}>
-                <View style={styles.settingCopy}>
-                  <ThemedText type="smallBold" style={styles.settingTitle}>
-                    Acumular saldos
-                  </ThemedText>
-                  <ThemedText
-                    type="small"
-                    themeColor="textSecondary"
-                    style={styles.settingDescription}
-                  >
-                    Incluye el saldo histórico de meses anteriores en el mes
-                    visible.
-                  </ThemedText>
-                </View>
-                <Switch
-                  accessibilityLabel="Acumular saldos"
-                  disabled={isLoading}
-                  ios_backgroundColor={theme.backgroundSelected}
-                  onValueChange={(value) =>
-                    void setAccumulatePreviousBalances(value)
-                  }
-                  thumbColor={AppPalette.foregroundInverse}
-                  trackColor={{
-                    false: theme.backgroundSelected,
-                    true: AppPalette.brandOrange,
-                  }}
-                  value={settings.accumulatePreviousBalances}
-                />
-              </View>
-            </ThemedView>
+            <SettingToggleCard
+              description="Incluye el saldo histórico de meses anteriores en el mes visible."
+              disabled={isLoading}
+              onValueChange={(value) => void setAccumulatePreviousBalances(value)}
+              title="Acumular saldos"
+              value={settings.accumulatePreviousBalances}
+            />
+
+            <SettingToggleCard
+              description="Copia automáticamente las categorías presupuestadas del mes anterior al abrir un mes."
+              disabled={isLoading}
+              onValueChange={(value) =>
+                void setAutoCopyPreviousMonthBudget(value)
+              }
+              title="Copiar presupuesto"
+              value={settings.autoCopyPreviousMonthBudget}
+            />
 
             {!!errorMessage && (
               <ThemedView type="backgroundSelected" style={styles.message}>

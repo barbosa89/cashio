@@ -6,11 +6,10 @@ import { ThemedView } from '@/components/themed-view';
 import { AppPalette, Spacing } from '@/constants/theme';
 
 type BudgetActionsProps = {
-  budgetMessage: string;
   onCopyPreviousBudget: () => void;
 };
 
-export function BudgetActions({ budgetMessage, onCopyPreviousBudget }: BudgetActionsProps) {
+export function BudgetActions({ onCopyPreviousBudget }: BudgetActionsProps) {
   return (
     <View style={styles.wrap}>
       <Pressable
@@ -24,12 +23,6 @@ export function BudgetActions({ budgetMessage, onCopyPreviousBudget }: BudgetAct
           <ThemedText type="smallBold">Copiar mes anterior</ThemedText>
         </ThemedView>
       </Pressable>
-
-      {!!budgetMessage && (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
-          {budgetMessage}
-        </ThemedText>
-      )}
     </View>
   );
 }
@@ -48,10 +41,6 @@ const styles = StyleSheet.create({
     height: 48,
     justifyContent: 'center',
     paddingHorizontal: Spacing.two,
-  },
-  message: {
-    alignSelf: 'stretch',
-    textAlign: 'center',
   },
   pressed: {
     opacity: 0.7,

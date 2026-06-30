@@ -3,6 +3,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type ReactNode,
 } from "react";
@@ -284,10 +285,13 @@ export default function HomeScreen() {
   const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
   const [inlineMessage, setInlineMessage] = useState("");
   const [budgetMessage, setBudgetMessage] = useState("");
+  const autoCopiedBudgetKeys = useRef(new Set<string>());
   const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
   const visibleMonthKey = formatMonthKey(visibleMonth);
   const visibleMonthLabel = formatMonthLabel(visibleMonth);
   const shouldAccumulatePreviousBalances = settings.accumulatePreviousBalances;
+  const shouldAutoCopyPreviousMonthBudget =
+    settings.autoCopyPreviousMonthBudget;
   const selectedTransactionIdSet = useMemo(
     () => new Set(selectedTransactionIds),
     [selectedTransactionIds],
@@ -443,6 +447,51 @@ export default function HomeScreen() {
     refreshMonthlyBudgetData,
     selectedAccountScope,
     transactions,
+    visibleMonthKey,
+  ]);
+
+  useEffect(() => {
+    if (!shouldAutoCopyPreviousMonthBudget || activeView !== "budgets") {
+      return;
+    }
+
+    if (typeof selectedAccountScope !== "number") {
+      return;
+    }
+
+    const autoCopyKey = `${selectedAccountScope}:${visibleMonthKey}`;
+    if (autoCopiedBudgetKeys.current.has(autoCopyKey)) {
+      return;
+    }
+
+    autoCopiedBudgetKeys.current.add(autoCopyKey);
+
+    async function autoCopyPreviousBudget() {
+      setBudgetMessage("");
+
+      try {
+        const previousMonthKey = formatMonthKey(addMonths(visibleMonth, -1));
+        const copiedCount = await copyBudgetFromPreviousMonth(
+          selectedAccountScope,
+          previousMonthKey,
+          visibleMonthKey,
+        );
+
+        if (copiedCount > 0) {
+          setBudgetMessage("Presupuesto actualizado desde el mes anterior.");
+        }
+      } catch {
+        setBudgetMessage("No se pudo copiar el presupuesto anterior.");
+      }
+    }
+
+    void autoCopyPreviousBudget();
+  }, [
+    activeView,
+    copyBudgetFromPreviousMonth,
+    selectedAccountScope,
+    shouldAutoCopyPreviousMonthBudget,
+    visibleMonth,
     visibleMonthKey,
   ]);
 
@@ -885,6 +934,9 @@ export default function HomeScreen() {
                   style={styles.list}
                 >
                   <MonthlyBudgetPanel
+                    autoCopyPreviousMonthBudget={
+                      shouldAutoCopyPreviousMonthBudget
+                    }
                     budgetData={monthlyBudgetData}
                     budgetMessage={budgetMessage}
                     onAddCategory={(categoryId) =>

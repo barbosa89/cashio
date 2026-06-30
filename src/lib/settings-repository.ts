@@ -4,6 +4,7 @@ import type { SettingRow, SettingValueType } from '@/lib/database';
 
 export type AppSettings = {
   accumulatePreviousBalances: boolean;
+  autoCopyPreviousMonthBudget: boolean;
 };
 
 type SettingDefinition<TValue> = {
@@ -22,6 +23,14 @@ const SETTINGS_REGISTRY = {
     parse: (value: string) => value === 'true',
     serialize: (value: boolean) => String(value),
     storageKey: 'accumulate_previous_balances',
+    type: 'boolean',
+  },
+  autoCopyPreviousMonthBudget: {
+    defaultValue: false,
+    key: 'autoCopyPreviousMonthBudget',
+    parse: (value: string) => value === 'true',
+    serialize: (value: boolean) => String(value),
+    storageKey: 'auto_copy_previous_month_budget',
     type: 'boolean',
   },
 } satisfies { [Key in keyof AppSettings]: SettingDefinition<AppSettings[Key]> };

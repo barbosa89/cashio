@@ -10,6 +10,7 @@ import {
 
 const DEFAULT_SETTINGS: AppSettings = {
   accumulatePreviousBalances: false,
+  autoCopyPreviousMonthBudget: false,
 };
 
 export function useCashioSettings() {
@@ -35,17 +36,17 @@ export function useCashioSettings() {
     }, [refresh])
   );
 
-  const setAccumulatePreviousBalances = useCallback(
-    async (value: boolean) => {
+  const updateBooleanSetting = useCallback(
+    async <Key extends keyof AppSettings>(key: Key, value: AppSettings[Key]) => {
       const previousSettings = settings;
       setSettings((currentSettings) => ({
         ...currentSettings,
-        accumulatePreviousBalances: value,
+        [key]: value,
       }));
       setErrorMessage('');
 
       try {
-        await updateSetting(db, 'accumulatePreviousBalances', value);
+        await updateSetting(db, key, value);
       } catch {
         setSettings(previousSettings);
         setErrorMessage('No se pudo guardar la configuración.');
@@ -54,11 +55,26 @@ export function useCashioSettings() {
     [db, settings]
   );
 
+  const setAccumulatePreviousBalances = useCallback(
+    async (value: boolean) => {
+      await updateBooleanSetting('accumulatePreviousBalances', value);
+    },
+    [updateBooleanSetting]
+  );
+
+  const setAutoCopyPreviousMonthBudget = useCallback(
+    async (value: boolean) => {
+      await updateBooleanSetting('autoCopyPreviousMonthBudget', value);
+    },
+    [updateBooleanSetting]
+  );
+
   return {
     errorMessage,
     isLoading,
     refresh,
     settings,
     setAccumulatePreviousBalances,
+    setAutoCopyPreviousMonthBudget,
   };
 }

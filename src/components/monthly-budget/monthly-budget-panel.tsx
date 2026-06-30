@@ -11,6 +11,7 @@ import { BudgetCategoryRow } from './budget-category-row';
 import { UnbudgetedExpensesList } from './unbudgeted-expenses-list';
 
 type MonthlyBudgetPanelProps = {
+  autoCopyPreviousMonthBudget: boolean;
   budgetData: MonthlyBudgetData;
   budgetMessage: string;
   onAddCategory: (categoryId: number) => void;
@@ -21,6 +22,7 @@ type MonthlyBudgetPanelProps = {
 };
 
 export function MonthlyBudgetPanel({
+  autoCopyPreviousMonthBudget,
   budgetData,
   budgetMessage,
   onAddCategory,
@@ -39,12 +41,20 @@ export function MonthlyBudgetPanel({
         </ThemedText>
       ) : (
         <View style={styles.actionRow}>
-          <BudgetActions budgetMessage={budgetMessage} onCopyPreviousBudget={onCopyPreviousBudget} />
+          {!autoCopyPreviousMonthBudget && (
+            <BudgetActions onCopyPreviousBudget={onCopyPreviousBudget} />
+          )}
           <AddBudgetCategory
             availableCategories={budgetData.availableCategories}
             onAddCategory={onAddCategory}
           />
         </View>
+      )}
+
+      {!!budgetMessage && (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
+          {budgetMessage}
+        </ThemedText>
       )}
 
       {!hasBudgetItems ? (
@@ -90,6 +100,10 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   readOnlyText: {
+    textAlign: 'center',
+  },
+  message: {
+    alignSelf: 'stretch',
     textAlign: 'center',
   },
   emptyState: {
