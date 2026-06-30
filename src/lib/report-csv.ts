@@ -1,4 +1,4 @@
-import type { MonthlySummaryRow, Transaction } from '@/lib/database';
+import type { MonthlySummaryRow, Transaction } from "@/lib/database";
 
 export type MonthlyReportRange = {
   startMonth: string;
@@ -21,24 +21,24 @@ type BuildMonthlyReportInput = {
 };
 
 const CSV_HEADERS = [
-  'ID',
-  'Fecha',
-  'Cuenta',
-  'Tipo',
-  'Monto',
-  'Descripción',
-  'Categoría',
-  'Tags',
-  'Fecha de creación',
-  'Fecha de actualización',
+  "ID",
+  "Fecha",
+  "Cuenta",
+  "Tipo",
+  "Monto",
+  "Descripción",
+  "Categoría",
+  "Tags",
+  "Fecha de creación",
+  "Fecha de actualización",
 ] as const;
 
 function padMonth(value: number) {
-  return String(value).padStart(2, '0');
+  return String(value).padStart(2, "0");
 }
 
 function formatDate(year: number, month: number, day: number) {
-  return `${year}-${padMonth(month)}-${String(day).padStart(2, '0')}`;
+  return `${year}-${padMonth(month)}-${String(day).padStart(2, "0")}`;
 }
 
 function isMonthKey(value: string) {
@@ -53,20 +53,20 @@ function isMonthKey(value: string) {
 }
 
 function getPreviousMonthLastDate(monthKey: string) {
-  const [year, month] = monthKey.split('-').map(Number);
+  const [year, month] = monthKey.split("-").map(Number);
   const previousMonthEnd = new Date(year, month - 1, 0);
 
   return formatDate(
     previousMonthEnd.getFullYear(),
     previousMonthEnd.getMonth() + 1,
-    previousMonthEnd.getDate()
+    previousMonthEnd.getDate(),
   );
 }
 
 function protectSpreadsheetFormula(value: string) {
   const firstVisibleCharacter = value.trimStart().charAt(0);
 
-  if (['=', '+', '-', '@', '\t', '\r'].includes(firstVisibleCharacter)) {
+  if (["=", "+", "-", "@", "\t", "\r"].includes(firstVisibleCharacter)) {
     return `'${value}`;
   }
 
@@ -87,18 +87,25 @@ function escapeCsvCell(value: string | number, protectFormula = false) {
   return serialized;
 }
 
-function serializeRow(values: Array<string | number>, protectedIndexes: number[] = []) {
+function serializeRow(
+  values: Array<string | number>,
+  protectedIndexes: number[] = [],
+) {
   return values
-    .map((value, index) => escapeCsvCell(value, protectedIndexes.includes(index)))
-    .join(';');
+    .map((value, index) =>
+      escapeCsvCell(value, protectedIndexes.includes(index)),
+    )
+    .join(";");
 }
 
 function transactionTypeLabel(transaction: Transaction) {
   if (transaction.is_transfer === 1) {
-    return transaction.type === 'income' ? 'Traslado entra' : 'Traslado sale';
+    return transaction.type === "income"
+      ? "Traslado entrante"
+      : "Traslado saliente";
   }
 
-  return transaction.type === 'income' ? 'Ingreso' : 'Egreso';
+  return transaction.type === "income" ? "Ingreso" : "Egreso";
 }
 
 export function getCurrentMonthKey(date = new Date()) {
@@ -106,10 +113,10 @@ export function getCurrentMonthKey(date = new Date()) {
 }
 
 export function formatReportMonth(monthKey: string) {
-  const [year, month] = monthKey.split('-').map(Number);
-  const label = new Intl.DateTimeFormat('es-CO', {
-    month: 'long',
-    year: 'numeric',
+  const [year, month] = monthKey.split("-").map(Number);
+  const label = new Intl.DateTimeFormat("es-CO", {
+    month: "long",
+    year: "numeric",
   }).format(new Date(year, month - 1, 1));
 
   return `${label.charAt(0).toLocaleUpperCase()}${label.slice(1)}`;
@@ -117,18 +124,18 @@ export function formatReportMonth(monthKey: string) {
 
 export function validateMonthlyReportRange(
   range: MonthlyReportRange,
-  currentMonth = getCurrentMonthKey()
+  currentMonth = getCurrentMonthKey(),
 ) {
   if (!isMonthKey(range.startMonth) || !isMonthKey(range.endMonth)) {
-    return 'Selecciona un mes inicial y final válidos.';
+    return "Selecciona un mes inicial y final válidos.";
   }
 
   if (range.startMonth > range.endMonth) {
-    return 'El mes inicial no puede ser posterior al mes final.';
+    return "El mes inicial no puede ser posterior al mes final.";
   }
 
   if (range.startMonth > currentMonth || range.endMonth > currentMonth) {
-    return 'No se pueden exportar meses futuros.';
+    return "No se pueden exportar meses futuros.";
   }
 
   return null;
@@ -150,30 +157,35 @@ export function buildMonthlyReportCsv({
   const openingBalance = monthlySummaries.reduce(
     (total, summary) =>
       summary.month < range.startMonth ? total + summary.net_total : total,
-    initialBalance
+    initialBalance,
   );
   const reportTransactions = transactions
     .filter((transaction) => {
       const transactionMonth = transaction.transaction_date.slice(0, 7);
-      return transactionMonth >= range.startMonth && transactionMonth <= range.endMonth;
+      return (
+        transactionMonth >= range.startMonth &&
+        transactionMonth <= range.endMonth
+      );
     })
     .sort((left, right) => {
-      const dateComparison = left.transaction_date.localeCompare(right.transaction_date);
+      const dateComparison = left.transaction_date.localeCompare(
+        right.transaction_date,
+      );
       return dateComparison || left.id - right.id;
     });
   const rows = [
     serializeRow([...CSV_HEADERS]),
     serializeRow([
-      '',
+      "",
       getPreviousMonthLastDate(range.startMonth),
-      '',
-      'Saldo',
+      "",
+      "Saldo",
       openingBalance,
-      'Saldo anterior',
-      '',
-      '',
-      '',
-      '',
+      "Saldo anterior",
+      "",
+      "",
+      "",
+      "",
     ]),
     ...reportTransactions.map((transaction) =>
       serializeRow(
@@ -183,19 +195,19 @@ export function buildMonthlyReportCsv({
           transaction.account_name,
           transactionTypeLabel(transaction),
           transaction.amount,
-          transaction.description ?? '',
+          transaction.description ?? "",
           transaction.category_description,
           transaction.tags,
           transaction.created_at,
           transaction.updated_at,
         ],
-        [5, 6, 7]
-      )
+        [5, 6, 7],
+      ),
     ),
   ];
 
   return {
-    contents: `\uFEFF${rows.join('\r\n')}\r\n`,
+    contents: `\uFEFF${rows.join("\r\n")}\r\n`,
     fileName: `cashio-reporte-${range.startMonth}_a_${range.endMonth}.csv`,
     openingBalance,
     transactionCount: reportTransactions.length,

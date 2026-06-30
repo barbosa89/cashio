@@ -26,6 +26,7 @@ export function BudgetCategoryRow({
 }: BudgetCategoryRowProps) {
   const theme = useTheme();
   const [draftAmount, setDraftAmount] = useState<number | null>(item.planned_amount);
+  const [isEditing, setIsEditing] = useState(false);
   const status = getBudgetStatus(item);
   const progressWidth: DimensionValue = `${Math.min(
     Math.max(status.progress * 100, item.spent_amount > 0 ? 4 : 0),
@@ -34,23 +35,33 @@ export function BudgetCategoryRow({
 
   useEffect(() => {
     setDraftAmount(item.planned_amount);
+    setIsEditing(false);
   }, [item.planned_amount]);
 
   function commitBudget() {
     const nextAmount = draftAmount ?? 0;
 
-    if (nextAmount === item.planned_amount) {
+    if (nextAmount !== item.planned_amount) {
+      onSaveAmount(item.category_id, nextAmount);
+    }
+
+    setIsEditing(false);
+  }
+
+  function handleEditAmount() {
+    if (!isEditing) {
+      setIsEditing(true);
       return;
     }
 
-    onSaveAmount(item.category_id, nextAmount);
+    commitBudget();
   }
 
   return (
     <ThemedView type="backgroundSelected" style={styles.row}>
       <View style={styles.header}>
         <View style={styles.categoryCopy}>
-          <ThemedText type="smallBold" style={styles.categoryName} numberOfLines={1}>
+          <ThemedText type="smallBold" style={styles.categoryName} numberOfLines={2}>
             {item.category_description}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
@@ -63,34 +74,62 @@ export function BudgetCategoryRow({
             $ {formatBudgetMoney(item.planned_amount)}
           </ThemedText>
         ) : (
-          <View style={styles.amountActions}>
-            <CurrencyInput
-              delimiter="."
-              keyboardType="numeric"
-              minValue={0}
-              onBlur={commitBudget}
-              onChangeValue={setDraftAmount}
-              placeholder="$ 0"
-              placeholderTextColor={theme.textSecondary}
-              precision={0}
-              prefix="$ "
-              separator=","
-              style={[styles.input, { borderColor: theme.background, color: theme.text }]}
-              value={draftAmount}
-            />
-            <Pressable
-              accessibilityLabel={`Quitar ${item.category_description} del presupuesto`}
-              accessibilityRole="button"
-              onPress={() => onRemoveCategory(item)}
-              style={({ pressed }) => pressed && styles.pressed}
-            >
-              <ThemedView type="background" style={styles.removeButton}>
-                <AppIcon color={theme.textSecondary} name="x" size={18} />
-              </ThemedView>
-            </Pressable>
-          </View>
+          <Pressable
+            accessibilityLabel={`Quitar ${item.category_description} del presupuesto`}
+            accessibilityRole="button"
+            onPress={() => onRemoveCategory(item)}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <ThemedView type="background" style={styles.iconButton}>
+              <AppIcon color={theme.textSecondary} name="x" size={18} />
+            </ThemedView>
+          </Pressable>
         )}
       </View>
+
+      {!readOnly && (
+        <View style={styles.amountRow}>
+          <CurrencyInput
+            delimiter="."
+            editable={isEditing}
+            keyboardType="numeric"
+            minValue={0}
+            onChangeValue={setDraftAmount}
+            placeholder="$ 0"
+            placeholderTextColor={theme.textSecondary}
+            precision={0}
+            prefix="$ "
+            separator=","
+            style={[
+              styles.input,
+              {
+                backgroundColor: isEditing ? theme.background : theme.backgroundSelected,
+                borderColor: isEditing ? theme.textSecondary : theme.background,
+                color: theme.text,
+              },
+            ]}
+            value={draftAmount}
+          />
+          <Pressable
+            accessibilityLabel={
+              isEditing
+                ? `Guardar presupuesto de ${item.category_description}`
+                : `Editar presupuesto de ${item.category_description}`
+            }
+            accessibilityRole="button"
+            onPress={handleEditAmount}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <ThemedView type="background" style={styles.iconButton}>
+              <AppIcon
+                color={isEditing ? status.color : theme.textSecondary}
+                name={isEditing ? 'check' : 'edit-3'}
+                size={18}
+              />
+            </ThemedView>
+          </Pressable>
+        </View>
+      )}
 
       <View style={styles.metaRow}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.metaText}>
@@ -128,7 +167,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 19,
   },
-  amountActions: {
+  amountRow: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: Spacing.one,
@@ -136,15 +175,15 @@ const styles = StyleSheet.create({
   input: {
     borderRadius: Spacing.two,
     borderWidth: 1,
-    flexShrink: 0,
+    flex: 1,
     fontSize: 13,
     fontWeight: '700',
     height: 38,
-    minWidth: 104,
+    minWidth: 0,
     paddingHorizontal: Spacing.two,
     textAlign: 'right',
   },
-  removeButton: {
+  iconButton: {
     alignItems: 'center',
     borderRadius: Spacing.two,
     height: 38,
@@ -157,14 +196,12 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   metaRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: Spacing.two,
-    justifyContent: 'space-between',
+    alignItems: 'stretch',
+    gap: Spacing.one,
   },
   metaText: {
-    flex: 1,
     minWidth: 0,
+    width: '100%',
   },
   track: {
     borderRadius: 6,
