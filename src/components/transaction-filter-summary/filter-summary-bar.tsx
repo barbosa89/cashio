@@ -14,6 +14,8 @@ type FilterSummaryBarProps = {
 };
 
 export function FilterSummaryBar({ summary }: FilterSummaryBarProps) {
+  const hasTransfers = summary.transferIn > 0 || summary.transferOut > 0;
+
   return (
     <ThemedView type="backgroundSelected" style={styles.container}>
       <View style={styles.headerRow}>
@@ -33,6 +35,20 @@ export function FilterSummaryBar({ summary }: FilterSummaryBarProps) {
           value={summary.expense}
         />
       </View>
+      {hasTransfers && (
+        <View style={styles.metricRow}>
+          <SummaryMetric
+            color="#3b82f6"
+            label="Traslados entran"
+            value={summary.transferIn}
+          />
+          <SummaryMetric
+            color="#14b8a6"
+            label="Traslados salen"
+            value={summary.transferOut}
+          />
+        </View>
+      )}
     </ThemedView>
   );
 }

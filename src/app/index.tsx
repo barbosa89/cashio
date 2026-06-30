@@ -72,11 +72,13 @@ type MonthlySummary = {
   income: number;
   openingBalance: number;
   openingBalanceLabel: string;
+  transferIn: number;
+  transferOut: number;
 };
 
 const MONTH_SWIPE_THRESHOLD = 72;
 const FILTER_SUMMARY_GAP = Spacing.two;
-const FILTER_SUMMARY_ESTIMATED_HEIGHT = 70;
+const FILTER_SUMMARY_ESTIMATED_HEIGHT = 102;
 const BOTTOM_BAR_ESTIMATED_HEIGHT = 72;
 
 function normalize(value: string) {
@@ -381,6 +383,8 @@ export default function HomeScreen() {
     const income = visibleMonthSummary?.income_total ?? 0;
     const expense = visibleMonthSummary?.expense_total ?? 0;
     const net = visibleMonthSummary?.net_total ?? 0;
+    const transferIn = visibleMonthSummary?.transfer_in_total ?? 0;
+    const transferOut = visibleMonthSummary?.transfer_out_total ?? 0;
 
     return {
       balance: initialBalance + previousBalance + net,
@@ -390,6 +394,8 @@ export default function HomeScreen() {
       openingBalanceLabel: shouldAccumulatePreviousBalances
         ? "Saldo anterior"
         : "Saldo inicial",
+      transferIn,
+      transferOut,
     };
   }, [
     initialBalance,
@@ -790,6 +796,9 @@ export default function HomeScreen() {
                 monthLabel={visibleMonthLabel}
                 openingBalance={summary.openingBalance}
                 openingBalanceLabel={summary.openingBalanceLabel}
+                showTransfers={selectedAccountScope !== "all"}
+                transferIn={summary.transferIn}
+                transferOut={summary.transferOut}
               />
             )
           )}
@@ -1173,6 +1182,9 @@ function BalanceSummary({
   monthLabel,
   openingBalance,
   openingBalanceLabel,
+  showTransfers,
+  transferIn,
+  transferOut,
 }: {
   accountLabel: string;
   balance: number;
@@ -1181,8 +1193,12 @@ function BalanceSummary({
   monthLabel: string;
   openingBalance: number;
   openingBalanceLabel: string;
+  showTransfers: boolean;
+  transferIn: number;
+  transferOut: number;
 }) {
   const theme = useTheme();
+  const hasTransfers = showTransfers && (transferIn > 0 || transferOut > 0);
 
   return (
     <View style={styles.summaryWrap}>
@@ -1226,6 +1242,26 @@ function BalanceSummary({
             Egresos: $ {formatMoney(expense)}
           </ThemedText>
         </View>
+        {hasTransfers && transferIn > 0 && (
+          <View style={styles.summaryDetailRow}>
+            <ThemedText type="smallBold" style={styles.summaryDetail}>
+              Traslados entran
+            </ThemedText>
+            <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
+              $ {formatMoney(transferIn)}
+            </ThemedText>
+          </View>
+        )}
+        {hasTransfers && transferOut > 0 && (
+          <View style={styles.summaryDetailRow}>
+            <ThemedText type="smallBold" style={styles.summaryDetail}>
+              Traslados salen
+            </ThemedText>
+            <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
+              $ {formatMoney(transferOut)}
+            </ThemedText>
+          </View>
+        )}
       </ThemedView>
     </View>
   );
