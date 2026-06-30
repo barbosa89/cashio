@@ -18,6 +18,7 @@ import { exportMonthlyReportFile } from '@/lib/report-export';
 
 type ReportExportPanelProps = {
   defaultMonth: string;
+  initialBalance: number;
   isLoading: boolean;
   monthlySummaries: MonthlySummaryRow[];
   transactions: Transaction[];
@@ -46,6 +47,7 @@ function monthKey(year: number, month: number) {
 
 export function ReportExportPanel({
   defaultMonth,
+  initialBalance,
   isLoading,
   monthlySummaries,
   transactions,
@@ -113,6 +115,7 @@ export function ReportExportPanel({
     try {
       const report = buildMonthlyReportCsv({
         currentMonth,
+        initialBalance,
         monthlySummaries,
         range,
         transactions,

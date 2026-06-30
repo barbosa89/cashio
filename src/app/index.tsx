@@ -71,6 +71,7 @@ type MonthlySummary = {
   expense: number;
   income: number;
   openingBalance: number;
+  openingBalanceLabel: string;
 };
 
 const MONTH_SWIPE_THRESHOLD = 72;
@@ -321,7 +322,12 @@ export default function HomeScreen() {
     [visibleMonthlySummaries, visibleMonthKey],
   );
 
-  const openingBalance = useMemo(() => {
+  const initialBalance = useMemo(
+    () => getInitialBalanceForScope(accounts, selectedAccountScope),
+    [accounts, selectedAccountScope],
+  );
+
+  const previousBalance = useMemo(() => {
     if (!shouldAccumulatePreviousBalances) {
       return 0;
     }
@@ -331,11 +337,9 @@ export default function HomeScreen() {
         monthlySummary.month < visibleMonthKey
           ? total + monthlySummary.net_total
           : total,
-      getInitialBalanceForScope(accounts, selectedAccountScope),
+      0,
     );
   }, [
-    accounts,
-    selectedAccountScope,
     shouldAccumulatePreviousBalances,
     visibleMonthKey,
     visibleMonthlySummaries,
@@ -364,12 +368,20 @@ export default function HomeScreen() {
     const net = visibleMonthSummary?.net_total ?? 0;
 
     return {
-      balance: openingBalance + net,
+      balance: initialBalance + previousBalance + net,
       expense,
       income,
-      openingBalance,
+      openingBalance: initialBalance + previousBalance,
+      openingBalanceLabel: shouldAccumulatePreviousBalances
+        ? "Saldo anterior"
+        : "Saldo inicial",
     };
-  }, [openingBalance, visibleMonthSummary]);
+  }, [
+    initialBalance,
+    previousBalance,
+    shouldAccumulatePreviousBalances,
+    visibleMonthSummary,
+  ]);
 
   const expenseCategoryData = useMemo(
     () => groupByCategory(monthlyTransactions, "expense"),
@@ -758,7 +770,7 @@ export default function HomeScreen() {
                 income={summary.income}
                 monthLabel={visibleMonthLabel}
                 openingBalance={summary.openingBalance}
-                showOpeningBalance={shouldAccumulatePreviousBalances}
+                openingBalanceLabel={summary.openingBalanceLabel}
               />
             )
           )}
@@ -770,6 +782,7 @@ export default function HomeScreen() {
             >
               <ReportExportPanel
                 defaultMonth={visibleMonthKey}
+                initialBalance={initialBalance}
                 isLoading={isLoading}
                 monthlySummaries={visibleMonthlySummaries}
                 transactions={accountScopedTransactions}
@@ -1128,7 +1141,7 @@ function BalanceSummary({
   income,
   monthLabel,
   openingBalance,
-  showOpeningBalance,
+  openingBalanceLabel,
 }: {
   accountLabel: string;
   balance: number;
@@ -1136,7 +1149,7 @@ function BalanceSummary({
   income: number;
   monthLabel: string;
   openingBalance: number;
-  showOpeningBalance: boolean;
+  openingBalanceLabel: string;
 }) {
   const theme = useTheme();
 
@@ -1161,21 +1174,19 @@ function BalanceSummary({
             $ {formatMoney(balance)}
           </ThemedText>
         </View>
-        {showOpeningBalance && (
-          <View
-            style={[
-              styles.summaryOpeningRow,
-              { borderTopColor: theme.textSecondary },
-            ]}
-          >
-            <ThemedText type="smallBold" style={styles.summaryDetail}>
-              Saldo anterior
-            </ThemedText>
-            <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
-              $ {formatMoney(openingBalance)}
-            </ThemedText>
-          </View>
-        )}
+        <View
+          style={[
+            styles.summaryOpeningRow,
+            { borderTopColor: theme.textSecondary },
+          ]}
+        >
+          <ThemedText type="smallBold" style={styles.summaryDetail}>
+            {openingBalanceLabel}
+          </ThemedText>
+          <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
+            $ {formatMoney(openingBalance)}
+          </ThemedText>
+        </View>
         <View style={styles.summaryDetailRow}>
           <ThemedText type="smallBold" style={styles.summaryDetail}>
             Ingresos: $ {formatMoney(income)}
