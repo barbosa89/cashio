@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useRef } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +13,12 @@ import { useTheme } from '@/hooks/use-theme';
 export default function NewTransactionScreen() {
   const theme = useTheme();
   const formRef = useRef<TransactionFormHandle>(null);
+  const params = useLocalSearchParams<{ accountId?: string }>();
+  const parsedAccountId = Number(params.accountId);
+  const initialAccountId =
+    Number.isInteger(parsedAccountId) && parsedAccountId > 0
+      ? parsedAccountId
+      : null;
 
   function handleBack() {
     formRef.current?.reset();
@@ -40,7 +46,11 @@ export default function NewTransactionScreen() {
             </ThemedText>
           </ThemedView>
 
-          <TransactionForm ref={formRef} onSaved={() => router.replace('/')} />
+          <TransactionForm
+            ref={formRef}
+            initialAccountId={initialAccountId}
+            onSaved={() => router.replace('/')}
+          />
         </SafeAreaView>
       </ScrollView>
     </ThemedView>

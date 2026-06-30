@@ -205,6 +205,21 @@ function getInitialBalanceForScope(
   );
 }
 
+function getAccountIdForNewTransaction(
+  accounts: Account[],
+  accountScope: AccountScope,
+) {
+  if (accountScope === "all") {
+    return (
+      accounts.find((account) => account.is_default === 1)?.id ??
+      accounts[0]?.id ??
+      null
+    );
+  }
+
+  return accountScope;
+}
+
 function transactionMatchesDescriptionSearch(
   transaction: Transaction,
   search: string,
@@ -393,6 +408,10 @@ export default function HomeScreen() {
   const hasActiveFilters = !!selectedCategory || !!selectedTag;
   const shouldShowFilterSummary =
     activeView === "list" && hasActiveFilters && !isSelectionMode;
+  const accountIdForNewTransaction = getAccountIdForNewTransaction(
+    accounts,
+    selectedAccountScope,
+  );
 
   useEffect(() => {
     if (selectedAccountScope === "all") {
@@ -897,7 +916,19 @@ export default function HomeScreen() {
             activeView !== "balance" && (
               <Pressable
                 accessibilityLabel="Agregar registro"
-                onPress={() => router.push("/new-transaction")}
+                onPress={() => {
+                  if (!accountIdForNewTransaction) {
+                    router.push("/new-transaction");
+                    return;
+                  }
+
+                  router.push({
+                    pathname: "/new-transaction",
+                    params: {
+                      accountId: String(accountIdForNewTransaction),
+                    },
+                  });
+                }}
                 style={({ pressed }) => [
                   styles.fab,
                   shouldShowFilterSummary && styles.fabWithFilterSummary,

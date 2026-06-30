@@ -36,6 +36,7 @@ import { CashioValidationError } from "@/lib/cashio-repository";
 import type { Account, Category, TransactionType } from "@/lib/database";
 
 type TransactionFormProps = {
+  initialAccountId?: number | null;
   onSaved?: () => void;
 };
 
@@ -61,6 +62,17 @@ function getDefaultAccountId(accounts: Account[]) {
   return accounts.find((account) => account.is_default === 1)?.id ?? accounts[0]?.id ?? null;
 }
 
+function getPreferredAccountId(accounts: Account[], initialAccountId?: number | null) {
+  if (
+    initialAccountId &&
+    accounts.some((account) => account.id === initialAccountId)
+  ) {
+    return initialAccountId;
+  }
+
+  return getDefaultAccountId(accounts);
+}
+
 function formatDateValue(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -79,7 +91,7 @@ function parseDateValue(value: string) {
 }
 
 export const TransactionForm = forwardRef<TransactionFormHandle, TransactionFormProps>(
-function TransactionForm({ onSaved }, ref) {
+function TransactionForm({ initialAccountId = null, onSaved }, ref) {
   const theme = useTheme();
   const { accounts, categories, tags, isLoading, addCategory, addTag, addTransaction } =
     useCashioData();
@@ -194,8 +206,8 @@ function TransactionForm({ onSaved }, ref) {
       return;
     }
 
-    setSelectedAccountId(getDefaultAccountId(accounts));
-  }, [accounts, selectedAccountId]);
+    setSelectedAccountId(getPreferredAccountId(accounts, initialAccountId));
+  }, [accounts, initialAccountId, selectedAccountId]);
 
   useEffect(() => {
     if (transactionType === "income") {
@@ -222,7 +234,7 @@ function TransactionForm({ onSaved }, ref) {
 
   function resetForm() {
     setTransactionType("expense");
-    setSelectedAccountId(getDefaultAccountId(accounts));
+    setSelectedAccountId(getPreferredAccountId(accounts, initialAccountId));
     setSelectedDestinationAccountId(null);
     setAmount(null);
     setDescription("");
