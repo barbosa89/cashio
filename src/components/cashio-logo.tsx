@@ -1,7 +1,9 @@
+import { Image } from "expo-image";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
-import { AppPalette } from "@/constants/theme";
+
+const APP_LABEL = "Cash IO";
 
 type CashioLogoProps = {
   height?: number;
@@ -14,84 +16,69 @@ export function CashioLogo({
   style,
   width = 180,
 }: CashioLogoProps) {
-  const radius = Math.round(height * 0.16);
+  const iconSize = Math.round(height * 1.1);
+  const iconOffset = Math.round(height * -0.13);
+  const gap = Math.round(height * 0.2);
+  const fontSize = Math.round(height * 0.46);
 
   return (
     <View
-      accessibilityLabel="Cash IO"
+      accessibilityLabel={APP_LABEL}
       accessibilityRole="image"
       style={[
         styles.container,
         {
-          borderRadius: radius,
           height,
           width,
         },
         style,
       ]}
     >
-      <View
-        style={[styles.cashPanel, { backgroundColor: AppPalette.brandOrange }]}
-      >
-        <ThemedText
-          numberOfLines={1}
-          style={[
-            styles.cashText,
-            {
-              color: "#000000",
-              fontSize: Math.round(height * 0.44),
-              lineHeight: Math.round(height * 0.5),
-            },
-          ]}
-        >
-          Cash
-        </ThemedText>
-      </View>
+      <Image
+        accessibilityIgnoresInvertColors
+        contentFit="contain"
+        source={require("@/assets/images/android-icon-foreground.png")}
+        style={[
+          styles.icon,
+          {
+            height: iconSize,
+            marginLeft: iconOffset,
+            marginRight: iconOffset + gap,
+            width: iconSize,
+          },
+        ]}
+      />
 
-      <View style={styles.ioPanel}>
-        <ThemedText
-          numberOfLines={1}
-          style={[
-            styles.ioText,
-            {
-              color: AppPalette.brandOrange,
-              fontSize: Math.round(height * 0.44),
-              lineHeight: Math.round(height * 0.5),
-            },
-          ]}
-        >
-          IO
-        </ThemedText>
-      </View>
+      <ThemedText
+        adjustsFontSizeToFit
+        minimumFontScale={0.78}
+        numberOfLines={1}
+        style={[
+          styles.label,
+          {
+            fontSize,
+            lineHeight: Math.round(fontSize * 1.1),
+          },
+        ]}
+      >
+        {APP_LABEL}
+      </ThemedText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#000000",
-    borderColor: "#1f1f1f",
-    borderWidth: 1,
+    alignItems: "center",
     flexDirection: "row",
-    overflow: "hidden",
+    overflow: "visible",
   },
-  cashPanel: {
-    alignItems: "center",
-    flex: 1.28,
-    justifyContent: "center",
+  icon: {
+    flexShrink: 0,
   },
-  cashText: {
-    fontWeight: "400",
-    letterSpacing: 0,
-  },
-  ioPanel: {
-    alignItems: "center",
-    backgroundColor: "#000000",
-    flex: 1,
-    justifyContent: "center",
-  },
-  ioText: {
-    fontWeight: "400",
+  label: {
+    flexShrink: 1,
+    fontWeight: "700",
     letterSpacing: 0,
   },
 });
