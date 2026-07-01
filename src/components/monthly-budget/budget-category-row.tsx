@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View, type DimensionValue } from 'react-native';
-import CurrencyInput from 'react-native-currency-input';
+import { useEffect, useState } from "react";
+import { Pressable, StyleSheet, View, type DimensionValue } from "react-native";
+import CurrencyInput from "react-native-currency-input";
 
-import { AppIcon } from '@/components/app-icon';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import type { MonthlyBudgetItem } from '@/lib/database';
+import { AppIcon } from "@/components/app-icon";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import type { MonthlyBudgetItem } from "@/lib/database";
 
-import { formatBudgetMoney, getBudgetStatus } from './budget-formatters';
+import { formatBudgetMoney, getBudgetStatus } from "./budget-formatters";
 
 type BudgetCategoryRowProps = {
   item: MonthlyBudgetItem;
@@ -25,12 +25,14 @@ export function BudgetCategoryRow({
   readOnly = false,
 }: BudgetCategoryRowProps) {
   const theme = useTheme();
-  const [draftAmount, setDraftAmount] = useState<number | null>(item.planned_amount);
+  const [draftAmount, setDraftAmount] = useState<number | null>(
+    item.planned_amount,
+  );
   const [isEditing, setIsEditing] = useState(false);
   const status = getBudgetStatus(item);
   const progressWidth: DimensionValue = `${Math.min(
     Math.max(status.progress * 100, item.spent_amount > 0 ? 4 : 0),
-    100
+    100,
   )}%`;
 
   useEffect(() => {
@@ -52,6 +54,10 @@ export function BudgetCategoryRow({
 
   function handleEditAmount() {
     if (!isEditing) {
+      if (draftAmount === 0) {
+        setDraftAmount(null);
+      }
+
       setIsEditing(true);
       return;
     }
@@ -63,7 +69,11 @@ export function BudgetCategoryRow({
     <ThemedView type="backgroundSelected" style={styles.row}>
       <View style={styles.header}>
         <View style={styles.categoryCopy}>
-          <ThemedText type="smallBold" style={styles.categoryName} numberOfLines={2}>
+          <ThemedText
+            type="smallBold"
+            style={styles.categoryName}
+            numberOfLines={2}
+          >
             {item.category_description}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
@@ -94,20 +104,23 @@ export function BudgetCategoryRow({
           <CurrencyInput
             delimiter="."
             editable={isEditing}
+            key={isEditing ? "budget-amount-edit" : "budget-amount-display"}
             keyboardType="numeric"
             minValue={0}
             onChangeValue={setDraftAmount}
             onSubmitEditing={commitBudget}
-            placeholder={isEditing ? '0' : '$ 0'}
+            placeholder={isEditing ? "" : "$ 0"}
             placeholderTextColor={theme.textSecondary}
             precision={0}
-            prefix={isEditing ? '' : '$ '}
+            prefix={isEditing ? "" : "$ "}
             returnKeyType="done"
             separator=","
             style={[
               styles.input,
               {
-                backgroundColor: isEditing ? theme.background : theme.backgroundSelected,
+                backgroundColor: isEditing
+                  ? theme.background
+                  : theme.backgroundSelected,
                 borderColor: isEditing ? theme.textSecondary : theme.background,
                 color: theme.text,
               },
@@ -127,7 +140,7 @@ export function BudgetCategoryRow({
             <ThemedView type="background" style={styles.iconButton}>
               <AppIcon
                 color={isEditing ? status.color : theme.textSecondary}
-                name={isEditing ? 'check' : 'edit-3'}
+                name={isEditing ? "check" : "edit-3"}
                 size={18}
               />
             </ThemedView>
@@ -136,7 +149,11 @@ export function BudgetCategoryRow({
       )}
 
       <View style={styles.metaRow}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.metaText}>
+        <ThemedText
+          type="small"
+          themeColor="textSecondary"
+          style={styles.metaText}
+        >
           Gastado: $ {formatBudgetMoney(item.spent_amount)}
         </ThemedText>
         <ThemedText type="smallBold" style={styles.metaText}>
@@ -145,7 +162,12 @@ export function BudgetCategoryRow({
       </View>
 
       <View style={[styles.track, { backgroundColor: theme.background }]}>
-        <View style={[styles.bar, { backgroundColor: status.color, width: progressWidth }]} />
+        <View
+          style={[
+            styles.bar,
+            { backgroundColor: status.color, width: progressWidth },
+          ]}
+        />
       </View>
     </ThemedView>
   );
@@ -158,10 +180,10 @@ const styles = StyleSheet.create({
     padding: Spacing.two,
   },
   header: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: Spacing.two,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   categoryCopy: {
     flex: 1,
@@ -172,8 +194,8 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   amountRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: Spacing.one,
   },
   input: {
@@ -181,41 +203,41 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flex: 1,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     height: 38,
     minWidth: 0,
     paddingHorizontal: Spacing.two,
-    textAlign: 'right',
+    textAlign: "right",
   },
   iconButton: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: Spacing.two,
     height: 38,
-    justifyContent: 'center',
+    justifyContent: "center",
     width: 38,
   },
   readOnlyAmount: {
     flexShrink: 0,
-    fontVariant: ['tabular-nums'],
-    textAlign: 'right',
+    fontVariant: ["tabular-nums"],
+    textAlign: "right",
   },
   metaRow: {
-    alignItems: 'stretch',
+    alignItems: "stretch",
     gap: Spacing.one,
   },
   metaText: {
     minWidth: 0,
-    width: '100%',
+    width: "100%",
   },
   track: {
     borderRadius: 6,
     height: 8,
-    overflow: 'hidden',
-    width: '100%',
+    overflow: "hidden",
+    width: "100%",
   },
   bar: {
     borderRadius: 6,
-    height: '100%',
+    height: "100%",
   },
   pressed: {
     opacity: 0.7,
