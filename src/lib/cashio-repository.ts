@@ -42,6 +42,14 @@ export type CreateTransactionInput = {
   type: TransactionType;
 };
 
+export type TransactionQueryFilters = {
+  accountScope?: AccountScope;
+  categoryId?: number | null;
+  descriptionSearch?: string;
+  month?: string | null;
+  tagId?: number | null;
+};
+
 export type SaveMonthlyBudgetAmountInput = {
   accountScope: AccountScope;
   categoryId: number;
@@ -88,11 +96,23 @@ function getTransactionMonth(transactionDate: string) {
   return transactionDate.slice(0, 7);
 }
 
+function getNextMonth(month: string) {
+  const year = Number(month.slice(0, 4));
+  const monthIndex = Number(month.slice(5, 7)) - 1;
+  const nextMonth = new Date(year, monthIndex + 1, 1);
+
+  return `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function assertMonth(month: string) {
   if (!/^\d{4}-\d{2}$/.test(month)) {
     throw new CashioValidationError('El mes no es válido.');
   }
   return month;
+}
+
+function escapeLikePattern(value: string) {
+  return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
 }
 
 function assertConcreteAccountScope(accountScope: AccountScope) {
@@ -1113,8 +1133,48 @@ export async function listAccountBalances(db: SQLiteDatabase, month: string) {
   );
 }
 
-export async function listTransactions(db: SQLiteDatabase) {
-  return db.getAllAsync<Transaction>(`
+export async function listTransactions(db: SQLiteDatabase, filters: TransactionQueryFilters = {}) {
+  const where: string[] = [];
+  const params: (number | string)[] = [];
+
+  if (filters.accountScope && filters.accountScope !== 'all') {
+    where.push('transactions.account_id = ?');
+    params.push(filters.accountScope);
+  }
+
+  if (filters.month) {
+    const month = assertMonth(filters.month);
+    where.push('transactions.transaction_date >= ? AND transactions.transaction_date < ?');
+    params.push(`${month}-01`, `${getNextMonth(month)}-01`);
+  }
+
+  const descriptionSearch = filters.descriptionSearch?.trim();
+  if (descriptionSearch) {
+    where.push("transactions.description COLLATE NOCASE LIKE ? ESCAPE '\\'");
+    params.push(`%${escapeLikePattern(descriptionSearch)}%`);
+  }
+
+  if (filters.categoryId) {
+    where.push('transactions.category_id = ?');
+    params.push(filters.categoryId);
+  }
+
+  if (filters.tagId) {
+    where.push(`
+      EXISTS (
+        SELECT 1
+        FROM transaction_tags AS filtered_transaction_tags
+        WHERE filtered_transaction_tags.transaction_id = transactions.id
+          AND filtered_transaction_tags.tag_id = ?
+      )
+    `);
+    params.push(filters.tagId);
+  }
+
+  const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+  return db.getAllAsync<Transaction>(
+    `
     SELECT
       transactions.id,
       transactions.type,
@@ -1138,7 +1198,10 @@ export async function listTransactions(db: SQLiteDatabase) {
     LEFT JOIN accounts AS peer_accounts ON peer_accounts.id = transactions.transfer_peer_account_id
     LEFT JOIN transaction_tags ON transaction_tags.transaction_id = transactions.id
     LEFT JOIN tags ON tags.id = transaction_tags.tag_id
+    ${whereClause}
     GROUP BY transactions.id
     ORDER BY transactions.transaction_date DESC, transactions.id DESC
-  `);
+  `,
+    ...params
+  );
 }

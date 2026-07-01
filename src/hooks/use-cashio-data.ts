@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import {
   addMonthlyBudgetCategory,
@@ -30,6 +30,7 @@ import {
   type SaveCategoryInput,
   type SaveMonthlyBudgetAmountInput,
   type SaveTagInput,
+  type TransactionQueryFilters,
 } from '@/lib/cashio-repository';
 import type {
   Account,
@@ -63,8 +64,10 @@ export function useCashioData() {
   const [monthlyBudgetData, setMonthlyBudgetData] = useState<MonthlyBudgetData>(EMPTY_MONTHLY_BUDGET_DATA);
   const [monthlySummaries, setMonthlySummaries] = useState<MonthlySummaryRow[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const transactionQueryRequestId = useRef(0);
 
   const refresh = useCallback(async () => {
     const [nextAccounts, nextCategories, nextTags, nextTransactions, nextMonthlySummaries] = await Promise.all([
@@ -94,6 +97,19 @@ export function useCashioData() {
       const nextAccountBalances = await listAccountBalances(db, month);
       setAccountBalances(nextAccountBalances);
       return nextAccountBalances;
+    },
+    [db]
+  );
+
+  const refreshTransactions = useCallback(
+    async (filters: TransactionQueryFilters = {}) => {
+      const requestId = transactionQueryRequestId.current + 1;
+      transactionQueryRequestId.current = requestId;
+      const nextTransactions = await listTransactions(db, filters);
+      if (transactionQueryRequestId.current === requestId) {
+        setFilteredTransactions(nextTransactions);
+      }
+      return nextTransactions;
     },
     [db]
   );
@@ -235,6 +251,7 @@ export function useCashioData() {
     accountBalances,
     accounts,
     categories,
+    filteredTransactions,
     monthlyBudgetData,
     monthlySummaries,
     tags,
@@ -242,6 +259,7 @@ export function useCashioData() {
     isLoading,
     refresh,
     refreshAccountBalances,
+    refreshTransactions,
     addAccount,
     editAccount,
     removeAccount,

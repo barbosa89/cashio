@@ -52,7 +52,6 @@ import type {
     AccountScope,
     MonthlyBudgetItem,
     MonthlySummaryRow,
-    Tag,
     Transaction,
 } from "@/lib/database";
 
@@ -77,10 +76,6 @@ const MONTH_SWIPE_THRESHOLD = 72;
 const FILTER_SUMMARY_GAP = Spacing.two;
 const FILTER_SUMMARY_ESTIMATED_HEIGHT = 102;
 const BOTTOM_BAR_ESTIMATED_HEIGHT = 72;
-
-function normalize(value: string) {
-  return value.trim().toLocaleLowerCase();
-}
 
 function getCurrentMonth(): VisibleMonth {
   const today = new Date();
@@ -219,29 +214,6 @@ function getAccountIdForNewTransaction(
   return accountScope;
 }
 
-function transactionMatchesDescriptionSearch(
-  transaction: Transaction,
-  search: string,
-) {
-  const needle = normalize(search);
-  if (!needle) {
-    return true;
-  }
-
-  return normalize(transaction.description ?? "").includes(needle);
-}
-
-function transactionMatchesTag(transaction: Transaction, tag: Tag | null) {
-  if (!tag) {
-    return true;
-  }
-
-  return transaction.tags
-    .split(",")
-    .map((value) => normalize(value))
-    .includes(normalize(tag.description));
-}
-
 export default function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<{ openDrawer: () => void }>();
@@ -251,11 +223,13 @@ export default function HomeScreen() {
     categories,
     addCategoryToMonthlyBudget,
     copyBudgetFromPreviousMonth,
+    filteredTransactions: queriedTransactions,
     isLoading,
     monthlyBudgetData,
     monthlySummaries,
     refreshAccountBalances,
     refreshMonthlyBudgetData,
+    refreshTransactions,
     removeCategoryFromMonthlyBudget,
     removeTransactions,
     saveMonthlyBudgetAmount,
@@ -282,7 +256,6 @@ export default function HomeScreen() {
   const [inlineMessage, setInlineMessage] = useState("");
   const [budgetMessage, setBudgetMessage] = useState("");
   const autoCopiedBudgetKeys = useRef(new Set<string>());
-  const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
   const visibleMonthKey = formatMonthKey(visibleMonth);
   const visibleMonthLabel = formatMonthLabel(visibleMonth);
   const shouldAccumulatePreviousBalances = settings.accumulatePreviousBalances;
@@ -323,13 +296,7 @@ export default function HomeScreen() {
     [selectedAccountScope, transactions],
   );
 
-  const monthlyTransactions = useMemo(
-    () =>
-      accountScopedTransactions.filter((transaction) =>
-        transaction.transaction_date.startsWith(visibleMonthPrefix),
-      ),
-    [accountScopedTransactions, visibleMonthPrefix],
-  );
+  const monthlyTransactions = queriedTransactions;
 
   const visibleMonthSummary = useMemo(
     () =>
@@ -362,17 +329,7 @@ export default function HomeScreen() {
     visibleMonthlySummaries,
   ]);
 
-  const filteredTransactions = useMemo(
-    () =>
-      monthlyTransactions.filter(
-        (transaction) =>
-          transactionMatchesDescriptionSearch(transaction, descriptionSearch) &&
-          (!selectedCategory ||
-            transaction.category_id === selectedCategory.id) &&
-          transactionMatchesTag(transaction, selectedTag),
-      ),
-    [descriptionSearch, monthlyTransactions, selectedCategory, selectedTag],
-  );
+  const filteredTransactions = monthlyTransactions;
 
   const filteredSummary = useMemo(
     () => buildTransactionFilterSummary(filteredTransactions),
@@ -435,6 +392,24 @@ export default function HomeScreen() {
       setSelectedAccountScope(defaultAccountId);
     }
   }, [accounts, selectedAccountScope]);
+
+  useEffect(() => {
+    void refreshTransactions({
+      accountScope: selectedAccountScope,
+      categoryId: selectedCategory?.id ?? null,
+      descriptionSearch,
+      month: visibleMonthKey,
+      tagId: selectedTag?.id ?? null,
+    });
+  }, [
+    descriptionSearch,
+    refreshTransactions,
+    selectedAccountScope,
+    selectedCategory,
+    selectedTag,
+    transactions,
+    visibleMonthKey,
+  ]);
 
   useEffect(() => {
     void refreshMonthlyBudgetData(selectedAccountScope, visibleMonthKey);
