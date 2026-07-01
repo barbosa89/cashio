@@ -25,6 +25,7 @@ import DropDownPicker, {
   type ItemType,
   type RenderListItemPropsInterface,
 } from "react-native-dropdown-picker";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
@@ -97,6 +98,7 @@ function parseDateValue(value: string) {
 export const TransactionForm = forwardRef<TransactionFormHandle, TransactionFormProps>(
 function TransactionForm({ initialAccountId = null, onSaved }, ref) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { accounts, categories, tags, isLoading, addCategory, addTag, addTransaction } =
     useCashioData();
   const [transactionType, setTransactionType] =
@@ -131,6 +133,21 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
   const appliedInitialAccountIdRef = useRef<number | null | undefined>(undefined);
   const selectedTagBadgeBackground = theme.text;
   const selectedTagTextColor = theme.background;
+  const dropdownModalContentStyle = useMemo(
+    () => [
+      styles.dropdownModal,
+      {
+        backgroundColor: theme.background,
+        paddingBottom:
+          Spacing.three +
+          Math.max(
+            insets.bottom,
+            Platform.OS === "android" ? Spacing.five : 0,
+          ),
+      },
+    ],
+    [insets.bottom, theme.background],
+  );
 
   const accountItems = useMemo(
     (): Array<ItemType<DropdownValue>> =>
@@ -569,10 +586,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           listItemLabelStyle={{ color: theme.text }}
           listMode={DROPDOWN_LIST_MODE}
           modalAnimationType="slide"
-          modalContentContainerStyle={[
-            styles.dropdownModal,
-            { backgroundColor: theme.background },
-          ]}
+          modalContentContainerStyle={dropdownModalContentStyle}
           onOpen={() => {
             setIsCategoryOpen(false);
             setIsDestinationAccountOpen(false);
@@ -726,10 +740,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           listMode={DROPDOWN_LIST_MODE}
           maxHeight={220}
           modalAnimationType="slide"
-          modalContentContainerStyle={[
-            styles.dropdownModal,
-            { backgroundColor: theme.background },
-          ]}
+          modalContentContainerStyle={dropdownModalContentStyle}
           onChangeSearchText={setCategorySearch}
           onOpen={() => {
             setIsAccountOpen(false);
@@ -823,10 +834,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
             listItemLabelStyle={{ color: theme.text }}
             listMode={DROPDOWN_LIST_MODE}
             modalAnimationType="slide"
-            modalContentContainerStyle={[
-              styles.dropdownModal,
-              { backgroundColor: theme.background },
-            ]}
+            modalContentContainerStyle={dropdownModalContentStyle}
             onOpen={() => {
               setIsAccountOpen(false);
               setIsCategoryOpen(false);
@@ -909,10 +917,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           listMode={DROPDOWN_LIST_MODE}
           maxHeight={220}
           modalAnimationType="slide"
-          modalContentContainerStyle={[
-            styles.dropdownModal,
-            { backgroundColor: theme.background },
-          ]}
+          modalContentContainerStyle={dropdownModalContentStyle}
           mode="BADGE"
           multiple
           multipleText={`${selectedTagIds.length} tags seleccionados`}
