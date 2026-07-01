@@ -138,7 +138,14 @@ function AnnualMonthBars({
           ]}
         />
       </View>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.monthLabel}>
+      <ThemedText
+        adjustsFontSizeToFit
+        minimumFontScale={0.78}
+        numberOfLines={1}
+        type="small"
+        themeColor="textSecondary"
+        style={styles.monthLabel}
+      >
         {item.label}
       </ThemedText>
     </View>
@@ -174,13 +181,13 @@ const styles = StyleSheet.create({
   },
   chartBody: {
     flexDirection: 'row',
-    gap: Spacing.two,
+    gap: Spacing.one,
     minHeight: 216,
   },
   axis: {
     justifyContent: 'space-between',
     paddingBottom: 22,
-    width: 44,
+    width: 36,
   },
   axisLabel: {
     fontSize: 10,
@@ -207,7 +214,7 @@ const styles = StyleSheet.create({
   months: {
     flex: 1,
     flexDirection: 'row',
-    gap: Spacing.one,
+    gap: 2,
   },
   monthGroup: {
     alignItems: 'center',
@@ -231,7 +238,10 @@ const styles = StyleSheet.create({
   },
   monthLabel: {
     fontSize: 9,
+    includeFontPadding: false,
     lineHeight: 12,
+    minHeight: 12,
     textAlign: 'center',
+    width: '100%',
   },
 });
