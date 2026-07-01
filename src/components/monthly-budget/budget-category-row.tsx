@@ -41,6 +41,8 @@ export function BudgetCategoryRow({
   function commitBudget() {
     const nextAmount = draftAmount ?? 0;
 
+    setDraftAmount(nextAmount);
+
     if (nextAmount !== item.planned_amount) {
       onSaveAmount(item.category_id, nextAmount);
     }
@@ -95,10 +97,12 @@ export function BudgetCategoryRow({
             keyboardType="numeric"
             minValue={0}
             onChangeValue={setDraftAmount}
-            placeholder="$ 0"
+            onSubmitEditing={commitBudget}
+            placeholder={isEditing ? '0' : '$ 0'}
             placeholderTextColor={theme.textSecondary}
             precision={0}
-            prefix="$ "
+            prefix={isEditing ? '' : '$ '}
+            returnKeyType="done"
             separator=","
             style={[
               styles.input,
