@@ -43,11 +43,7 @@ import {
     TransactionFilterSheet,
     type TransactionFilters,
 } from "@/components/transaction-filters";
-import {
-    AppPalette,
-    BottomTabInset,
-    Spacing,
-} from "@/constants/theme";
+import { AppPalette, BottomTabInset, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useCashioSettings } from "@/hooks/use-cashio-settings";
 import { useTheme } from "@/hooks/use-theme";
@@ -1297,7 +1293,7 @@ function BalanceSummary({
         {hasTransfers && transferIn > 0 && (
           <View style={styles.summaryDetailRow}>
             <ThemedText type="smallBold" style={styles.summaryDetail}>
-              Traslados entran
+              Traslados entrantes
             </ThemedText>
             <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
               $ {formatMoney(transferIn)}
@@ -1307,7 +1303,7 @@ function BalanceSummary({
         {hasTransfers && transferOut > 0 && (
           <View style={styles.summaryDetailRow}>
             <ThemedText type="smallBold" style={styles.summaryDetail}>
-              Traslados salen
+              Traslados salientes
             </ThemedText>
             <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
               $ {formatMoney(transferOut)}

@@ -1,25 +1,32 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { AppPalette, Spacing } from '@/constants/theme';
-import type { AccountBalanceRow } from '@/lib/database';
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { AppPalette, Spacing } from "@/constants/theme";
+import type { AccountBalanceRow } from "@/lib/database";
 
-import { buildBalanceTotals, formatBalanceMoney } from './balance-formatters';
+import { buildBalanceTotals, formatBalanceMoney } from "./balance-formatters";
 
 type AccountBalancePanelProps = {
   monthLabel: string;
   rows: AccountBalanceRow[];
 };
 
-export function AccountBalancePanel({ monthLabel, rows }: AccountBalancePanelProps) {
+export function AccountBalancePanel({
+  monthLabel,
+  rows,
+}: AccountBalancePanelProps) {
   const totals = buildBalanceTotals(rows);
 
   if (rows.length === 0) {
     return (
       <ThemedView style={styles.emptyState}>
         <ThemedText type="subtitle">Sin cuentas</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
+        <ThemedText
+          type="small"
+          themeColor="textSecondary"
+          style={styles.emptyText}
+        >
           Crea una cuenta para ver el balance.
         </ThemedText>
       </ThemedView>
@@ -28,7 +35,11 @@ export function AccountBalancePanel({ monthLabel, rows }: AccountBalancePanelPro
 
   return (
     <View style={styles.panel}>
-      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.monthLabel}>
+      <ThemedText
+        type="smallBold"
+        themeColor="textSecondary"
+        style={styles.monthLabel}
+      >
         {monthLabel}
       </ThemedText>
 
@@ -78,10 +89,24 @@ function AccountBalanceContent({ row }: { row: AccountBalanceRow }) {
       </View>
 
       <View style={styles.metricGrid}>
-        <BalanceMetric label="Ingresos" tone="income" value={row.income_total} />
-        <BalanceMetric label="Egresos" tone="expense" value={row.expense_total} />
-        <BalanceMetric label="Traslados entran" value={row.transfer_in_total} />
-        <BalanceMetric label="Traslados salen" value={row.transfer_out_total} />
+        <BalanceMetric
+          label="Ingresos"
+          tone="income"
+          value={row.income_total}
+        />
+        <BalanceMetric
+          label="Egresos"
+          tone="expense"
+          value={row.expense_total}
+        />
+        <BalanceMetric
+          label="Traslados entrantes"
+          value={row.transfer_in_total}
+        />
+        <BalanceMetric
+          label="Traslados salientes"
+          value={row.transfer_out_total}
+        />
       </View>
     </View>
   );
@@ -93,13 +118,13 @@ function BalanceMetric({
   value,
 }: {
   label: string;
-  tone?: 'expense' | 'income';
+  tone?: "expense" | "income";
   value: number;
 }) {
   const color =
-    tone === 'income'
+    tone === "income"
       ? AppPalette.incomeGreen
-      : tone === 'expense'
+      : tone === "expense"
         ? AppPalette.brandOrange
         : undefined;
 
@@ -108,7 +133,10 @@ function BalanceMetric({
       <ThemedText type="small" themeColor="textSecondary">
         {label}
       </ThemedText>
-      <ThemedText type="smallBold" style={[styles.metricValue, color ? { color } : null]}>
+      <ThemedText
+        type="smallBold"
+        style={[styles.metricValue, color ? { color } : null]}
+      >
         $ {formatBalanceMoney(value)}
       </ThemedText>
     </View>
@@ -122,16 +150,16 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   accountTitleRow: {
-    alignItems: 'baseline',
+    alignItems: "baseline",
     flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: Spacing.one,
     minWidth: 0,
   },
   balanceAmount: {
-    fontVariant: ['tabular-nums'],
-    textAlign: 'right',
+    fontVariant: ["tabular-nums"],
+    textAlign: "right",
   },
   card: {
     borderRadius: Spacing.two,
@@ -141,23 +169,23 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   cardHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
+    alignItems: "flex-start",
+    flexDirection: "row",
     gap: Spacing.two,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   defaultLabel: {
     fontSize: 14,
     lineHeight: 20,
   },
   emptyState: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: Spacing.two,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: Spacing.four,
   },
   emptyText: {
-    textAlign: 'center',
+    textAlign: "center",
   },
   metric: {
     gap: Spacing.half,
@@ -165,16 +193,16 @@ const styles = StyleSheet.create({
   },
   metricGrid: {
     columnGap: Spacing.three,
-    display: 'flex',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "wrap",
     rowGap: Spacing.two,
   },
   metricValue: {
-    fontVariant: ['tabular-nums'],
+    fontVariant: ["tabular-nums"],
   },
   monthLabel: {
-    textAlign: 'center',
+    textAlign: "center",
   },
   panel: {
     gap: Spacing.three,

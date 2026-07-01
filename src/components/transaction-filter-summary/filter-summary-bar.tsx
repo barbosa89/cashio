@@ -1,13 +1,13 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { AppPalette, Spacing } from '@/constants/theme';
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { AppPalette, Spacing } from "@/constants/theme";
 
 import {
-  formatFilterSummaryMoney,
-  type TransactionFilterSummary,
-} from './filter-summary-formatters';
+    formatFilterSummaryMoney,
+    type TransactionFilterSummary,
+} from "./filter-summary-formatters";
 
 type FilterSummaryBarProps = {
   summary: TransactionFilterSummary;
@@ -39,12 +39,12 @@ export function FilterSummaryBar({ summary }: FilterSummaryBarProps) {
         <View style={styles.metricRow}>
           <SummaryMetric
             color="#3b82f6"
-            label="Traslados entran"
+            label="Traslados entrantes"
             value={summary.transferIn}
           />
           <SummaryMetric
             color="#14b8a6"
-            label="Traslados salen"
+            label="Traslados salientes"
             value={summary.transferOut}
           />
         </View>
@@ -92,9 +92,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   label: {
     fontSize: 11,
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   metricRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.two,
   },
   title: {
