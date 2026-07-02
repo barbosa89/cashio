@@ -256,6 +256,7 @@ export default function HomeScreen() {
   const [inlineMessage, setInlineMessage] = useState("");
   const [budgetMessage, setBudgetMessage] = useState("");
   const autoCopiedBudgetKeys = useRef(new Set<string>());
+  const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
   const visibleMonthKey = formatMonthKey(visibleMonth);
   const visibleMonthLabel = formatMonthLabel(visibleMonth);
   const shouldAccumulatePreviousBalances = settings.accumulatePreviousBalances;
@@ -296,7 +297,17 @@ export default function HomeScreen() {
     [selectedAccountScope, transactions],
   );
 
-  const monthlyTransactions = queriedTransactions;
+  const visibleMonthTransactions = useMemo(
+    () =>
+      transactions.filter(
+        (transaction) =>
+          transaction.transaction_date.startsWith(visibleMonthPrefix) &&
+          accountMatchesScope(transaction, selectedAccountScope),
+      ),
+    [selectedAccountScope, transactions, visibleMonthPrefix],
+  );
+
+  const filteredTransactions = queriedTransactions;
 
   const visibleMonthSummary = useMemo(
     () =>
@@ -329,8 +340,6 @@ export default function HomeScreen() {
     visibleMonthlySummaries,
   ]);
 
-  const filteredTransactions = monthlyTransactions;
-
   const filteredSummary = useMemo(
     () => buildTransactionFilterSummary(filteredTransactions),
     [filteredTransactions],
@@ -362,13 +371,14 @@ export default function HomeScreen() {
   ]);
 
   const expenseCategoryData = useMemo(
-    () => groupByCategory(monthlyTransactions, "expense"),
-    [monthlyTransactions],
+    () => groupByCategory(visibleMonthTransactions, "expense"),
+    [visibleMonthTransactions],
   );
 
   const budgetSummary = monthlyBudgetData.summary;
 
-  const hasActiveFilters = !!selectedCategory || !!selectedTag;
+  const hasActiveFilters =
+    !!descriptionSearch.trim() || !!selectedCategory || !!selectedTag;
   const shouldShowFilterSummary =
     activeView === "list" && hasActiveFilters && !isSelectionMode;
   const accountIdForNewTransaction = getAccountIdForNewTransaction(
