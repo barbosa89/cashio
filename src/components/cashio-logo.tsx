@@ -2,8 +2,11 @@ import { Image } from "expo-image";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 const APP_LABEL = "Cash IO";
+const LIGHT_ICON_SOURCE = require("@/assets/images/android-icon-foreground.png");
+const DARK_ICON_SOURCE = require("@/assets/images/android-icon-foreground-light.png");
 
 type CashioLogoProps = {
   height?: number;
@@ -16,10 +19,13 @@ export function CashioLogo({
   style,
   width = 180,
 }: CashioLogoProps) {
+  const colorScheme = useColorScheme();
   const iconSize = Math.round(height * 1.1);
   const iconOffset = Math.round(height * -0.13);
   const gap = Math.round(height * 0.2);
   const fontSize = Math.round(height * 0.46);
+  const iconSource =
+    colorScheme === "dark" ? DARK_ICON_SOURCE : LIGHT_ICON_SOURCE;
 
   return (
     <View
@@ -37,7 +43,7 @@ export function CashioLogo({
       <Image
         accessibilityIgnoresInvertColors
         contentFit="contain"
-        source={require("@/assets/images/android-icon-foreground.png")}
+        source={iconSource}
         style={[
           styles.icon,
           {
