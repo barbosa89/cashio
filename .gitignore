@@ -48,3 +48,6 @@ example
 .github/prompts
 .github/skills
 .agents
+
+AGENTS.md
+skills-lock.json
