@@ -1,3 +1,4 @@
+import { useTranslation } from "@/i18n/localization-provider";
 import { router, useNavigation } from "expo-router";
 import {
     useCallback,
@@ -5,9 +6,10 @@ import {
     useMemo,
     useRef,
     useState,
+    type ComponentProps,
+    type ReactElement,
     type ReactNode,
 } from "react";
-import { useTranslation } from "@/i18n/localization-provider";
 import {
     Alert,
     Platform,
@@ -48,10 +50,7 @@ import { AppPalette, BottomTabInset, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useCashioSettings } from "@/hooks/use-cashio-settings";
 import { useTheme } from "@/hooks/use-theme";
-import {
-  capitalizeLocalized,
-  formatMonthYear,
-} from "@/i18n/formatters";
+import { capitalizeLocalized, formatMonthYear } from "@/i18n/formatters";
 import { useLocalization } from "@/i18n/localization-provider";
 import type {
     Account,
@@ -547,50 +546,17 @@ export default function HomeScreen() {
     ]);
   }
 
-  function handleListPress() {
+  function handleViewPress(view: ActiveView) {
     if (isSelectionMode) {
       cancelSelection();
       return;
     }
 
-    setActiveView("list");
-  }
-
-  function handleChartsPress() {
-    if (isSelectionMode) {
-      cancelSelection();
-      return;
+    if (view === "budgets") {
+      setBudgetMessage("");
     }
 
-    setActiveView("charts");
-  }
-
-  function handleBalancePress() {
-    if (isSelectionMode) {
-      cancelSelection();
-      return;
-    }
-
-    setActiveView("balance");
-  }
-
-  function handleBudgetsPress() {
-    if (isSelectionMode) {
-      cancelSelection();
-      return;
-    }
-
-    setBudgetMessage("");
-    setActiveView("budgets");
-  }
-
-  function handleReportsPress() {
-    if (isSelectionMode) {
-      cancelSelection();
-      return;
-    }
-
-    setActiveView("reports");
+    setActiveView(view);
   }
 
   async function handleAddBudgetCategory(categoryId: number) {
@@ -675,9 +641,7 @@ export default function HomeScreen() {
         visibleMonthKey,
       );
       setBudgetMessage(
-        copiedCount > 0
-          ? t("budget.copied")
-          : t("budget.nothingToCopy"),
+        copiedCount > 0 ? t("budget.copied") : t("budget.nothingToCopy"),
       );
     } catch {
       setBudgetMessage(t("budget.copyFailed"));
@@ -727,6 +691,144 @@ export default function HomeScreen() {
     [handleMonthSwipe, isSelectionMode],
   );
 
+  const transactionHeader = (
+    <TransactionsDashboardHeader
+      accountSelected={selectedAccountScope !== 1}
+      descriptionSearch={descriptionSearch}
+      filterSelected={hasActiveFilters}
+      onChangeDescriptionSearch={setDescriptionSearch}
+      onOpenAccountSelector={() => setIsAccountSelectorOpen(true)}
+      onOpenFilters={() => setIsFilterOpen(true)}
+      onOpenMenu={() => navigation.openDrawer()}
+    />
+  );
+  const activeHeaders: Record<ActiveView, ReactElement> = {
+    balance: (
+      <BalanceDashboardHeader onOpenMenu={() => navigation.openDrawer()} />
+    ),
+    budgets: (
+      <ScopedDashboardHeader
+        accountSelected={selectedAccountScope !== 1}
+        onOpenAccountSelector={() => setIsAccountSelectorOpen(true)}
+        onOpenMenu={() => navigation.openDrawer()}
+        title={`${t("dashboard.budget")} · ${selectedAccountLabel}`}
+      />
+    ),
+    charts: transactionHeader,
+    list: transactionHeader,
+    reports: (
+      <ScopedDashboardHeader
+        accountSelected={selectedAccountScope !== 1}
+        onOpenAccountSelector={() => setIsAccountSelectorOpen(true)}
+        onOpenMenu={() => navigation.openDrawer()}
+        title={`${t("dashboard.reports")} · ${selectedAccountLabel}`}
+      />
+    ),
+  };
+  const balanceSummary = (
+    <BalanceSummary
+      accountLabel={selectedAccountLabel}
+      balance={summary.balance}
+      expense={summary.expense}
+      income={summary.income}
+      monthLabel={visibleMonthLabel}
+      openingBalance={summary.openingBalance}
+      openingBalanceLabel={summary.openingBalanceLabel}
+      showTransfers={selectedAccountScope !== "all"}
+      transferIn={summary.transferIn}
+      transferOut={summary.transferOut}
+    />
+  );
+  const activeSummaries: Record<ActiveView, ReactNode> = {
+    balance: null,
+    budgets: (
+      <BudgetDashboardSummary
+        accountLabel={selectedAccountLabel}
+        monthLabel={visibleMonthLabel}
+        summary={budgetSummary}
+      />
+    ),
+    charts: balanceSummary,
+    list: balanceSummary,
+    reports: null,
+  };
+  const activeContent: Record<ActiveView, ReactElement> = {
+    balance: (
+      <SwipeableDashboardView gesture={monthSwipeGesture}>
+        <AccountBalanceDashboardView
+          monthLabel={visibleMonthLabel}
+          rows={accountBalances}
+        />
+      </SwipeableDashboardView>
+    ),
+    budgets: (
+      <SwipeableDashboardView gesture={monthSwipeGesture}>
+        <BudgetDashboardView
+          autoCopyPreviousMonthBudget={shouldAutoCopyPreviousMonthBudget}
+          budgetData={monthlyBudgetData}
+          budgetMessage={budgetMessage}
+          onAddCategory={(categoryId) =>
+            void handleAddBudgetCategory(categoryId)
+          }
+          onCopyPreviousBudget={() => void handleCopyPreviousBudget()}
+          onRemoveCategory={handleRemoveBudgetCategory}
+          onSaveAmount={(categoryId, plannedAmount) =>
+            void handleSaveBudgetAmount(categoryId, plannedAmount)
+          }
+          readOnly={selectedAccountScope === "all"}
+        />
+      </SwipeableDashboardView>
+    ),
+    charts: (
+      <SwipeableDashboardView gesture={monthSwipeGesture}>
+        <ChartsDashboardView
+          expenseCategoryData={expenseCategoryData}
+          monthlySummaries={visibleMonthlySummaries}
+          summary={summary}
+          visibleYear={visibleMonth.year}
+        />
+      </SwipeableDashboardView>
+    ),
+    list: (
+      <SwipeableDashboardView gesture={monthSwipeGesture}>
+        <TransactionListDashboardView
+          accountScope={selectedAccountScope}
+          filteredTransactions={filteredTransactions}
+          isSelectionMode={isSelectionMode}
+          onSelectTransaction={selectTransaction}
+          onToggleTransactionSelection={toggleTransactionSelection}
+          selectedTransactionIds={selectedTransactionIdSet}
+          showFilterSummary={shouldShowFilterSummary}
+        />
+      </SwipeableDashboardView>
+    ),
+    reports: (
+      <ReportsDashboardView
+        defaultMonth={visibleMonthKey}
+        initialBalance={initialBalance}
+        isLoading={isLoading}
+        monthlySummaries={visibleMonthlySummaries}
+        transactions={accountScopedTransactions}
+      />
+    ),
+  };
+  const transactionOverlays = (
+    <TransactionDashboardOverlays
+      accountIdForNewTransaction={accountIdForNewTransaction}
+      filteredSummary={filteredSummary}
+      inlineMessage={inlineMessage}
+      isSelectionMode={isSelectionMode}
+      showFilterSummary={shouldShowFilterSummary}
+    />
+  );
+  const activeOverlays: Record<ActiveView, ReactNode> = {
+    balance: null,
+    budgets: null,
+    charts: transactionOverlays,
+    list: transactionOverlays,
+    reports: null,
+  };
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -736,304 +838,19 @@ export default function HomeScreen() {
             { borderColor: theme.backgroundSelected },
           ]}
         >
-          {isSelectionMode ? (
-            <SelectionHeader
-              count={selectedTransactionCount}
-              onCancel={cancelSelection}
-              onDelete={handleDeleteSelectedTransactions}
-            />
-          ) : activeView === "balance" ? (
-            <ThemedView style={styles.header}>
-              <IconButton
-                label={t("accessibility.openMenu")}
-                onPress={() => navigation.openDrawer()}
-              >
-                <AppIcon color={theme.text} name="menu" size={30} />
-              </IconButton>
-              <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
-                {t("dashboard.balanceTitle")}
-              </ThemedText>
-              <View style={styles.headerSpacer} />
-            </ThemedView>
-          ) : activeView === "reports" || activeView === "budgets" ? (
-            <ThemedView style={styles.header}>
-              <IconButton
-                label={t("accessibility.openMenu")}
-                onPress={() => navigation.openDrawer()}
-              >
-                <AppIcon color={theme.text} name="menu" size={30} />
-              </IconButton>
-              <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
-                {activeView === "budgets"
-                  ? `${t("dashboard.budget")} · ${selectedAccountLabel}`
-                  : `${t("dashboard.reports")} · ${selectedAccountLabel}`}
-              </ThemedText>
-              <IconButton
-                label={t("dashboard.selectAccount")}
-                selected={selectedAccountScope !== 1}
-                onPress={() => setIsAccountSelectorOpen(true)}
-              >
-                <AppIcon color={theme.text} name="bank" size={30} />
-              </IconButton>
-            </ThemedView>
-          ) : (
-            <ThemedView style={styles.header}>
-              <IconButton
-                label={t("accessibility.openMenu")}
-                onPress={() => navigation.openDrawer()}
-              >
-                <AppIcon color={theme.text} name="menu" size={30} />
-              </IconButton>
-
-              <View style={styles.headerActions}>
-                <ThemedView type="backgroundSelected" style={styles.searchWrap}>
-                  <TextInput
-                    accessibilityLabel={t("accessibility.searchTransactions")}
-                    onChangeText={setDescriptionSearch}
-                    placeholder={t("dashboard.search")}
-                    placeholderTextColor={theme.text}
-                    style={[styles.searchInput, { color: theme.text }]}
-                    value={descriptionSearch}
-                  />
-                </ThemedView>
-                <IconButton
-                  label={t("dashboard.filter")}
-                  selected={hasActiveFilters}
-                  onPress={() => setIsFilterOpen(true)}
-                >
-                  <AppIcon color={theme.text} name="filter" size={30} />
-                </IconButton>
-                <IconButton
-                  label={t("dashboard.selectAccount")}
-                  selected={selectedAccountScope !== 1}
-                  onPress={() => setIsAccountSelectorOpen(true)}
-                >
-                  <AppIcon color={theme.text} name="bank" size={30} />
-                </IconButton>
-              </View>
-            </ThemedView>
-          )}
-
-          {activeView === "budgets" ? (
-            <>
-              <BudgetSummaryCard
-                monthLabel={visibleMonthLabel}
-                summary={budgetSummary}
-              />
-              <AccountScopeHint label={selectedAccountLabel} />
-            </>
-          ) : (
-            activeView !== "reports" &&
-            activeView !== "balance" && (
-              <BalanceSummary
-                accountLabel={selectedAccountLabel}
-                balance={summary.balance}
-                expense={summary.expense}
-                income={summary.income}
-                monthLabel={visibleMonthLabel}
-                openingBalance={summary.openingBalance}
-                openingBalanceLabel={summary.openingBalanceLabel}
-                showTransfers={selectedAccountScope !== "all"}
-                transferIn={summary.transferIn}
-                transferOut={summary.transferOut}
-              />
-            )
-          )}
-
-          {activeView === "reports" ? (
-            <ScrollView
-              contentContainerStyle={styles.reportContent}
-              style={styles.list}
-            >
-              <ReportExportPanel
-                defaultMonth={visibleMonthKey}
-                initialBalance={initialBalance}
-                isLoading={isLoading}
-                monthlySummaries={visibleMonthlySummaries}
-                transactions={accountScopedTransactions}
-              />
-            </ScrollView>
-          ) : (
-            <GestureDetector gesture={monthSwipeGesture}>
-              {activeView === "list" ? (
-                <ScrollView
-                  contentContainerStyle={[
-                    styles.listContent,
-                    shouldShowFilterSummary &&
-                      styles.listContentWithFilterSummary,
-                  ]}
-                  style={styles.list}
-                >
-                  {filteredTransactions.length === 0 ? (
-                    <ThemedView style={styles.emptyState}>
-                      <ThemedText type="subtitle" style={styles.emptyTitle}>
-                        {t("dashboard.emptyTitle")}
-                      </ThemedText>
-                      <ThemedText
-                        themeColor="textSecondary"
-                        style={styles.emptyText}
-                      >
-                        {t("dashboard.noTransactions")}
-                      </ThemedText>
-                    </ThemedView>
-                  ) : (
-                    filteredTransactions.map((transaction) => (
-                      <TransactionRow
-                        key={transaction.id}
-                        onLongPress={() => selectTransaction(transaction.id)}
-                        onPress={() => {
-                          if (isSelectionMode) {
-                            toggleTransactionSelection(transaction.id);
-                          }
-                        }}
-                        selected={selectedTransactionIdSet.has(transaction.id)}
-                        selectionMode={isSelectionMode}
-                        showAccountName={selectedAccountScope === "all"}
-                        transaction={transaction}
-                      />
-                    ))
-                  )}
-                </ScrollView>
-              ) : activeView === "charts" ? (
-                <ScrollView
-                  contentContainerStyle={styles.chartContent}
-                  style={styles.list}
-                >
-                  <MonthlyChartsPanel
-                    expenseCategoryData={expenseCategoryData}
-                    monthlySummaries={visibleMonthlySummaries}
-                    summary={summary}
-                    visibleYear={visibleMonth.year}
-                  />
-                </ScrollView>
-              ) : activeView === "balance" ? (
-                <ScrollView
-                  contentContainerStyle={styles.balanceContent}
-                  style={styles.list}
-                >
-                  <AccountBalancePanel
-                    monthLabel={visibleMonthLabel}
-                    rows={accountBalances}
-                  />
-                </ScrollView>
-              ) : (
-                <ScrollView
-                  contentContainerStyle={styles.budgetContent}
-                  style={styles.list}
-                >
-                  <MonthlyBudgetPanel
-                    autoCopyPreviousMonthBudget={
-                      shouldAutoCopyPreviousMonthBudget
-                    }
-                    budgetData={monthlyBudgetData}
-                    budgetMessage={budgetMessage}
-                    onAddCategory={(categoryId) =>
-                      void handleAddBudgetCategory(categoryId)
-                    }
-                    onCopyPreviousBudget={() => void handleCopyPreviousBudget()}
-                    onRemoveCategory={handleRemoveBudgetCategory}
-                    onSaveAmount={(categoryId, plannedAmount) =>
-                      void handleSaveBudgetAmount(categoryId, plannedAmount)
-                    }
-                    readOnly={selectedAccountScope === "all"}
-                  />
-                </ScrollView>
-              )}
-            </GestureDetector>
-          )}
-
-          {activeView !== "reports" &&
-            activeView !== "budgets" &&
-            activeView !== "balance" &&
-            !!inlineMessage && (
-              <ThemedText
-                type="small"
-                themeColor="textSecondary"
-                style={styles.inlineMessage}
-              >
-                {inlineMessage}
-              </ThemedText>
-            )}
-
-          {shouldShowFilterSummary && (
-            <FilterSummaryBar summary={filteredSummary} />
-          )}
-
-          {!isSelectionMode &&
-            activeView !== "reports" &&
-            activeView !== "budgets" &&
-            activeView !== "balance" && (
-              <Pressable
-                accessibilityLabel={t("accessibility.addTransaction")}
-                onPress={() => {
-                  if (!accountIdForNewTransaction) {
-                    router.push("/new-transaction");
-                    return;
-                  }
-
-                  router.push({
-                    pathname: "/new-transaction",
-                    params: {
-                      accountId: String(accountIdForNewTransaction),
-                    },
-                  });
-                }}
-                style={({ pressed }) => [
-                  styles.fab,
-                  shouldShowFilterSummary && styles.fabWithFilterSummary,
-                  pressed && styles.fabPressed,
-                ]}
-              >
-                <AppIcon
-                  color={AppPalette.foregroundInverse}
-                  name="plus"
-                  size={36}
-                />
-              </Pressable>
-            )}
-
-          <ThemedView
-            style={[
-              styles.bottomBar,
-              { borderTopColor: theme.backgroundSelected },
-            ]}
-          >
-            <IconButton
-              label={t("dashboard.list")}
-              selected={activeView === "list"}
-              onPress={handleListPress}
-            >
-              <AppIcon color={theme.text} name="list" size={34} />
-            </IconButton>
-            <IconButton
-              label={t("dashboard.charts")}
-              selected={activeView === "charts"}
-              onPress={handleChartsPress}
-            >
-              <AppIcon color={theme.text} name="bar-chart-2" size={34} />
-            </IconButton>
-            <IconButton
-              label={t("dashboard.balance")}
-              selected={activeView === "balance"}
-              onPress={handleBalancePress}
-            >
-              <AppIcon color={theme.text} name="columns" size={34} />
-            </IconButton>
-            <IconButton
-              label={t("dashboard.budget")}
-              selected={activeView === "budgets"}
-              onPress={handleBudgetsPress}
-            >
-              <AppIcon color={theme.text} name="target" size={34} />
-            </IconButton>
-            <IconButton
-              label={t("dashboard.reports")}
-              selected={activeView === "reports"}
-              onPress={handleReportsPress}
-            >
-              <AppIcon color={theme.text} name="file-text" size={34} />
-            </IconButton>
-          </ThemedView>
+          <DashboardHeader
+            activeHeader={activeHeaders[activeView]}
+            onCancelSelection={cancelSelection}
+            onDeleteSelection={handleDeleteSelectedTransactions}
+            selectedTransactionCount={selectedTransactionCount}
+          />
+          {activeSummaries[activeView]}
+          {activeContent[activeView]}
+          {activeOverlays[activeView]}
+          <DashboardBottomBar
+            activeView={activeView}
+            onSelectView={handleViewPress}
+          />
         </ThemedView>
       </SafeAreaView>
 
@@ -1060,6 +877,409 @@ export default function HomeScreen() {
   );
 }
 
+function DashboardHeader({
+  activeHeader,
+  onCancelSelection,
+  onDeleteSelection,
+  selectedTransactionCount,
+}: Readonly<{
+  activeHeader: ReactElement;
+  onCancelSelection: () => void;
+  onDeleteSelection: () => void;
+  selectedTransactionCount: number;
+}>) {
+  if (selectedTransactionCount > 0) {
+    return (
+      <SelectionHeader
+        count={selectedTransactionCount}
+        onCancel={onCancelSelection}
+        onDelete={onDeleteSelection}
+      />
+    );
+  }
+
+  return activeHeader;
+}
+
+function BalanceDashboardHeader({
+  onOpenMenu,
+}: Readonly<{
+  onOpenMenu: () => void;
+}>) {
+  const theme = useTheme();
+  const { t } = useTranslation();
+
+  return (
+    <ThemedView style={styles.header}>
+      <IconButton label={t("accessibility.openMenu")} onPress={onOpenMenu}>
+        <AppIcon color={theme.text} name="menu" size={30} />
+      </IconButton>
+      <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
+        {t("dashboard.balanceTitle")}
+      </ThemedText>
+      <View style={styles.headerSpacer} />
+    </ThemedView>
+  );
+}
+
+function ScopedDashboardHeader({
+  accountSelected,
+  onOpenAccountSelector,
+  onOpenMenu,
+  title,
+}: Readonly<{
+  accountSelected: boolean;
+  onOpenAccountSelector: () => void;
+  onOpenMenu: () => void;
+  title: string;
+}>) {
+  const theme = useTheme();
+  const { t } = useTranslation();
+
+  return (
+    <ThemedView style={styles.header}>
+      <IconButton label={t("accessibility.openMenu")} onPress={onOpenMenu}>
+        <AppIcon color={theme.text} name="menu" size={30} />
+      </IconButton>
+      <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
+        {title}
+      </ThemedText>
+      <IconButton
+        label={t("dashboard.selectAccount")}
+        selected={accountSelected}
+        onPress={onOpenAccountSelector}
+      >
+        <AppIcon color={theme.text} name="bank" size={30} />
+      </IconButton>
+    </ThemedView>
+  );
+}
+
+function TransactionsDashboardHeader({
+  accountSelected,
+  descriptionSearch,
+  filterSelected,
+  onChangeDescriptionSearch,
+  onOpenAccountSelector,
+  onOpenFilters,
+  onOpenMenu,
+}: Readonly<{
+  accountSelected: boolean;
+  descriptionSearch: string;
+  filterSelected: boolean;
+  onChangeDescriptionSearch: (value: string) => void;
+  onOpenAccountSelector: () => void;
+  onOpenFilters: () => void;
+  onOpenMenu: () => void;
+}>) {
+  const theme = useTheme();
+  const { t } = useTranslation();
+
+  return (
+    <ThemedView style={styles.header}>
+      <IconButton label={t("accessibility.openMenu")} onPress={onOpenMenu}>
+        <AppIcon color={theme.text} name="menu" size={30} />
+      </IconButton>
+
+      <View style={styles.headerActions}>
+        <ThemedView type="backgroundSelected" style={styles.searchWrap}>
+          <TextInput
+            accessibilityLabel={t("accessibility.searchTransactions")}
+            onChangeText={onChangeDescriptionSearch}
+            placeholder={t("dashboard.search")}
+            placeholderTextColor={theme.text}
+            style={[styles.searchInput, { color: theme.text }]}
+            value={descriptionSearch}
+          />
+        </ThemedView>
+        <IconButton
+          label={t("dashboard.filter")}
+          selected={filterSelected}
+          onPress={onOpenFilters}
+        >
+          <AppIcon color={theme.text} name="filter" size={30} />
+        </IconButton>
+        <IconButton
+          label={t("dashboard.selectAccount")}
+          selected={accountSelected}
+          onPress={onOpenAccountSelector}
+        >
+          <AppIcon color={theme.text} name="bank" size={30} />
+        </IconButton>
+      </View>
+    </ThemedView>
+  );
+}
+
+function BudgetDashboardSummary({
+  accountLabel,
+  monthLabel,
+  summary,
+}: Readonly<{
+  accountLabel: string;
+  monthLabel: string;
+  summary: ComponentProps<typeof BudgetSummaryCard>["summary"];
+}>) {
+  return (
+    <>
+      <BudgetSummaryCard monthLabel={monthLabel} summary={summary} />
+      <AccountScopeHint label={accountLabel} />
+    </>
+  );
+}
+
+function SwipeableDashboardView({
+  children,
+  gesture,
+}: Readonly<{
+  children: ReactElement;
+  gesture: ComponentProps<typeof GestureDetector>["gesture"];
+}>) {
+  return <GestureDetector gesture={gesture}>{children}</GestureDetector>;
+}
+
+function TransactionListDashboardView({
+  accountScope,
+  filteredTransactions,
+  isSelectionMode,
+  onSelectTransaction,
+  onToggleTransactionSelection,
+  selectedTransactionIds,
+  showFilterSummary,
+}: Readonly<{
+  accountScope: AccountScope;
+  filteredTransactions: readonly Transaction[];
+  isSelectionMode: boolean;
+  onSelectTransaction: (id: number) => void;
+  onToggleTransactionSelection: (id: number) => void;
+  selectedTransactionIds: ReadonlySet<number>;
+  showFilterSummary: boolean;
+}>) {
+  const { t } = useTranslation();
+
+  function handleTransactionPress(id: number) {
+    if (isSelectionMode) {
+      onToggleTransactionSelection(id);
+    }
+  }
+
+  return (
+    <ScrollView
+      contentContainerStyle={[
+        styles.listContent,
+        showFilterSummary && styles.listContentWithFilterSummary,
+      ]}
+      style={styles.list}
+    >
+      {filteredTransactions.length === 0 ? (
+        <ThemedView style={styles.emptyState}>
+          <ThemedText type="subtitle" style={styles.emptyTitle}>
+            {t("dashboard.emptyTitle")}
+          </ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+            {t("dashboard.noTransactions")}
+          </ThemedText>
+        </ThemedView>
+      ) : (
+        filteredTransactions.map((transaction) => (
+          <TransactionRow
+            key={transaction.id}
+            onLongPress={() => onSelectTransaction(transaction.id)}
+            onPress={() => handleTransactionPress(transaction.id)}
+            selected={selectedTransactionIds.has(transaction.id)}
+            selectionMode={isSelectionMode}
+            showAccountName={accountScope === "all"}
+            transaction={transaction}
+          />
+        ))
+      )}
+    </ScrollView>
+  );
+}
+
+function ChartsDashboardView(
+  props: Readonly<ComponentProps<typeof MonthlyChartsPanel>>,
+) {
+  return (
+    <ScrollView
+      contentContainerStyle={styles.chartContent}
+      style={styles.list}
+    >
+      <MonthlyChartsPanel {...props} />
+    </ScrollView>
+  );
+}
+
+function AccountBalanceDashboardView(
+  props: Readonly<ComponentProps<typeof AccountBalancePanel>>,
+) {
+  return (
+    <ScrollView
+      contentContainerStyle={styles.balanceContent}
+      style={styles.list}
+    >
+      <AccountBalancePanel {...props} />
+    </ScrollView>
+  );
+}
+
+function BudgetDashboardView(
+  props: Readonly<ComponentProps<typeof MonthlyBudgetPanel>>,
+) {
+  return (
+    <ScrollView
+      contentContainerStyle={styles.budgetContent}
+      style={styles.list}
+    >
+      <MonthlyBudgetPanel {...props} />
+    </ScrollView>
+  );
+}
+
+function ReportsDashboardView(
+  props: Readonly<ComponentProps<typeof ReportExportPanel>>,
+) {
+  return (
+    <ScrollView
+      contentContainerStyle={styles.reportContent}
+      style={styles.list}
+    >
+      <ReportExportPanel {...props} />
+    </ScrollView>
+  );
+}
+
+function TransactionDashboardOverlays({
+  accountIdForNewTransaction,
+  filteredSummary,
+  inlineMessage,
+  isSelectionMode,
+  showFilterSummary,
+}: Readonly<{
+  accountIdForNewTransaction: number | null;
+  filteredSummary: ComponentProps<typeof FilterSummaryBar>["summary"];
+  inlineMessage: string;
+  isSelectionMode: boolean;
+  showFilterSummary: boolean;
+}>) {
+  return (
+    <>
+      {!!inlineMessage && (
+        <ThemedText
+          type="small"
+          themeColor="textSecondary"
+          style={styles.inlineMessage}
+        >
+          {inlineMessage}
+        </ThemedText>
+      )}
+      {showFilterSummary && <FilterSummaryBar summary={filteredSummary} />}
+      {!isSelectionMode && (
+        <AddTransactionButton
+          accountId={accountIdForNewTransaction}
+          raisedForFilterSummary={showFilterSummary}
+        />
+      )}
+    </>
+  );
+}
+
+function AddTransactionButton({
+  accountId,
+  raisedForFilterSummary,
+}: Readonly<{
+  accountId: number | null;
+  raisedForFilterSummary: boolean;
+}>) {
+  const { t } = useTranslation();
+
+  function handlePress() {
+    if (!accountId) {
+      router.push("/new-transaction");
+      return;
+    }
+
+    router.push({
+      pathname: "/new-transaction",
+      params: { accountId: String(accountId) },
+    });
+  }
+
+  return (
+    <Pressable
+      accessibilityLabel={t("accessibility.addTransaction")}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.fab,
+        raisedForFilterSummary && styles.fabWithFilterSummary,
+        pressed && styles.fabPressed,
+      ]}
+    >
+      <AppIcon
+        color={AppPalette.foregroundInverse}
+        name="plus"
+        size={36}
+      />
+    </Pressable>
+  );
+}
+
+function DashboardBottomBar({
+  activeView,
+  onSelectView,
+}: Readonly<{
+  activeView: ActiveView;
+  onSelectView: (view: ActiveView) => void;
+}>) {
+  const theme = useTheme();
+  const { t } = useTranslation();
+
+  return (
+    <ThemedView
+      style={[
+        styles.bottomBar,
+        { borderTopColor: theme.backgroundSelected },
+      ]}
+    >
+      <IconButton
+        label={t("dashboard.list")}
+        selected={activeView === "list"}
+        onPress={() => onSelectView("list")}
+      >
+        <AppIcon color={theme.text} name="list" size={34} />
+      </IconButton>
+      <IconButton
+        label={t("dashboard.charts")}
+        selected={activeView === "charts"}
+        onPress={() => onSelectView("charts")}
+      >
+        <AppIcon color={theme.text} name="bar-chart-2" size={34} />
+      </IconButton>
+      <IconButton
+        label={t("dashboard.balance")}
+        selected={activeView === "balance"}
+        onPress={() => onSelectView("balance")}
+      >
+        <AppIcon color={theme.text} name="columns" size={34} />
+      </IconButton>
+      <IconButton
+        label={t("dashboard.budget")}
+        selected={activeView === "budgets"}
+        onPress={() => onSelectView("budgets")}
+      >
+        <AppIcon color={theme.text} name="target" size={34} />
+      </IconButton>
+      <IconButton
+        label={t("dashboard.reports")}
+        selected={activeView === "reports"}
+        onPress={() => onSelectView("reports")}
+      >
+        <AppIcon color={theme.text} name="file-text" size={34} />
+      </IconButton>
+    </ThemedView>
+  );
+}
+
 function TransactionRow({
   onLongPress,
   onPress,
@@ -1067,14 +1287,14 @@ function TransactionRow({
   selectionMode,
   showAccountName,
   transaction,
-}: {
+}: Readonly<{
   onLongPress: () => void;
   onPress: () => void;
   selected: boolean;
   selectionMode: boolean;
   showAccountName: boolean;
   transaction: Transaction;
-}) {
+}>) {
   const theme = useTheme();
   const { t } = useTranslation();
   const { languageTag } = useLocalization();
@@ -1089,8 +1309,7 @@ function TransactionRow({
           : t("accessibility.holdSelection")
       }
       accessibilityLabel={t("accessibility.transaction", {
-        name:
-          transaction.description || transaction.category_description,
+        name: transaction.description || transaction.category_description,
       })}
       accessibilityState={{ selected }}
       delayLongPress={300}
@@ -1196,30 +1415,24 @@ function SelectionHeader({
   count,
   onCancel,
   onDelete,
-}: {
+}: Readonly<{
   count: number;
   onCancel: () => void;
   onDelete: () => void;
-}) {
+}>) {
   const theme = useTheme();
   const { t } = useTranslation();
   const label = t("dashboard.selectedCount", { count });
 
   return (
     <ThemedView type="backgroundSelected" style={styles.selectionHeader}>
-      <FlatIconButton
-        label={t("dashboard.cancelDeletion")}
-        onPress={onCancel}
-      >
+      <FlatIconButton label={t("dashboard.cancelDeletion")} onPress={onCancel}>
         <AppIcon color={theme.text} name="arrow-left" size={28} />
       </FlatIconButton>
       <ThemedText type="smallBold" style={styles.selectionTitle}>
         {label}
       </ThemedText>
-      <FlatIconButton
-        label={t("dashboard.deleteSelection")}
-        onPress={onDelete}
-      >
+      <FlatIconButton label={t("dashboard.deleteSelection")} onPress={onDelete}>
         <AppIcon color={theme.text} name="trash-2" size={28} />
       </FlatIconButton>
     </ThemedView>
@@ -1237,7 +1450,7 @@ function BalanceSummary({
   showTransfers,
   transferIn,
   transferOut,
-}: {
+}: Readonly<{
   accountLabel: string;
   balance: number;
   expense: number;
@@ -1248,7 +1461,7 @@ function BalanceSummary({
   showTransfers: boolean;
   transferIn: number;
   transferOut: number;
-}) {
+}>) {
   const theme = useTheme();
   const { t } = useTranslation();
   const { languageTag } = useLocalization();
@@ -1321,7 +1534,7 @@ function BalanceSummary({
   );
 }
 
-function AccountScopeHint({ label }: { label: string }) {
+function AccountScopeHint({ label }: Readonly<{ label: string }>) {
   return (
     <ThemedText
       type="small"
@@ -1338,12 +1551,12 @@ function IconButton({
   label,
   onPress,
   selected,
-}: {
+}: Readonly<{
   children: ReactNode;
   label: string;
   onPress: () => void;
   selected?: boolean;
-}) {
+}>) {
   return (
     <Pressable
       accessibilityLabel={label}
@@ -1364,11 +1577,11 @@ function FlatIconButton({
   children,
   label,
   onPress,
-}: {
+}: Readonly<{
   children: ReactNode;
   label: string;
   onPress: () => void;
-}) {
+}>) {
   return (
     <Pressable
       accessibilityLabel={label}
@@ -1387,11 +1600,11 @@ function TypeIcon({
   color,
   selected,
   type,
-}: {
+}: Readonly<{
   color: string;
   selected?: boolean;
   type: Transaction["type"];
-}) {
+}>) {
   const iconColor = type === "income" ? AppPalette.incomeGreen : color;
   const iconName = selected
     ? "check"
