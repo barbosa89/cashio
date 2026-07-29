@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { AppError } from '@/i18n/errors';
 import type { BackupFileMetadata, BackupProvider, CloudBackup } from '@/lib/backup/types';
 
 type CloudStoreModule = {
@@ -23,7 +24,7 @@ declare const require: (moduleName: string) => CloudStoreModule;
 
 function assertIos() {
   if (Platform.OS !== 'ios') {
-    throw new Error('iCloud se usa solo en iOS.');
+    throw new AppError({ code: 'icloudIosOnly' });
   }
 }
 
@@ -40,10 +41,9 @@ function getCloudStore() {
     cloudStoreModule = require('react-native-cloud-store');
     return cloudStoreModule;
   } catch (error) {
-    const detail = error instanceof Error ? error.message : 'El módulo nativo no está disponible.';
-    throw new Error(
-      'iCloud no está enlazado en esta build. Reconstruye la app iOS después de ejecutar pod install. ' +
-        detail
+    throw new AppError(
+      { code: 'nativeModuleUnavailable', values: { provider: 'iCloud' } },
+      { cause: error },
     );
   }
 }
@@ -57,7 +57,7 @@ async function getBackupPaths() {
   const containerPath = await getDefaultICloudContainerPath();
 
   if (!containerPath) {
-    throw new Error('No se encontró el contenedor de iCloud.');
+    throw new AppError({ code: 'icloudContainerMissing' });
   }
 
   const backupDir = `${containerPath}/${BACKUP_DIR_NAME}`;
@@ -96,7 +96,7 @@ export const icloudBackupProvider: BackupProvider = {
     const available = await isICloudAvailable();
 
     if (!available) {
-      throw new Error('iCloud no está disponible para Cash IO.');
+      throw new AppError({ code: 'icloudUnavailable' });
     }
 
     const paths = await getBackupPaths();
@@ -121,7 +121,7 @@ export const icloudBackupProvider: BackupProvider = {
     const { exist, unlink, upload, writeFile } = getCloudStore();
 
     if (!backup.localUri) {
-      throw new Error('No se encontró el archivo local para subir.');
+      throw new AppError({ code: 'localFileMissing' });
     }
 
     const paths = await getBackupPaths();

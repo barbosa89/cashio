@@ -1,4 +1,5 @@
 import { AppPalette } from '@/constants/theme';
+import { formatNumber } from '@/i18n/formatters';
 import type { MonthlyBudgetItem } from '@/lib/database';
 
 export type BudgetStatus = {
@@ -7,13 +8,20 @@ export type BudgetStatus = {
   progress: number;
 };
 
-export function formatBudgetMoney(value: number) {
-  return new Intl.NumberFormat('es-CO', {
-    maximumFractionDigits: 0,
-  }).format(value);
+export type BudgetStatusLabels = {
+  nearLimit: string;
+  onTrack: string;
+  overBudget: string;
+};
+
+export function formatBudgetMoney(value: number, locale: string) {
+  return formatNumber(value, locale);
 }
 
-export function getBudgetStatus(item: MonthlyBudgetItem): BudgetStatus {
+export function getBudgetStatus(
+  item: MonthlyBudgetItem,
+  labels: BudgetStatusLabels,
+): BudgetStatus {
   const progress =
     item.planned_amount > 0 ? item.spent_amount / item.planned_amount : item.spent_amount > 0 ? 1 : 0;
   const isOver = item.planned_amount >= 0 && item.spent_amount > item.planned_amount;
@@ -22,7 +30,7 @@ export function getBudgetStatus(item: MonthlyBudgetItem): BudgetStatus {
   if (isOver) {
     return {
       color: AppPalette.brandOrange,
-      label: 'Excedido',
+      label: labels.overBudget,
       progress,
     };
   }
@@ -30,15 +38,14 @@ export function getBudgetStatus(item: MonthlyBudgetItem): BudgetStatus {
   if (isNearLimit) {
     return {
       color: '#eab308',
-      label: 'Cerca del límite',
+      label: labels.nearLimit,
       progress,
     };
   }
 
   return {
     color: AppPalette.incomeGreen,
-    label: 'En curso',
+    label: labels.onTrack,
     progress,
   };
 }
-

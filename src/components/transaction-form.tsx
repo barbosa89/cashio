@@ -26,6 +26,7 @@ import DropDownPicker, {
   type RenderListItemPropsInterface,
 } from "react-native-dropdown-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "@/i18n/localization-provider";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
@@ -33,7 +34,9 @@ import { ThemedView } from "@/components/themed-view";
 import { AppPalette, DROPDOWN_LIST_MODE, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
-import { CashioValidationError } from "@/lib/cashio-repository";
+import { translateError } from "@/i18n/errors";
+import { getNumberSeparators } from "@/i18n/formatters";
+import { useLocalization } from "@/i18n/localization-provider";
 import type { Account, Category, TransactionType } from "@/lib/database";
 
 type TransactionFormProps = {
@@ -99,6 +102,9 @@ export const TransactionForm = forwardRef<TransactionFormHandle, TransactionForm
 function TransactionForm({ initialAccountId = null, onSaved }, ref) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { languageTag } = useLocalization();
+  const { t } = useTranslation();
+  const numberSeparators = getNumberSeparators(languageTag);
   const { accounts, categories, tags, isLoading, addCategory, addTag, addTransaction } =
     useCashioData();
   const [transactionType, setTransactionType] =
@@ -257,11 +263,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
   }, [selectedAccountId, selectedDestinationAccountId, transactionType]);
 
   function handleError(error: unknown) {
-    if (error instanceof CashioValidationError) {
-      setMessage(error.message);
-      return;
-    }
-    setMessage("No se pudo completar la acción.");
+    setMessage(translateError(error, t));
   }
 
   function resetForm() {
@@ -364,12 +366,12 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
         setSelectedCategoryId(existingCategory.id);
         setCategorySearch("");
         setIsCategoryOpen(false);
-        setMessage(`Categoría "${existingCategory.description}" seleccionada.`);
+        setMessage(t("transaction.categorySelected", { name: existingCategory.description }));
         return;
       }
 
       setMessage(
-        `La categoría "${existingCategory.description}" no aplica para este tipo de registro.`,
+        t("transaction.categoryNotApplicable", { name: existingCategory.description }),
       );
       return;
     }
@@ -390,7 +392,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
         setSelectedCategoryId(created.id);
         setCategorySearch("");
         setIsCategoryOpen(false);
-        setMessage(`Categoría "${created.description}" creada y seleccionada.`);
+        setMessage(t("transaction.categoryCreated", { name: created.description }));
       }
     } catch (error) {
       handleError(error);
@@ -416,7 +418,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
       );
       setTagSearch("");
       setIsTagsOpen(false);
-      setMessage(`Tag "${existingTag.description}" seleccionado.`);
+      setMessage(t("transaction.tagSelected", { name: existingTag.description }));
       return;
     }
 
@@ -435,7 +437,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
         );
         setTagSearch("");
         setIsTagsOpen(false);
-        setMessage(`Tag "${created.description}" creado y seleccionado.`);
+        setMessage(t("transaction.tagCreated", { name: created.description }));
       }
     } catch (error) {
       handleError(error);
@@ -482,7 +484,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
         tagIds: selectedTagIds,
       });
       resetForm();
-      setMessage("Transacción guardada.");
+      setMessage(t("transaction.saved"));
       onSaved?.();
     } catch (error) {
       handleError(error);
@@ -529,7 +531,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
     <ThemedView type="backgroundElement" style={styles.panel}>
       {(isAccountOpen || isCategoryOpen || isDestinationAccountOpen || isTagsOpen) && (
         <Pressable
-          accessibilityLabel="Cerrar selector"
+          accessibilityLabel={t("accessibility.closeSelector")}
           onPress={closeDropdowns}
           style={styles.dropdownBackdrop}
         />
@@ -538,18 +540,18 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
       <ThemedView type="backgroundSelected" style={styles.segmentedControl}>
         <SegmentButton
           active={transactionType === "expense"}
-          label="Egreso"
+          label={t("common.expense")}
           onPress={() => setTransactionType("expense")}
         />
         <SegmentButton
           active={transactionType === "income"}
-          label="Ingreso"
+          label={t("common.income")}
           onPress={() => setTransactionType("income")}
         />
       </ThemedView>
 
       <Field
-        label="Cuenta"
+        label={t("transaction.account")}
         style={[styles.dropdownField, { zIndex: isAccountOpen ? 40 : 10 }]}
       >
         <DropDownPicker<DropdownValue>
@@ -593,7 +595,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
             setIsTagsOpen(false);
           }}
           open={isAccountOpen}
-          placeholder="Seleccionar cuenta"
+          placeholder={t("transaction.selectAccount")}
           placeholderStyle={{ color: theme.textSecondary }}
           selectedItemContainerStyle={{
             backgroundColor: theme.backgroundSelected,
@@ -615,9 +617,9 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
         />
       </Field>
 
-      <Field label="Monto">
+      <Field label={t("transaction.amount")}>
         <CurrencyInput
-          delimiter="."
+          delimiter={numberSeparators.delimiter}
           keyboardType="numeric"
           minValue={0}
           onChangeValue={setAmount}
@@ -625,7 +627,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           placeholderTextColor={theme.textSecondary}
           precision={0}
           prefix="$ "
-          separator=","
+          separator={numberSeparators.separator}
           style={[
             styles.input,
             { color: theme.text, borderColor: theme.backgroundSelected },
@@ -634,9 +636,9 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
         />
       </Field>
 
-      <Field label="Fecha">
+      <Field label={t("transaction.date")}>
         <Pressable
-          accessibilityLabel="Seleccionar fecha de la transacción"
+          accessibilityLabel={t("accessibility.selectTransactionDate")}
           onPress={openDatePicker}
           style={({ pressed }) => pressed && styles.pressed}
         >
@@ -668,24 +670,24 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
                 onPress={() => setIsDatePickerOpen(false)}
                 style={({ pressed }) => [styles.datePickerAction, pressed && styles.pressed]}
               >
-                <ThemedText type="smallBold">Cancelar</ThemedText>
+                <ThemedText type="smallBold">{t("common.cancel")}</ThemedText>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
                 onPress={applyDraftDate}
                 style={({ pressed }) => [styles.datePickerAction, pressed && styles.pressed]}
               >
-                <ThemedText type="smallBold">Aplicar</ThemedText>
+                <ThemedText type="smallBold">{t("common.apply")}</ThemedText>
               </Pressable>
             </View>
           </ThemedView>
         )}
       </Field>
 
-      <Field label="Descripción">
+      <Field label={t("transaction.description")}>
         <TextInput
           onChangeText={setDescription}
-          placeholder="Opcional"
+          placeholder={t("common.optional")}
           placeholderTextColor={theme.textSecondary}
           style={[
             styles.input,
@@ -696,7 +698,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
       </Field>
 
       <Field
-        label="Categoría"
+        label={t("transaction.category")}
         style={[styles.dropdownField, { zIndex: isCategoryOpen ? 30 : 10 }]}
       >
         <DropDownPicker<DropdownValue>
@@ -749,11 +751,11 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           }}
           onSelectItem={handleSelectCategory}
           open={isCategoryOpen}
-          placeholder="Buscar o seleccionar categoría"
+          placeholder={t("transaction.searchOrSelectCategory")}
           placeholderStyle={{ color: theme.textSecondary }}
           renderListItem={(props) => (
             <DropdownListItem
-              createLabel="Crear categoría"
+              createLabel={t("transaction.createCategory")}
               isCreatingCustomItem={isCreatingCategory}
               itemProps={props}
               onCreateCustomItem={(value) =>
@@ -761,7 +763,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
               }
             />
           )}
-          searchPlaceholder="Buscar categoría"
+          searchPlaceholder={t("transaction.searchCategory")}
           searchPlaceholderTextColor={theme.textSecondary}
           searchable
           searchTextInputProps={{ value: categorySearch }}
@@ -794,7 +796,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
 
       {transactionType === "expense" && (
         <Field
-          label="Cuenta destino"
+          label={t("transaction.destinationAccount")}
           style={[
             styles.dropdownField,
             { zIndex: isDestinationAccountOpen ? 30 : 10 },
@@ -841,7 +843,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
               setIsTagsOpen(false);
             }}
             open={isDestinationAccountOpen}
-            placeholder="Opcional: traslado a otra cuenta"
+            placeholder={t("transaction.optionalTransfer")}
             placeholderStyle={{ color: theme.textSecondary }}
             selectedItemContainerStyle={{
               backgroundColor: theme.backgroundSelected,
@@ -865,7 +867,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
       )}
 
       <Field
-        label="Tags"
+        label={t("common.tags")}
         style={[styles.dropdownField, { zIndex: isTagsOpen ? 30 : 10 }]}
       >
         <DropDownPicker<DropdownValue>
@@ -920,7 +922,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           modalContentContainerStyle={dropdownModalContentStyle}
           mode="BADGE"
           multiple
-          multipleText={`${selectedTagIds.length} tags seleccionados`}
+          multipleText={t("transaction.selectedTags", { count: selectedTagIds.length })}
           onChangeSearchText={setTagSearch}
           onOpen={() => {
             setIsAccountOpen(false);
@@ -929,17 +931,17 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           }}
           onSelectItem={handleSelectTags}
           open={isTagsOpen}
-          placeholder="Buscar o seleccionar tags"
+          placeholder={t("transaction.searchOrSelectTags")}
           placeholderStyle={{ color: theme.textSecondary }}
           renderListItem={(props) => (
             <DropdownListItem
-              createLabel="Crear tag"
+              createLabel={t("transaction.createTag")}
               isCreatingCustomItem={isCreatingTag}
               itemProps={props}
               onCreateCustomItem={(value) => void handleCreateTagFromText(value)}
             />
           )}
-          searchPlaceholder="Buscar tag"
+          searchPlaceholder={t("transaction.searchTag")}
           searchPlaceholderTextColor={theme.textSecondary}
           searchable
           searchTextInputProps={{ value: tagSearch }}
@@ -985,7 +987,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
 
       <ActionButton
         disabled={isSaving || isLoading}
-        label={isSaving ? "Guardando..." : "Guardar transacción"}
+        label={isSaving ? t("common.saving") : t("transaction.save")}
         onPress={handleSaveTransaction}
         primary
       />
@@ -1004,13 +1006,14 @@ function DropdownListItem({
   itemProps: RenderListItemPropsInterface<DropdownValue>;
   onCreateCustomItem?: (value: string) => void;
 }) {
+  const { t } = useTranslation();
   const disabled =
     itemProps.disabled ||
     itemProps.selectable === false ||
     (itemProps.custom && isCreatingCustomItem);
   const displayLabel = itemProps.custom
     ? isCreatingCustomItem
-      ? "Creando..."
+      ? t("transaction.creating")
       : `${createLabel} "${itemProps.label.trim()}"`
     : itemProps.label;
   const isBusy = !!(itemProps.custom && isCreatingCustomItem);

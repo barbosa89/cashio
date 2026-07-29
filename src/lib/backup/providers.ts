@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { AppError } from '@/i18n/errors';
 import type { BackupProvider, BackupProviderId } from '@/lib/backup/types';
 
 type GoogleDriveProviderModule = {
@@ -13,17 +14,17 @@ type ICloudProviderModule = {
 declare const require: (moduleName: string) => unknown;
 
 function createUnavailableProvider(providerId: BackupProviderId, label: string, reason: unknown): BackupProvider {
-  const detail = reason instanceof Error ? reason.message : 'El módulo nativo no está disponible.';
-  const message =
-    `${label} no está disponible en esta build. ` +
-    'Reconstruye la app después de instalar los paquetes nativos. ' +
-    detail;
+  const unavailableError = () =>
+    new AppError(
+      { code: 'nativeModuleUnavailable', values: { provider: label } },
+      { cause: reason },
+    );
 
   return {
     id: providerId,
     label,
     async connect() {
-      throw new Error(message);
+      throw unavailableError();
     },
     async disconnect() {
       return;
@@ -32,10 +33,10 @@ function createUnavailableProvider(providerId: BackupProviderId, label: string, 
       return false;
     },
     async upload() {
-      throw new Error(message);
+      throw unavailableError();
     },
     async downloadLatest() {
-      throw new Error(message);
+      throw unavailableError();
     },
   };
 }

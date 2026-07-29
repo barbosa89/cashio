@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { AdminIndexShell } from '@/components/admin-index-shell';
 import { AppIcon } from '@/components/app-icon';
@@ -9,24 +10,25 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useCashioData } from '@/hooks/use-cashio-data';
 import { useTheme } from '@/hooks/use-theme';
-import { CashioValidationError } from '@/lib/cashio-repository';
+import { translateError } from '@/i18n/errors';
 import type { Category, CategoryType } from '@/lib/database';
 
 function matchesSearch(value: string, search: string) {
   return value.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
 }
 
-function categoryTypeLabel(type: CategoryType | null) {
+function categoryTypeLabel(type: CategoryType | null, t: ReturnType<typeof useTranslation>['t']) {
   if (type === 'income') {
-    return 'Ingreso';
+    return t('admin.categoryIncome');
   }
   if (type === 'expense') {
-    return 'Egreso';
+    return t('admin.categoryExpense');
   }
-  return 'Ambas';
+  return t('admin.categoryBoth');
 }
 
 export default function CategoriesIndexScreen() {
+  const { t } = useTranslation();
   const { categories, removeCategory } = useCashioData();
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
@@ -40,25 +42,21 @@ export default function CategoriesIndexScreen() {
     setMessage('');
     try {
       await removeCategory(category.id);
-      setMessage('Categoría eliminada.');
+      setMessage(t('admin.categoryDeleted'));
     } catch (error) {
-      if (error instanceof CashioValidationError) {
-        setMessage(error.message);
-        return;
-      }
-      setMessage('No se pudo eliminar la categoría.');
+      setMessage(translateError(error, t));
     }
   }
 
   return (
     <AdminIndexShell
       ctaHref="/categories/new"
-      ctaLabel="Agregar categoría"
-      emptyText="No hay categorías."
+      ctaLabel={t('admin.addCategory')}
+      emptyText={t('admin.noCategories')}
       hasRows={!!message || visibleCategories.length > 0}
       search={search}
       setSearch={setSearch}
-      title="Categorías">
+      title={t('navigation.categories')}>
       {!!message && (
         <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
           {message}
@@ -73,6 +71,7 @@ export default function CategoriesIndexScreen() {
 
 function CategoryRow({ category, onDelete }: { category: Category; onDelete: () => void }) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const canDelete = category.transaction_count === 0;
 
   return (
@@ -83,11 +82,11 @@ function CategoryRow({ category, onDelete }: { category: Category; onDelete: () 
         </ThemedText>
       </View>
       <ThemedText type="smallBold" style={styles.typeText}>
-        {categoryTypeLabel(category.type)}
+        {categoryTypeLabel(category.type, t)}
       </ThemedText>
       <View style={styles.rowActions}>
         <Pressable
-          accessibilityLabel={`Editar ${category.description}`}
+          accessibilityLabel={t('accessibility.editNamed', { name: category.description })}
           onPress={() =>
             router.push({
               pathname: '/categories/[id]/edit',
@@ -98,7 +97,7 @@ function CategoryRow({ category, onDelete }: { category: Category; onDelete: () 
           <AppIcon color={theme.text} name="edit-2" size={18} />
         </Pressable>
         <Pressable
-          accessibilityLabel={`Eliminar ${category.description}`}
+          accessibilityLabel={t('accessibility.deleteNamed', { name: category.description })}
           disabled={!canDelete}
           onPress={onDelete}
           style={({ pressed }) => [styles.iconAction, pressed && styles.pressed, !canDelete && styles.disabled]}>

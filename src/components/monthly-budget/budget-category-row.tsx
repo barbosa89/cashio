@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "@/i18n/localization-provider";
 import { Pressable, StyleSheet, View, type DimensionValue } from "react-native";
 import CurrencyInput from "react-native-currency-input";
 
@@ -7,6 +8,8 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { getNumberSeparators } from "@/i18n/formatters";
+import { useLocalization } from "@/i18n/localization-provider";
 import type { MonthlyBudgetItem } from "@/lib/database";
 
 import { formatBudgetMoney, getBudgetStatus } from "./budget-formatters";
@@ -25,11 +28,18 @@ export function BudgetCategoryRow({
   readOnly = false,
 }: BudgetCategoryRowProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
+  const { languageTag } = useLocalization();
+  const numberSeparators = getNumberSeparators(languageTag);
   const [draftAmount, setDraftAmount] = useState<number | null>(
     item.planned_amount,
   );
   const [isEditing, setIsEditing] = useState(false);
-  const status = getBudgetStatus(item);
+  const status = getBudgetStatus(item, {
+    nearLimit: t("budget.nearLimit"),
+    onTrack: t("budget.onTrack"),
+    overBudget: t("budget.overBudget"),
+  });
   const progressWidth: DimensionValue = `${Math.min(
     Math.max(status.progress * 100, item.spent_amount > 0 ? 4 : 0),
     100,
@@ -83,11 +93,13 @@ export function BudgetCategoryRow({
 
         {readOnly ? (
           <ThemedText type="smallBold" style={styles.readOnlyAmount}>
-            $ {formatBudgetMoney(item.planned_amount)}
+            $ {formatBudgetMoney(item.planned_amount, languageTag)}
           </ThemedText>
         ) : (
           <Pressable
-            accessibilityLabel={`Quitar ${item.category_description} del presupuesto`}
+            accessibilityLabel={t("accessibility.removeBudgetCategory", {
+              name: item.category_description,
+            })}
             accessibilityRole="button"
             onPress={() => onRemoveCategory(item)}
             style={({ pressed }) => pressed && styles.pressed}
@@ -102,7 +114,7 @@ export function BudgetCategoryRow({
       {!readOnly && (
         <View style={styles.amountRow}>
           <CurrencyInput
-            delimiter="."
+            delimiter={numberSeparators.delimiter}
             editable={isEditing}
             key={isEditing ? "budget-amount-edit" : "budget-amount-display"}
             keyboardType="numeric"
@@ -114,7 +126,7 @@ export function BudgetCategoryRow({
             precision={0}
             prefix={isEditing ? "" : "$ "}
             returnKeyType="done"
-            separator=","
+            separator={numberSeparators.separator}
             style={[
               styles.input,
               {
@@ -130,8 +142,8 @@ export function BudgetCategoryRow({
           <Pressable
             accessibilityLabel={
               isEditing
-                ? `Guardar presupuesto de ${item.category_description}`
-                : `Editar presupuesto de ${item.category_description}`
+                ? t("budget.saveNamed", { name: item.category_description })
+                : t("budget.editNamed", { name: item.category_description })
             }
             accessibilityRole="button"
             onPress={handleEditAmount}
@@ -154,10 +166,12 @@ export function BudgetCategoryRow({
           themeColor="textSecondary"
           style={styles.metaText}
         >
-          Gastado: $ {formatBudgetMoney(item.spent_amount)}
+          {t("budget.spent")}: ${" "}
+          {formatBudgetMoney(item.spent_amount, languageTag)}
         </ThemedText>
         <ThemedText type="smallBold" style={styles.metaText}>
-          Disponible: $ {formatBudgetMoney(item.remaining_amount)}
+          {t("budget.available")}: ${" "}
+          {formatBudgetMoney(item.remaining_amount, languageTag)}
         </ThemedText>
       </View>
 

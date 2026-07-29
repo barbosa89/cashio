@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AppPalette, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { translateError, translateErrorDescriptor } from '@/i18n/errors';
+import { capitalizeLocalized, formatMonthName } from '@/i18n/formatters';
+import { useLocalization } from '@/i18n/localization-provider';
 import type { MonthlySummaryRow, Transaction } from '@/lib/database';
 import {
   buildMonthlyReportCsv,
@@ -26,21 +30,6 @@ type ReportExportPanelProps = {
 
 type RangeBoundary = keyof MonthlyReportRange;
 
-const MONTH_LABELS = [
-  'Enero',
-  'Febrero',
-  'Marzo',
-  'Abril',
-  'Mayo',
-  'Junio',
-  'Julio',
-  'Agosto',
-  'Septiembre',
-  'Octubre',
-  'Noviembre',
-  'Diciembre',
-] as const;
-
 function monthKey(year: number, month: number) {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
@@ -52,6 +41,8 @@ export function ReportExportPanel({
   monthlySummaries,
   transactions,
 }: ReportExportPanelProps) {
+  const { languageTag } = useLocalization();
+  const { t } = useTranslation();
   const currentMonth = getCurrentMonthKey();
   const currentYear = Number(currentMonth.slice(0, 4));
   const [range, setRange] = useState<MonthlyReportRange>({
@@ -62,13 +53,16 @@ export function ReportExportPanel({
   const [pickerYear, setPickerYear] = useState(currentYear);
   const [isExporting, setIsExporting] = useState(false);
   const [message, setMessage] = useState('');
-  const validationMessage = validateMonthlyReportRange(range, currentMonth);
-  const isExportDisabled = isLoading || isExporting || !!validationMessage;
+  const validationError = validateMonthlyReportRange(range, currentMonth);
+  const validationMessage = validationError
+    ? translateErrorDescriptor(validationError, t)
+    : '';
+  const isExportDisabled = isLoading || isExporting || !!validationError;
   const exportButtonLabel = isLoading
-    ? 'Cargando datos...'
+    ? t('reports.loadingData')
     : isExporting
-      ? 'Generando...'
-      : 'Exportar CSV';
+      ? t('reports.generating')
+      : t('reports.export');
   const minimumYear = useMemo(
     () =>
       transactions.reduce((earliestYear, transaction) => {
@@ -104,7 +98,7 @@ export function ReportExportPanel({
       return;
     }
 
-    if (validationMessage) {
+    if (validationError) {
       setMessage(validationMessage);
       return;
     }
@@ -116,18 +110,15 @@ export function ReportExportPanel({
       const report = buildMonthlyReportCsv({
         currentMonth,
         initialBalance,
+        localization: { locale: languageTag, t },
         monthlySummaries,
         range,
         transactions,
       });
       await exportMonthlyReportFile(report);
-      const transactionLabel =
-        report.transactionCount === 1 ? '1 transacción' : `${report.transactionCount} transacciones`;
-      setMessage(`Reporte generado con ${transactionLabel}.`);
+      setMessage(t('reports.generated', { count: report.transactionCount }));
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : 'No se pudo generar el reporte CSV.'
-      );
+      setMessage(translateError(error, t));
     } finally {
       setIsExporting(false);
     }
@@ -138,22 +129,22 @@ export function ReportExportPanel({
       <ThemedView type="backgroundElement" style={styles.panel}>
         <View style={styles.intro}>
           <ThemedText type="smallBold" style={styles.title}>
-            Exportar movimientos
+            {t('reports.exportMovements')}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Selecciona un rango mensual para generar un archivo CSV.
+            {t('reports.description')}
           </ThemedText>
         </View>
 
         <MonthField
-          label="Mes inicial"
+          label={t('reports.startMonth')}
           onPress={() => openMonthPicker('startMonth')}
-          value={formatReportMonth(range.startMonth)}
+          value={formatReportMonth(range.startMonth, languageTag)}
         />
         <MonthField
-          label="Mes final"
+          label={t('reports.endMonth')}
           onPress={() => openMonthPicker('endMonth')}
-          value={formatReportMonth(range.endMonth)}
+          value={formatReportMonth(range.endMonth, languageTag)}
         />
 
         {!!validationMessage && (
@@ -246,6 +237,14 @@ function MonthPickerModal({
   year: number;
 }) {
   const theme = useTheme();
+  const { languageTag } = useLocalization();
+  const { t } = useTranslation();
+  const monthLabels = Array.from({ length: 12 }, (_, index) =>
+    capitalizeLocalized(
+      formatMonthName(year, index + 1, languageTag),
+      languageTag,
+    ),
+  );
 
   return (
     <Modal
@@ -257,7 +256,7 @@ function MonthPickerModal({
     >
       <View style={styles.modalBackdrop}>
         <Pressable
-          accessibilityLabel="Cerrar selector de mes"
+          accessibilityLabel={t('accessibility.closeMonthSelector')}
           accessibilityRole="button"
           onPress={onClose}
           style={styles.modalDismissArea}
@@ -269,7 +268,7 @@ function MonthPickerModal({
           >
             <View style={styles.yearSelector}>
               <Pressable
-                accessibilityLabel="Año anterior"
+                accessibilityLabel={t('accessibility.previousYear')}
                 accessibilityRole="button"
                 disabled={year <= minimumYear}
                 onPress={() => onChangeYear(year - 1)}
@@ -285,7 +284,7 @@ function MonthPickerModal({
                 {year}
               </ThemedText>
               <Pressable
-                accessibilityLabel="Año siguiente"
+                accessibilityLabel={t('accessibility.nextYear')}
                 accessibilityRole="button"
                 disabled={year >= maximumYear}
                 onPress={() => onChangeYear(year + 1)}
@@ -300,7 +299,7 @@ function MonthPickerModal({
             </View>
 
             <View style={styles.monthGrid}>
-              {MONTH_LABELS.map((label, index) => {
+              {monthLabels.map((label, index) => {
                 const value = monthKey(year, index + 1);
                 const isDisabled = value > currentMonth;
                 const isSelected = value === selectedMonth;
@@ -335,7 +334,7 @@ function MonthPickerModal({
               style={({ pressed }) => pressed && styles.pressed}
             >
               <ThemedView type="backgroundSelected" style={styles.closeButton}>
-                <ThemedText type="smallBold">Cancelar</ThemedText>
+                <ThemedText type="smallBold">{t('common.cancel')}</ThemedText>
               </ThemedView>
             </Pressable>
           </ThemedView>

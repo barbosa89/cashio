@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { AccountEditor } from '@/components/account-editor';
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +9,7 @@ import { Spacing } from '@/constants/theme';
 import { useCashioData } from '@/hooks/use-cashio-data';
 
 export default function EditAccountScreen() {
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{ id: string }>();
   const accountId = Number(params.id);
   const { accounts, isLoading } = useCashioData();
@@ -16,10 +18,10 @@ export default function EditAccountScreen() {
   if (!account && !isLoading) {
     return (
       <ThemedView style={styles.centered}>
-        <ThemedText type="subtitle">Cuenta no encontrada.</ThemedText>
+        <ThemedText type="subtitle">{t('admin.accountNotFound')}</ThemedText>
         <Pressable onPress={() => router.replace('/accounts')} style={({ pressed }) => pressed && styles.pressed}>
           <ThemedView type="backgroundSelected" style={styles.backLink}>
-            <ThemedText type="smallBold">Volver a cuentas</ThemedText>
+            <ThemedText type="smallBold">{t('accessibility.backToAccounts')}</ThemedText>
           </ThemedView>
         </Pressable>
       </ThemedView>

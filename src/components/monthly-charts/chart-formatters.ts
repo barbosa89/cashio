@@ -1,4 +1,5 @@
 import type { MonthlySummaryRow } from '@/lib/database';
+import { capitalizeLocalized, formatCompactNumber, formatMonthName, formatNumber } from '@/i18n/formatters';
 
 export type CategoryChartPoint = {
   amount: number;
@@ -27,54 +28,20 @@ export const CHART_CATEGORY_COLORS = [
   '#eab308',
 ];
 
-const MONTH_SHORT_LABELS = [
-  'Ene',
-  'Feb',
-  'Mar',
-  'Abr',
-  'May',
-  'Jun',
-  'Jul',
-  'Ago',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dic',
-];
-
-function formatCompactUnit(value: number, unit: number, suffix: string) {
-  const compactValue = value / unit;
-  const maximumFractionDigits = Number.isInteger(compactValue) ? 0 : 1;
-  const formatted = new Intl.NumberFormat('es-CO', {
-    maximumFractionDigits,
-  }).format(compactValue);
-
-  return `${formatted}${suffix}`;
+export function formatMoney(value: number, locale: string) {
+  return formatNumber(value, locale);
 }
 
-export function formatMoney(value: number) {
-  return new Intl.NumberFormat('es-CO', {
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-export function formatCompactAmount(value: number) {
-  const absoluteValue = Math.abs(value);
-
-  if (absoluteValue >= 1_000_000) {
-    return formatCompactUnit(value, 1_000_000, 'M');
-  }
-
-  if (absoluteValue >= 1_000) {
-    return formatCompactUnit(value, 1_000, 'K');
-  }
-
-  return formatMoney(value);
+export function formatCompactAmount(value: number, locale: string) {
+  return Math.abs(value) >= 1_000
+    ? formatCompactNumber(value, locale)
+    : formatMoney(value, locale);
 }
 
 export function getTopCategoriesWithOther(
   categoryData: CategoryChartPoint[],
-  limit: number
+  limit: number,
+  otherLabel: string,
 ): CategoryChartPoint[] {
   if (categoryData.length <= limit) {
     return categoryData;
@@ -90,14 +57,15 @@ export function getTopCategoriesWithOther(
     {
       amount: otherAmount,
       color: CHART_CATEGORY_COLORS[limit % CHART_CATEGORY_COLORS.length],
-      label: 'Otros',
+      label: otherLabel,
     },
   ];
 }
 
 export function buildAnnualIncomeExpenseSeries(
   monthlySummaries: MonthlySummaryRow[],
-  year: number
+  year: number,
+  locale: string,
 ): AnnualChartPoint[] {
   const summariesByMonth = new Map<string, MonthlySummaryRow>();
   const yearPrefix = `${year}-`;
@@ -117,7 +85,7 @@ export function buildAnnualIncomeExpenseSeries(
     data.push({
       expense: summary?.expense_total ?? 0,
       income: summary?.income_total ?? 0,
-      label: MONTH_SHORT_LABELS[month - 1],
+      label: capitalizeLocalized(formatMonthName(year, month, locale, 'short'), locale),
       month,
     });
   }

@@ -2,6 +2,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 
+import { AppError } from '@/i18n/errors';
 import type { BackupFileMetadata, BackupProvider, CloudBackup } from '@/lib/backup/types';
 
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
@@ -19,7 +20,7 @@ type DriveFile = {
 
 function assertAndroid() {
   if (Platform.OS !== 'android') {
-    throw new Error('Google Drive se usa solo en Android.');
+    throw new AppError({ code: 'driveAndroidOnly' });
   }
 }
 
@@ -37,7 +38,7 @@ async function getAccessToken() {
   if (silentResponse.type === 'noSavedCredentialFound') {
     const signInResponse = await GoogleSignin.signIn();
     if (signInResponse.type !== 'success') {
-      throw new Error('Inicio de sesión cancelado.');
+      throw new AppError({ code: 'signInCancelled' });
     }
   }
 
@@ -56,7 +57,12 @@ async function driveFetch<T>(url: string, token: string, init?: RequestInit): Pr
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(body || `Google Drive respondió ${response.status}.`);
+    throw new AppError(
+      { code: 'generic' },
+      {
+        cause: new Error(body || `Google Drive responded with status ${response.status}.`),
+      }
+    );
   }
 
   return response.json() as Promise<T>;
@@ -146,7 +152,14 @@ async function updateDriveFile(fileId: string, token: string, localUri: string) 
   );
 
   if (uploadResult.status < 200 || uploadResult.status >= 300) {
-    throw new Error(uploadResult.body || `Google Drive respondió ${uploadResult.status}.`);
+    throw new AppError(
+      { code: 'generic' },
+      {
+        cause: new Error(
+          uploadResult.body || `Google Drive responded with status ${uploadResult.status}.`
+        ),
+      }
+    );
   }
 }
 
@@ -168,7 +181,7 @@ export const googleDriveBackupProvider: BackupProvider = {
     assertAndroid();
 
     if (!backup.localUri) {
-      throw new Error('No se encontró el archivo local para subir.');
+      throw new AppError({ code: 'localFileMissing' });
     }
 
     const token = await getAccessToken();

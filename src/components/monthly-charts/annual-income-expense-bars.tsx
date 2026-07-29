@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { StyleSheet, View, type DimensionValue } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { ThemedText } from '@/components/themed-text';
 import { AppPalette, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useLocalization } from '@/i18n/localization-provider';
 import type { MonthlySummaryRow } from '@/lib/database';
 
 import { ChartCard } from './chart-card';
@@ -24,9 +26,11 @@ export function AnnualIncomeExpenseBars({
   monthlySummaries,
   year,
 }: AnnualIncomeExpenseBarsProps) {
+  const { languageTag } = useLocalization();
+  const { t } = useTranslation();
   const data = useMemo(
-    () => buildAnnualIncomeExpenseSeries(monthlySummaries, year),
-    [monthlySummaries, year]
+    () => buildAnnualIncomeExpenseSeries(monthlySummaries, year, languageTag),
+    [languageTag, monthlySummaries, year]
   );
   const maxValue = useMemo(() => getAnnualMaxValue(data), [data]);
 
@@ -37,7 +41,7 @@ export function AnnualIncomeExpenseBars({
   const ticks = buildAnnualAxisTicks(maxValue);
 
   return (
-    <ChartCard title={`Ingresos y egresos ${year}`}>
+    <ChartCard title={t('charts.annualTitle', { year })}>
       <AnnualLegend />
       <View style={styles.chartBody}>
         <View style={styles.axis}>
@@ -48,7 +52,7 @@ export function AnnualIncomeExpenseBars({
               themeColor="textSecondary"
               style={styles.axisLabel}
             >
-              {formatCompactAmount(tick)}
+              {formatCompactAmount(tick, languageTag)}
             </ThemedText>
           ))}
         </View>
@@ -66,20 +70,22 @@ export function AnnualIncomeExpenseBars({
 }
 
 function AnnualEmptyChart({ year }: { year: number }) {
+  const { t } = useTranslation();
   return (
-    <ChartCard title={`Ingresos y egresos ${year}`}>
+    <ChartCard title={t('charts.annualTitle', { year })}>
       <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-        Sin movimientos en {year}.
+        {t('charts.noMovements', { year })}
       </ThemedText>
     </ChartCard>
   );
 }
 
 function AnnualLegend() {
+  const { t } = useTranslation();
   return (
     <View style={styles.legend}>
-      <LegendItem color={AppPalette.incomeGreen} label="Ingresos" />
-      <LegendItem color={AppPalette.brandOrange} label="Egresos" />
+      <LegendItem color={AppPalette.incomeGreen} label={t('charts.income')} />
+      <LegendItem color={AppPalette.brandOrange} label={t('charts.expenses')} />
     </View>
   );
 }
@@ -117,6 +123,8 @@ function AnnualMonthBars({
   item: AnnualChartPoint;
   maxValue: number;
 }) {
+  const { languageTag } = useLocalization();
+  const { t } = useTranslation();
   const incomeHeight = getBarHeight(item.income, maxValue);
   const expenseHeight = getBarHeight(item.expense, maxValue);
 
@@ -124,14 +132,20 @@ function AnnualMonthBars({
     <View style={styles.monthGroup}>
       <View style={styles.barGroup}>
         <View
-          accessibilityLabel={`${item.label} ingresos ${formatCompactAmount(item.income)}`}
+          accessibilityLabel={t('charts.accessibleIncome', {
+            amount: formatCompactAmount(item.income, languageTag),
+            month: item.label,
+          })}
           style={[
             styles.monthBar,
             { backgroundColor: AppPalette.incomeGreen, height: incomeHeight },
           ]}
         />
         <View
-          accessibilityLabel={`${item.label} egresos ${formatCompactAmount(item.expense)}`}
+          accessibilityLabel={t('charts.accessibleExpenses', {
+            amount: formatCompactAmount(item.expense, languageTag),
+            month: item.label,
+          })}
           style={[
             styles.monthBar,
             { backgroundColor: AppPalette.brandOrange, height: expenseHeight },

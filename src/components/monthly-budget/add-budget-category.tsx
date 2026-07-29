@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from '@/i18n/localization-provider';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
@@ -15,6 +16,7 @@ type AddBudgetCategoryProps = {
 
 export function AddBudgetCategory({ availableCategories, onAddCategory }: AddBudgetCategoryProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const hasAvailableCategories = availableCategories.length > 0;
 
@@ -34,7 +36,7 @@ export function AddBudgetCategory({ availableCategories, onAddCategory }: AddBud
         <ThemedView type="backgroundSelected" style={styles.addButton}>
           <AppIcon color={hasAvailableCategories ? AppPalette.incomeGreen : theme.textSecondary} name="plus" size={18} />
           <ThemedText type="smallBold" themeColor={hasAvailableCategories ? 'text' : 'textSecondary'}>
-            Agregar categoría
+            {t('budget.addCategory')}
           </ThemedText>
         </ThemedView>
       </Pressable>
@@ -44,10 +46,10 @@ export function AddBudgetCategory({ availableCategories, onAddCategory }: AddBud
           <ThemedView type="background" style={styles.modalPanel}>
             <View style={styles.modalHeader}>
               <ThemedText type="subtitle" style={styles.modalTitle}>
-                Agregar categoría
+                {t('budget.addCategory')}
               </ThemedText>
               <Pressable
-                accessibilityLabel="Cerrar"
+                accessibilityLabel={t('common.close')}
                 accessibilityRole="button"
                 onPress={() => setIsOpen(false)}
                 style={({ pressed }) => pressed && styles.pressed}

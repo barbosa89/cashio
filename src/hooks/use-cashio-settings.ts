@@ -1,6 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import {
   getAppSettings,
@@ -15,6 +16,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 export function useCashioSettings() {
   const db = useSQLiteContext();
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -24,11 +26,11 @@ export function useCashioSettings() {
       setSettings(await getAppSettings(db));
       setErrorMessage('');
     } catch {
-      setErrorMessage('No se pudieron cargar las configuraciones.');
+      setErrorMessage(t('errors.settingsLoad'));
     } finally {
       setIsLoading(false);
     }
-  }, [db]);
+  }, [db, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -49,10 +51,10 @@ export function useCashioSettings() {
         await updateSetting(db, key, value);
       } catch {
         setSettings(previousSettings);
-        setErrorMessage('No se pudo guardar la configuración.');
+        setErrorMessage(t('errors.settingsSave'));
       }
     },
-    [db, settings]
+    [db, settings, t]
   );
 
   const setAccumulatePreviousBalances = useCallback(

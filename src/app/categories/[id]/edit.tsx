@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { CategoryEditor } from '@/components/category-editor';
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +9,7 @@ import { Spacing } from '@/constants/theme';
 import { useCashioData } from '@/hooks/use-cashio-data';
 
 export default function EditCategoryScreen() {
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{ id?: string }>();
   const { categories, isLoading } = useCashioData();
   const categoryId = Number(params.id);
@@ -17,10 +19,10 @@ export default function EditCategoryScreen() {
     return (
       <ThemedView style={styles.notFound}>
         <View style={styles.notFoundContent}>
-          <ThemedText type="subtitle">Categoría no encontrada</ThemedText>
+          <ThemedText type="subtitle">{t('admin.categoryNotFound')}</ThemedText>
           <Pressable onPress={() => router.replace('/categories')} style={({ pressed }) => pressed && styles.pressed}>
             <ThemedView type="backgroundElement" style={styles.backButton}>
-              <ThemedText type="smallBold">Volver a categorías</ThemedText>
+              <ThemedText type="smallBold">{t('accessibility.backToCategories')}</ThemedText>
             </ThemedView>
           </Pressable>
         </View>

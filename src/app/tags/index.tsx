@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { AdminIndexShell } from '@/components/admin-index-shell';
 import { AppIcon } from '@/components/app-icon';
@@ -9,7 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useCashioData } from '@/hooks/use-cashio-data';
 import { useTheme } from '@/hooks/use-theme';
-import { CashioValidationError } from '@/lib/cashio-repository';
+import { translateError } from '@/i18n/errors';
 import type { Tag } from '@/lib/database';
 
 function matchesSearch(value: string, search: string) {
@@ -17,6 +18,7 @@ function matchesSearch(value: string, search: string) {
 }
 
 export default function TagsIndexScreen() {
+  const { t } = useTranslation();
   const { removeTag, tags } = useCashioData();
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
@@ -30,25 +32,21 @@ export default function TagsIndexScreen() {
     setMessage('');
     try {
       await removeTag(tag.id);
-      setMessage('Tag eliminado.');
+      setMessage(t('admin.tagDeleted'));
     } catch (error) {
-      if (error instanceof CashioValidationError) {
-        setMessage(error.message);
-        return;
-      }
-      setMessage('No se pudo eliminar el tag.');
+      setMessage(translateError(error, t));
     }
   }
 
   return (
     <AdminIndexShell
       ctaHref="/tags/new"
-      ctaLabel="Agregar tag"
-      emptyText="No hay tags."
+      ctaLabel={t('admin.addTag')}
+      emptyText={t('admin.noTags')}
       hasRows={!!message || visibleTags.length > 0}
       search={search}
       setSearch={setSearch}
-      title="Tags">
+      title={t('navigation.tags')}>
       {!!message && (
         <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
           {message}
@@ -63,6 +61,7 @@ export default function TagsIndexScreen() {
 
 function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const canDelete = tag.transaction_count === 0;
 
   return (
@@ -73,11 +72,11 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
         </ThemedText>
       </View>
       <ThemedText type="small" themeColor="textSecondary" style={styles.countText}>
-        {tag.transaction_count} tx
+        {t('admin.transactionCount', { count: tag.transaction_count })}
       </ThemedText>
       <View style={styles.rowActions}>
         <Pressable
-          accessibilityLabel={`Editar ${tag.description}`}
+          accessibilityLabel={t('accessibility.editNamed', { name: tag.description })}
           onPress={() =>
             router.push({
               pathname: '/tags/[id]/edit',
@@ -88,7 +87,7 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
           <AppIcon color={theme.text} name="edit-2" size={18} />
         </Pressable>
         <Pressable
-          accessibilityLabel={`Eliminar ${tag.description}`}
+          accessibilityLabel={t('accessibility.deleteNamed', { name: tag.description })}
           disabled={!canDelete}
           onPress={onDelete}
           style={({ pressed }) => [styles.iconAction, pressed && styles.pressed, !canDelete && styles.disabled]}>

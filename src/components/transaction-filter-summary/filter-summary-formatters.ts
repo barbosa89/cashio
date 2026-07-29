@@ -1,4 +1,5 @@
 import type { Transaction } from '@/lib/database';
+import { formatNumber } from '@/i18n/formatters';
 
 export type TransactionFilterSummary = {
   expense: number;
@@ -42,8 +43,6 @@ export function buildTransactionFilterSummary(
   };
 }
 
-export function formatFilterSummaryMoney(value: number) {
-  return new Intl.NumberFormat('es-CO', {
-    maximumFractionDigits: 0,
-  }).format(value);
+export function formatFilterSummaryMoney(value: number, locale: string) {
+  return formatNumber(value, locale);
 }

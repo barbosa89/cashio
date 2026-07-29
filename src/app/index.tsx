@@ -7,6 +7,7 @@ import {
     useState,
     type ReactNode,
 } from "react";
+import { useTranslation } from "@/i18n/localization-provider";
 import {
     Alert,
     Platform,
@@ -47,6 +48,11 @@ import { AppPalette, BottomTabInset, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useCashioSettings } from "@/hooks/use-cashio-settings";
 import { useTheme } from "@/hooks/use-theme";
+import {
+  capitalizeLocalized,
+  formatMonthYear,
+} from "@/i18n/formatters";
+import { useLocalization } from "@/i18n/localization-provider";
 import type {
     Account,
     AccountScope,
@@ -107,13 +113,11 @@ function formatMonthKey(visibleMonth: VisibleMonth) {
   return formatMonthPrefix(visibleMonth).slice(0, 7);
 }
 
-function formatMonthLabel(visibleMonth: VisibleMonth) {
-  const date = new Date(visibleMonth.year, visibleMonth.month - 1, 1);
-  const month = new Intl.DateTimeFormat("es-CO", { month: "long" }).format(
-    date,
+function formatMonthLabel(visibleMonth: VisibleMonth, locale: string) {
+  return capitalizeLocalized(
+    formatMonthYear(visibleMonth.year, visibleMonth.month, locale),
+    locale,
   );
-
-  return `${month.charAt(0).toLocaleUpperCase()}${month.slice(1)} ${visibleMonth.year}`;
 }
 
 function groupByCategory(
@@ -217,6 +221,8 @@ function getAccountIdForNewTransaction(
 export default function HomeScreen() {
   const theme = useTheme();
   const navigation = useNavigation<{ openDrawer: () => void }>();
+  const { t } = useTranslation();
+  const { languageTag } = useLocalization();
   const {
     accountBalances,
     accounts,
@@ -258,7 +264,7 @@ export default function HomeScreen() {
   const autoCopiedBudgetKeys = useRef(new Set<string>());
   const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
   const visibleMonthKey = formatMonthKey(visibleMonth);
-  const visibleMonthLabel = formatMonthLabel(visibleMonth);
+  const visibleMonthLabel = formatMonthLabel(visibleMonth, languageTag);
   const shouldAccumulatePreviousBalances = settings.accumulatePreviousBalances;
   const shouldAutoCopyPreviousMonthBudget =
     settings.autoCopyPreviousMonthBudget;
@@ -271,6 +277,8 @@ export default function HomeScreen() {
   const selectedAccountLabel = getAccountScopeLabel(
     accounts,
     selectedAccountScope,
+    t("common.allFeminine"),
+    t("seeds.primaryAccount"),
   );
 
   const visibleMonthlySummaries = useMemo(
@@ -358,8 +366,8 @@ export default function HomeScreen() {
       income,
       openingBalance: initialBalance + previousBalance,
       openingBalanceLabel: shouldAccumulatePreviousBalances
-        ? "Saldo anterior"
-        : "Saldo inicial",
+        ? t("reports.previousBalance")
+        : t("balance.openingBalance"),
       transferIn,
       transferOut,
     };
@@ -367,6 +375,7 @@ export default function HomeScreen() {
     initialBalance,
     previousBalance,
     shouldAccumulatePreviousBalances,
+    t,
     visibleMonthSummary,
   ]);
 
@@ -459,10 +468,10 @@ export default function HomeScreen() {
         );
 
         if (copiedCount > 0) {
-          setBudgetMessage("Presupuesto actualizado desde el mes anterior.");
+          setBudgetMessage(t("budget.updatedFromPrevious"));
         }
       } catch {
-        setBudgetMessage("No se pudo copiar el presupuesto anterior.");
+        setBudgetMessage(t("budget.copyFailed"));
       }
     }
 
@@ -472,6 +481,7 @@ export default function HomeScreen() {
     copyBudgetFromPreviousMonth,
     selectedAccountScope,
     shouldAutoCopyPreviousMonthBudget,
+    t,
     visibleMonth,
     visibleMonthKey,
   ]);
@@ -505,17 +515,14 @@ export default function HomeScreen() {
       await removeTransactions(ids);
       setSelectedTransactionIds([]);
     } catch {
-      setInlineMessage("No se pudieron eliminar los registros.");
+      setInlineMessage(t("dashboard.deleteFailed"));
     }
   }
 
   function handleDeleteSelectedTransactions() {
     const ids = [...selectedTransactionIds];
     const count = ids.length;
-    const message =
-      count === 1
-        ? "¿Quieres eliminar el registro seleccionado?"
-        : `¿Quieres eliminar ${count} registros seleccionados?`;
+    const message = t("dashboard.deleteSelected", { count });
 
     if (count === 0) {
       return;
@@ -528,10 +535,10 @@ export default function HomeScreen() {
       return;
     }
 
-    Alert.alert("Eliminar registros", message, [
-      { text: "Cancelar", style: "cancel" },
+    Alert.alert(t("dashboard.deleteTitle"), message, [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Eliminar",
+        text: t("common.delete"),
         style: "destructive",
         onPress: () => {
           void deleteSelectedTransactions(ids);
@@ -596,7 +603,7 @@ export default function HomeScreen() {
         categoryId,
       );
     } catch {
-      setBudgetMessage("No se pudo agregar la categoría al presupuesto.");
+      setBudgetMessage(t("budget.addFailed"));
     }
   }
 
@@ -614,7 +621,7 @@ export default function HomeScreen() {
         plannedAmount,
       });
     } catch {
-      setBudgetMessage("No se pudo guardar el presupuesto.");
+      setBudgetMessage(t("budget.saveFailed"));
     }
   }
 
@@ -628,15 +635,15 @@ export default function HomeScreen() {
         categoryId,
       );
     } catch {
-      setBudgetMessage("No se pudo quitar la categoría del presupuesto.");
+      setBudgetMessage(t("budget.removeFailed"));
     }
   }
 
   function handleRemoveBudgetCategory(item: MonthlyBudgetItem) {
     const confirmMessage =
       item.spent_amount > 0
-        ? "Esta categoría tiene gastos en el mes. Si la quitas, aparecerá en gastos sin presupuesto."
-        : "¿Quieres quitar esta categoría del presupuesto del mes?";
+        ? t("budget.removeWithExpenses")
+        : t("budget.removePrompt");
 
     if (Platform.OS === "web") {
       if (confirm(confirmMessage)) {
@@ -645,10 +652,10 @@ export default function HomeScreen() {
       return;
     }
 
-    Alert.alert("Quitar categoría", confirmMessage, [
-      { text: "Cancelar", style: "cancel" },
+    Alert.alert(t("budget.removeTitle"), confirmMessage, [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Quitar",
+        text: t("common.delete"),
         style: "destructive",
         onPress: () => {
           void removeBudgetCategory(item.category_id);
@@ -669,11 +676,11 @@ export default function HomeScreen() {
       );
       setBudgetMessage(
         copiedCount > 0
-          ? "Presupuesto copiado desde el mes anterior."
-          : "No hay categorías nuevas para copiar desde el mes anterior.",
+          ? t("budget.copied")
+          : t("budget.nothingToCopy"),
       );
     } catch {
-      setBudgetMessage("No se pudo copiar el presupuesto anterior.");
+      setBudgetMessage(t("budget.copyFailed"));
     }
   }
 
@@ -738,31 +745,31 @@ export default function HomeScreen() {
           ) : activeView === "balance" ? (
             <ThemedView style={styles.header}>
               <IconButton
-                label="Abrir menú"
+                label={t("accessibility.openMenu")}
                 onPress={() => navigation.openDrawer()}
               >
                 <AppIcon color={theme.text} name="menu" size={30} />
               </IconButton>
               <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
-                Balance de cuentas
+                {t("dashboard.balanceTitle")}
               </ThemedText>
               <View style={styles.headerSpacer} />
             </ThemedView>
           ) : activeView === "reports" || activeView === "budgets" ? (
             <ThemedView style={styles.header}>
               <IconButton
-                label="Abrir menú"
+                label={t("accessibility.openMenu")}
                 onPress={() => navigation.openDrawer()}
               >
                 <AppIcon color={theme.text} name="menu" size={30} />
               </IconButton>
               <ThemedText type="smallBold" style={styles.reportHeaderTitle}>
                 {activeView === "budgets"
-                  ? `Presupuesto · ${selectedAccountLabel}`
-                  : `Reportes · ${selectedAccountLabel}`}
+                  ? `${t("dashboard.budget")} · ${selectedAccountLabel}`
+                  : `${t("dashboard.reports")} · ${selectedAccountLabel}`}
               </ThemedText>
               <IconButton
-                label="Seleccionar cuenta"
+                label={t("dashboard.selectAccount")}
                 selected={selectedAccountScope !== 1}
                 onPress={() => setIsAccountSelectorOpen(true)}
               >
@@ -772,7 +779,7 @@ export default function HomeScreen() {
           ) : (
             <ThemedView style={styles.header}>
               <IconButton
-                label="Abrir menú"
+                label={t("accessibility.openMenu")}
                 onPress={() => navigation.openDrawer()}
               >
                 <AppIcon color={theme.text} name="menu" size={30} />
@@ -781,23 +788,23 @@ export default function HomeScreen() {
               <View style={styles.headerActions}>
                 <ThemedView type="backgroundSelected" style={styles.searchWrap}>
                   <TextInput
-                    accessibilityLabel="Buscar transacciones por descripción"
+                    accessibilityLabel={t("accessibility.searchTransactions")}
                     onChangeText={setDescriptionSearch}
-                    placeholder="Buscar"
+                    placeholder={t("dashboard.search")}
                     placeholderTextColor={theme.text}
                     style={[styles.searchInput, { color: theme.text }]}
                     value={descriptionSearch}
                   />
                 </ThemedView>
                 <IconButton
-                  label="Filtrar"
+                  label={t("dashboard.filter")}
                   selected={hasActiveFilters}
                   onPress={() => setIsFilterOpen(true)}
                 >
                   <AppIcon color={theme.text} name="filter" size={30} />
                 </IconButton>
                 <IconButton
-                  label="Seleccionar cuenta"
+                  label={t("dashboard.selectAccount")}
                   selected={selectedAccountScope !== 1}
                   onPress={() => setIsAccountSelectorOpen(true)}
                 >
@@ -860,13 +867,13 @@ export default function HomeScreen() {
                   {filteredTransactions.length === 0 ? (
                     <ThemedView style={styles.emptyState}>
                       <ThemedText type="subtitle" style={styles.emptyTitle}>
-                        Sin registros
+                        {t("dashboard.emptyTitle")}
                       </ThemedText>
                       <ThemedText
                         themeColor="textSecondary"
                         style={styles.emptyText}
                       >
-                        No hay registros en este mes.
+                        {t("dashboard.noTransactions")}
                       </ThemedText>
                     </ThemedView>
                   ) : (
@@ -957,7 +964,7 @@ export default function HomeScreen() {
             activeView !== "budgets" &&
             activeView !== "balance" && (
               <Pressable
-                accessibilityLabel="Agregar registro"
+                accessibilityLabel={t("accessibility.addTransaction")}
                 onPress={() => {
                   if (!accountIdForNewTransaction) {
                     router.push("/new-transaction");
@@ -992,35 +999,35 @@ export default function HomeScreen() {
             ]}
           >
             <IconButton
-              label="Listado de registros"
+              label={t("dashboard.list")}
               selected={activeView === "list"}
               onPress={handleListPress}
             >
               <AppIcon color={theme.text} name="list" size={34} />
             </IconButton>
             <IconButton
-              label="Gráficas"
+              label={t("dashboard.charts")}
               selected={activeView === "charts"}
               onPress={handleChartsPress}
             >
               <AppIcon color={theme.text} name="bar-chart-2" size={34} />
             </IconButton>
             <IconButton
-              label="Balance"
+              label={t("dashboard.balance")}
               selected={activeView === "balance"}
               onPress={handleBalancePress}
             >
               <AppIcon color={theme.text} name="columns" size={34} />
             </IconButton>
             <IconButton
-              label="Presupuesto"
+              label={t("dashboard.budget")}
               selected={activeView === "budgets"}
               onPress={handleBudgetsPress}
             >
               <AppIcon color={theme.text} name="target" size={34} />
             </IconButton>
             <IconButton
-              label="Reportes"
+              label={t("dashboard.reports")}
               selected={activeView === "reports"}
               onPress={handleReportsPress}
             >
@@ -1069,15 +1076,22 @@ function TransactionRow({
   transaction: Transaction;
 }) {
   const theme = useTheme();
+  const { t } = useTranslation();
+  const { languageTag } = useLocalization();
+  const transferAccount =
+    transaction.transfer_peer_account_name ?? t("dashboard.otherAccount");
 
   return (
     <Pressable
       accessibilityHint={
         selectionMode
-          ? "Toca para alternar selección"
-          : "Mantén pulsado para seleccionar"
+          ? t("accessibility.tapSelection")
+          : t("accessibility.holdSelection")
       }
-      accessibilityLabel={`Registro ${transaction.description || transaction.category_description}`}
+      accessibilityLabel={t("accessibility.transaction", {
+        name:
+          transaction.description || transaction.category_description,
+      })}
       accessibilityState={{ selected }}
       delayLongPress={300}
       onLongPress={onLongPress}
@@ -1095,7 +1109,7 @@ function TransactionRow({
         />
         <View style={styles.transactionBody}>
           <ThemedText type="subtitle" style={styles.amount}>
-            {formatMoney(transaction.amount)}
+            {formatMoney(transaction.amount, languageTag)}
           </ThemedText>
           <View style={styles.metadataRow}>
             <AppIcon
@@ -1134,8 +1148,12 @@ function TransactionRow({
                 themeColor="textSecondary"
                 style={styles.metadataText}
               >
-                Traslado {transaction.type === "expense" ? "a" : "desde"}{" "}
-                {transaction.transfer_peer_account_name ?? "otra cuenta"}
+                {t(
+                  transaction.type === "expense"
+                    ? "dashboard.transferTo"
+                    : "dashboard.transferFrom",
+                  { account: transferAccount },
+                )}
               </ThemedText>
             </View>
           )}
@@ -1184,21 +1202,22 @@ function SelectionHeader({
   onDelete: () => void;
 }) {
   const theme = useTheme();
-  const label =
-    count === 1
-      ? "1 registro seleccionado"
-      : `${count} registros seleccionados`;
+  const { t } = useTranslation();
+  const label = t("dashboard.selectedCount", { count });
 
   return (
     <ThemedView type="backgroundSelected" style={styles.selectionHeader}>
-      <FlatIconButton label="Cancelar eliminación" onPress={onCancel}>
+      <FlatIconButton
+        label={t("dashboard.cancelDeletion")}
+        onPress={onCancel}
+      >
         <AppIcon color={theme.text} name="arrow-left" size={28} />
       </FlatIconButton>
       <ThemedText type="smallBold" style={styles.selectionTitle}>
         {label}
       </ThemedText>
       <FlatIconButton
-        label="Eliminar registros seleccionados"
+        label={t("dashboard.deleteSelection")}
         onPress={onDelete}
       >
         <AppIcon color={theme.text} name="trash-2" size={28} />
@@ -1231,6 +1250,8 @@ function BalanceSummary({
   transferOut: number;
 }) {
   const theme = useTheme();
+  const { t } = useTranslation();
+  const { languageTag } = useLocalization();
   const hasTransfers = showTransfers && (transferIn > 0 || transferOut > 0);
 
   return (
@@ -1248,10 +1269,10 @@ function BalanceSummary({
       <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
         <View style={styles.summaryMainRow}>
           <ThemedText type="subtitle" style={styles.summaryTitle}>
-            Saldo
+            {t("dashboard.balance")}
           </ThemedText>
           <ThemedText type="subtitle" style={styles.summaryAmount}>
-            $ {formatMoney(balance)}
+            $ {formatMoney(balance, languageTag)}
           </ThemedText>
         </View>
         <View
@@ -1264,34 +1285,34 @@ function BalanceSummary({
             {openingBalanceLabel}
           </ThemedText>
           <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
-            $ {formatMoney(openingBalance)}
+            $ {formatMoney(openingBalance, languageTag)}
           </ThemedText>
         </View>
         <View style={styles.summaryDetailRow}>
           <ThemedText type="smallBold" style={styles.summaryDetail}>
-            Ingresos: $ {formatMoney(income)}
+            {t("balance.income")}: $ {formatMoney(income, languageTag)}
           </ThemedText>
           <ThemedText type="smallBold" style={styles.summaryDetail}>
-            Egresos: $ {formatMoney(expense)}
+            {t("balance.expenses")}: $ {formatMoney(expense, languageTag)}
           </ThemedText>
         </View>
         {hasTransfers && transferIn > 0 && (
           <View style={styles.summaryDetailRow}>
             <ThemedText type="smallBold" style={styles.summaryDetail}>
-              Traslados entrantes
+              {t("balance.incomingTransfers")}
             </ThemedText>
             <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
-              $ {formatMoney(transferIn)}
+              $ {formatMoney(transferIn, languageTag)}
             </ThemedText>
           </View>
         )}
         {hasTransfers && transferOut > 0 && (
           <View style={styles.summaryDetailRow}>
             <ThemedText type="smallBold" style={styles.summaryDetail}>
-              Traslados salientes
+              {t("balance.outgoingTransfers")}
             </ThemedText>
             <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
-              $ {formatMoney(transferOut)}
+              $ {formatMoney(transferOut, languageTag)}
             </ThemedText>
           </View>
         )}

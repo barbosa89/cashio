@@ -1,8 +1,10 @@
 import { StyleSheet, View } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useLocalization } from '@/i18n/localization-provider';
 import type { MonthlyBudgetSummary } from '@/lib/database';
 
 import { formatBudgetMoney } from './budget-formatters';
@@ -13,6 +15,9 @@ type BudgetSummaryCardProps = {
 };
 
 export function BudgetSummaryCard({ monthLabel, summary }: BudgetSummaryCardProps) {
+  const { t } = useTranslation();
+  const { languageTag } = useLocalization();
+
   return (
     <View style={styles.summaryWrap}>
       <ThemedText type="smallBold" style={styles.summaryMonth}>
@@ -21,23 +26,24 @@ export function BudgetSummaryCard({ monthLabel, summary }: BudgetSummaryCardProp
       <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
         <View style={styles.summaryMainRow}>
           <ThemedText type="subtitle" style={styles.summaryTitle}>
-            Disponible
+            {t('budget.available')}
           </ThemedText>
           <ThemedText type="subtitle" style={styles.summaryAmount}>
-            $ {formatBudgetMoney(summary.remaining_total)}
+            $ {formatBudgetMoney(summary.remaining_total, languageTag)}
           </ThemedText>
         </View>
         <View style={styles.summaryDetailRow}>
           <ThemedText type="smallBold" style={styles.summaryDetail}>
-            Presupuestado: $ {formatBudgetMoney(summary.planned_total)}
+            {t('budget.planned')}: $ {formatBudgetMoney(summary.planned_total, languageTag)}
           </ThemedText>
           <ThemedText type="smallBold" style={styles.summaryDetail}>
-            Gastado: $ {formatBudgetMoney(summary.spent_total)}
+            {t('budget.spent')}: $ {formatBudgetMoney(summary.spent_total, languageTag)}
           </ThemedText>
         </View>
         {summary.unbudgeted_expense_total > 0 && (
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.summaryDetail}>
-            Sin presupuesto: $ {formatBudgetMoney(summary.unbudgeted_expense_total)}
+            {t('budget.unbudgeted')}: ${' '}
+            {formatBudgetMoney(summary.unbudgeted_expense_total, languageTag)}
           </ThemedText>
         )}
       </ThemedView>
@@ -87,4 +93,3 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 });
-

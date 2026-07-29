@@ -8,6 +8,7 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "@/i18n/localization-provider";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
@@ -67,6 +68,7 @@ function SettingToggleCard({
 
 export default function SettingsScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const {
     errorMessage,
     isLoading,
@@ -87,7 +89,7 @@ export default function SettingsScreen() {
           <ScrollView contentContainerStyle={styles.content}>
             <ThemedView style={styles.titleRow}>
               <Pressable
-                accessibilityLabel="Volver al índice de transacciones"
+                accessibilityLabel={t("accessibility.backToTransactions")}
                 onPress={() => router.replace("/")}
                 style={({ pressed }) => pressed && styles.pressed}
               >
@@ -102,29 +104,29 @@ export default function SettingsScreen() {
               </ThemedView>
               <View style={styles.titleCopy}>
                 <ThemedText type="subtitle" style={styles.title}>
-                  Configuraciones
+                  {t("settings.title")}
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Preferencias de Cash IO
+                  {t("settings.subtitle")}
                 </ThemedText>
               </View>
             </ThemedView>
 
             <SettingToggleCard
-              description="Incluye el saldo histórico de meses anteriores en el mes visible."
+              description={t("settings.accumulateBalancesDescription")}
               disabled={isLoading}
               onValueChange={(value) => void setAccumulatePreviousBalances(value)}
-              title="Acumular saldos"
+              title={t("settings.accumulateBalances")}
               value={settings.accumulatePreviousBalances}
             />
 
             <SettingToggleCard
-              description="Copia automáticamente las categorías presupuestadas del mes anterior al abrir un mes."
+              description={t("settings.copyBudgetDescription")}
               disabled={isLoading}
               onValueChange={(value) =>
                 void setAutoCopyPreviousMonthBudget(value)
               }
-              title="Copiar presupuesto"
+              title={t("settings.copyBudget")}
               value={settings.autoCopyPreviousMonthBudget}
             />
 

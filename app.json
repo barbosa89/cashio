@@ -71,7 +71,24 @@
         }
       ],
       "expo-sharing",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": {
+            "ios": [
+              "en",
+              "es",
+              "pt-BR"
+            ],
+            "android": [
+              "en",
+              "es",
+              "pt-BR"
+            ]
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

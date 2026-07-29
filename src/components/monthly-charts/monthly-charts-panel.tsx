@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -44,11 +45,12 @@ export function MonthlyChartsPanel({
 }
 
 function MonthlyExpenseEmptyChart() {
+  const { t } = useTranslation();
   return (
-    <ChartCard title="Egresos por categoría">
+    <ChartCard title={t('charts.expensesByCategory')}>
       <ThemedView style={styles.emptyState}>
         <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-          Sin egresos este mes.
+          {t('charts.noExpenses')}
         </ThemedText>
       </ThemedView>
     </ChartCard>

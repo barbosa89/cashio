@@ -1,8 +1,10 @@
 import { StyleSheet, View } from "react-native";
+import { useTranslation } from "@/i18n/localization-provider";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { AppPalette, Spacing } from "@/constants/theme";
+import { useLocalization } from "@/i18n/localization-provider";
 import type { AccountBalanceRow } from "@/lib/database";
 
 import { buildBalanceTotals, formatBalanceMoney } from "./balance-formatters";
@@ -16,18 +18,20 @@ export function AccountBalancePanel({
   monthLabel,
   rows,
 }: AccountBalancePanelProps) {
-  const totals = buildBalanceTotals(rows);
+  const { languageTag } = useLocalization();
+  const { t } = useTranslation();
+  const totals = buildBalanceTotals(rows, t("common.total"));
 
   if (rows.length === 0) {
     return (
       <ThemedView style={styles.emptyState}>
-        <ThemedText type="subtitle">Sin cuentas</ThemedText>
+        <ThemedText type="subtitle">{t("balance.noAccounts")}</ThemedText>
         <ThemedText
           type="small"
           themeColor="textSecondary"
           style={styles.emptyText}
         >
-          Crea una cuenta para ver el balance.
+          {t("balance.noAccountsDescription")}
         </ThemedText>
       </ThemedView>
     );
@@ -45,26 +49,27 @@ export function AccountBalancePanel({
 
       <View style={styles.rows}>
         {rows.map((row) => (
-          <AccountBalanceCard key={row.account_id} row={row} />
+          <AccountBalanceCard key={row.account_id} locale={languageTag} row={row} />
         ))}
       </View>
 
       <ThemedView type="backgroundSelected" style={styles.totalCard}>
-        <AccountBalanceContent row={totals} />
+        <AccountBalanceContent locale={languageTag} row={totals} />
       </ThemedView>
     </View>
   );
 }
 
-function AccountBalanceCard({ row }: { row: AccountBalanceRow }) {
+function AccountBalanceCard({ locale, row }: { locale: string; row: AccountBalanceRow }) {
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
-      <AccountBalanceContent row={row} />
+      <AccountBalanceContent locale={locale} row={row} />
     </ThemedView>
   );
 }
 
-function AccountBalanceContent({ row }: { row: AccountBalanceRow }) {
+function AccountBalanceContent({ locale, row }: { locale: string; row: AccountBalanceRow }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.cardContent}>
       <View style={styles.cardHeader}>
@@ -79,32 +84,36 @@ function AccountBalanceContent({ row }: { row: AccountBalanceRow }) {
               themeColor="textSecondary"
               style={styles.defaultLabel}
             >
-              Por defecto
+              {t("admin.defaultAccount")}
             </ThemedText>
           )}
         </View>
         <ThemedText type="subtitle" style={styles.balanceAmount}>
-          $ {formatBalanceMoney(row.balance_total)}
+          $ {formatBalanceMoney(row.balance_total, locale)}
         </ThemedText>
       </View>
 
       <View style={styles.metricGrid}>
         <BalanceMetric
-          label="Ingresos"
+          label={t("balance.income")}
+          locale={locale}
           tone="income"
           value={row.income_total}
         />
         <BalanceMetric
-          label="Egresos"
+          label={t("balance.expenses")}
+          locale={locale}
           tone="expense"
           value={row.expense_total}
         />
         <BalanceMetric
-          label="Traslados entrantes"
+          label={t("balance.incomingTransfers")}
+          locale={locale}
           value={row.transfer_in_total}
         />
         <BalanceMetric
-          label="Traslados salientes"
+          label={t("balance.outgoingTransfers")}
+          locale={locale}
           value={row.transfer_out_total}
         />
       </View>
@@ -114,10 +123,12 @@ function AccountBalanceContent({ row }: { row: AccountBalanceRow }) {
 
 function BalanceMetric({
   label,
+  locale,
   tone,
   value,
 }: {
   label: string;
+  locale: string;
   tone?: "expense" | "income";
   value: number;
 }) {
@@ -137,7 +148,7 @@ function BalanceMetric({
         type="smallBold"
         style={[styles.metricValue, color ? { color } : null]}
       >
-        $ {formatBalanceMoney(value)}
+        $ {formatBalanceMoney(value, locale)}
       </ThemedText>
     </View>
   );
