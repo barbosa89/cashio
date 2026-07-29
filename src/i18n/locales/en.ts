@@ -54,6 +54,7 @@ export const en = {
     transaction: "Transaction {{name}}",
     tapSelection: "Tap to toggle selection",
     holdSelection: "Press and hold to select",
+    selectLanguage: "Use {{language}}",
   },
   restoreGate: {
     title: "Restore backup",
@@ -269,6 +270,11 @@ export const en = {
     copyBudget: "Copy budget",
     copyBudgetDescription:
       "Automatically copies budgeted categories from the previous month when opening a month.",
+    language: "Language",
+    languageDescription:
+      "Choose the language Cash IO uses on this device.",
+    deviceLanguage: "Device language",
+    useDeviceLanguage: "Use device language",
     saved: "Setting saved.",
   },
   backup: {

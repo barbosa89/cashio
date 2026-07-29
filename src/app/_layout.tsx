@@ -14,8 +14,14 @@ import {
     DrawerContentScrollView,
     type DrawerContentComponentProps,
 } from "expo-router/drawer";
-import { SQLiteProvider } from "expo-sqlite";
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { SQLiteProvider, type SQLiteDatabase } from "expo-sqlite";
+import {
+    Suspense,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import {
     Alert,
     LogBox,
@@ -32,10 +38,11 @@ import { AppIcon } from "@/components/app-icon";
 import { CashioLogo } from "@/components/cashio-logo";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Colors, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
 import { LocalizationProvider, useLocalization } from "@/i18n/localization-provider";
+import { LocalizationPreferenceGate } from "@/i18n/localization-preference-gate";
 import { syncBackupTaskRegistration } from "@/lib/backup/backup-scheduler";
 import {
     restoreLatestBackup,
@@ -62,8 +69,6 @@ export default function RootLayout() {
 
 function CashioLayout() {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme === "dark" ? "dark" : "light"];
-  const { t } = useTranslation();
   const [fontsLoaded] = useFonts({
     Feather: require("react-native-vector-icons/Fonts/Feather.ttf"),
   });
@@ -74,49 +79,64 @@ function CashioLayout() {
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <DatabaseProvider>
-        <AnimatedSplashOverlay />
-        <Drawer
-          drawerContent={(props) => <CashioDrawerContent {...props} />}
-          screenOptions={{
-            drawerStyle: {
-              backgroundColor: theme.background,
-              width: 300,
-            },
-            drawerType: "front",
-            headerShown: false,
-            overlayColor: "rgba(0, 0, 0, 0.45)",
-          }}
-        >
-          <Drawer.Screen name="index" options={{ title: t("navigation.home") }} />
-          <Drawer.Screen name="accounts" options={{ title: t("navigation.accounts") }} />
-          <Drawer.Screen name="categories" options={{ title: t("navigation.categories") }} />
-          <Drawer.Screen name="tags" options={{ title: t("navigation.tags") }} />
-          <Drawer.Screen
-            name="backup"
-            options={{ title: t("navigation.backup") }}
-          />
-          <Drawer.Screen
-            name="settings"
-            options={{ title: t("navigation.settings") }}
-          />
-          <Drawer.Screen
-            name="explore"
-            options={{
-              drawerItemStyle: { display: "none" },
-              title: t("navigation.manage"),
-            }}
-          />
-          <Drawer.Screen
-            name="new-transaction"
-            options={{
-              drawerItemStyle: { display: "none" },
-              title: t("navigation.newTransaction"),
-            }}
-          />
-        </Drawer>
-      </DatabaseProvider>
+      <DatabaseProvider />
     </ThemeProvider>
+  );
+}
+
+function CashioNavigator() {
+  const theme = useTheme();
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <AnimatedSplashOverlay />
+      <Drawer
+        drawerContent={(props) => <CashioDrawerContent {...props} />}
+        screenOptions={{
+          drawerStyle: {
+            backgroundColor: theme.background,
+            width: 300,
+          },
+          drawerType: "front",
+          headerShown: false,
+          overlayColor: "rgba(0, 0, 0, 0.45)",
+        }}
+      >
+        <Drawer.Screen name="index" options={{ title: t("navigation.home") }} />
+        <Drawer.Screen
+          name="accounts"
+          options={{ title: t("navigation.accounts") }}
+        />
+        <Drawer.Screen
+          name="categories"
+          options={{ title: t("navigation.categories") }}
+        />
+        <Drawer.Screen name="tags" options={{ title: t("navigation.tags") }} />
+        <Drawer.Screen
+          name="backup"
+          options={{ title: t("navigation.backup") }}
+        />
+        <Drawer.Screen
+          name="settings"
+          options={{ title: t("navigation.settings") }}
+        />
+        <Drawer.Screen
+          name="explore"
+          options={{
+            drawerItemStyle: { display: "none" },
+            title: t("navigation.manage"),
+          }}
+        />
+        <Drawer.Screen
+          name="new-transaction"
+          options={{
+            drawerItemStyle: { display: "none" },
+            title: t("navigation.newTransaction"),
+          }}
+        />
+      </Drawer>
+    </>
   );
 }
 
@@ -234,11 +254,14 @@ function DrawerMenuItem({
   );
 }
 
-function DatabaseProvider({
-  children,
-}: Readonly<{ children: ReactNode }>) {
+function DatabaseProvider() {
   const { language } = useLocalization();
   const { t } = useTranslation();
+  const seedLanguage = useRef(language).current;
+  const initializeDatabase = useCallback(
+    (db: SQLiteDatabase) => migrateDatabase(db, { seedLanguage }),
+    [seedLanguage],
+  );
   const [canUseDatabase, setCanUseDatabase] = useState(Platform.OS !== "web");
   const [isRestoreGateReady, setIsRestoreGateReady] = useState(
     Platform.OS === "web",
@@ -323,10 +346,12 @@ function DatabaseProvider({
     <Suspense fallback={null}>
       <SQLiteProvider
         databaseName="cashio.db"
-        onInit={(db) => migrateDatabase(db, { seedLanguage: language })}
+        onInit={initializeDatabase}
         useSuspense
       >
-        {children}
+        <LocalizationPreferenceGate>
+          <CashioNavigator />
+        </LocalizationPreferenceGate>
       </SQLiteProvider>
     </Suspense>
   );

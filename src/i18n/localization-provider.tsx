@@ -1,9 +1,11 @@
 import { useLocales } from "expo-localization";
 import {
+  useCallback,
   createContext,
   use,
   useEffect,
   useMemo,
+  useState,
   type ReactNode,
 } from "react";
 import { I18nextProvider } from "react-i18next";
@@ -14,15 +16,26 @@ import {
   initialLocalization,
   resolveLocalization,
 } from "@/i18n";
-import type { AppTranslator, ResolvedLocalization } from "@/i18n/types";
+import type {
+  AppTranslator,
+  LanguagePreference,
+  ResolvedLocalization,
+  SupportedLanguage,
+} from "@/i18n/types";
 
 type LocalizationContextValue = ResolvedLocalization & {
+  applyLanguagePreference: (preference: LanguagePreference) => void;
+  deviceLanguage: SupportedLanguage;
+  languagePreference: LanguagePreference;
   t: AppTranslator;
 };
 
 const LocalizationContext = createContext<LocalizationContextValue | null>(null);
 const initialContextValue: LocalizationContextValue = {
   ...initialLocalization,
+  applyLanguagePreference: () => undefined,
+  deviceLanguage: initialLocalization.language,
+  languagePreference: null,
   t: i18n.getFixedT(initialLocalization.language),
 };
 
@@ -30,8 +43,17 @@ export function LocalizationProvider({
   children,
 }: Readonly<{ children: ReactNode }>) {
   const locales = useLocales();
-  const localization = resolveLocalization(locales);
+  const [languagePreference, setLanguagePreference] =
+    useState<LanguagePreference>(null);
+  const deviceLocalization = resolveLocalization(locales);
+  const localization = resolveLocalization(locales, languagePreference);
   const { language, languageTag, textDirection } = localization;
+  const applyLanguagePreference = useCallback(
+    (preference: LanguagePreference) => {
+      setLanguagePreference(preference);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (i18n.resolvedLanguage !== language) {
@@ -50,12 +72,22 @@ export function LocalizationProvider({
 
   const value = useMemo(
     () => ({
+      applyLanguagePreference,
+      deviceLanguage: deviceLocalization.language,
       language,
       languageTag,
+      languagePreference,
       t: i18n.getFixedT(language),
       textDirection,
     }),
-    [language, languageTag, textDirection],
+    [
+      applyLanguagePreference,
+      deviceLocalization.language,
+      language,
+      languagePreference,
+      languageTag,
+      textDirection,
+    ],
   );
 
   return (

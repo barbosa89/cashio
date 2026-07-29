@@ -1,10 +1,15 @@
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
-import { useTranslation } from '@/i18n/localization-provider';
+import { useCallback, useRef, useState } from 'react';
+import {
+  useLocalization,
+  useTranslation,
+} from '@/i18n/localization-provider';
+import type { LanguagePreference } from '@/i18n/types';
 
 import {
   getAppSettings,
+  setLanguagePreference as persistLanguagePreference,
   updateSetting,
   type AppSettings,
 } from '@/lib/settings-repository';
@@ -12,25 +17,39 @@ import {
 const DEFAULT_SETTINGS: AppSettings = {
   accumulatePreviousBalances: false,
   autoCopyPreviousMonthBudget: false,
+  languagePreference: null,
 };
 
 export function useCashioSettings() {
   const db = useSQLiteContext();
   const { t } = useTranslation();
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const {
+    applyLanguagePreference,
+    language,
+    languagePreference,
+  } = useLocalization();
+  const tRef = useRef(t);
+  tRef.current = t;
+  const [settings, setSettings] = useState<AppSettings>(() => ({
+    ...DEFAULT_SETTINGS,
+    languagePreference,
+  }));
   const [isLoading, setIsLoading] = useState(true);
+  const [isSavingLanguage, setIsSavingLanguage] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const refresh = useCallback(async () => {
     try {
-      setSettings(await getAppSettings(db));
+      const nextSettings = await getAppSettings(db);
+      setSettings(nextSettings);
+      applyLanguagePreference(nextSettings.languagePreference);
       setErrorMessage('');
     } catch {
-      setErrorMessage(t('errors.settingsLoad'));
+      setErrorMessage(tRef.current('errors.settingsLoad'));
     } finally {
       setIsLoading(false);
     }
-  }, [db, t]);
+  }, [applyLanguagePreference, db]);
 
   useFocusEffect(
     useCallback(() => {
@@ -39,7 +58,10 @@ export function useCashioSettings() {
   );
 
   const updateBooleanSetting = useCallback(
-    async <Key extends keyof AppSettings>(key: Key, value: AppSettings[Key]) => {
+    async (
+      key: 'accumulatePreviousBalances' | 'autoCopyPreviousMonthBudget',
+      value: boolean,
+    ) => {
       const previousSettings = settings;
       setSettings((currentSettings) => ({
         ...currentSettings,
@@ -51,10 +73,10 @@ export function useCashioSettings() {
         await updateSetting(db, key, value);
       } catch {
         setSettings(previousSettings);
-        setErrorMessage(t('errors.settingsSave'));
+        setErrorMessage(tRef.current('errors.settingsSave'));
       }
     },
-    [db, settings, t]
+    [db, settings]
   );
 
   const setAccumulatePreviousBalances = useCallback(
@@ -71,12 +93,54 @@ export function useCashioSettings() {
     [updateBooleanSetting]
   );
 
+  const setLanguagePreference = useCallback(
+    async (preference: LanguagePreference) => {
+      const previousPreference = settings.languagePreference;
+
+      if (
+        previousPreference === preference ||
+        (previousPreference === null && preference === language)
+      ) {
+        return;
+      }
+
+      setSettings((currentSettings) => ({
+        ...currentSettings,
+        languagePreference: preference,
+      }));
+      setIsSavingLanguage(true);
+      setErrorMessage('');
+      applyLanguagePreference(preference);
+
+      try {
+        await persistLanguagePreference(db, preference);
+      } catch {
+        setSettings((currentSettings) => ({
+          ...currentSettings,
+          languagePreference: previousPreference,
+        }));
+        applyLanguagePreference(previousPreference);
+        setErrorMessage(tRef.current('errors.settingsSave'));
+      } finally {
+        setIsSavingLanguage(false);
+      }
+    },
+    [
+      applyLanguagePreference,
+      db,
+      language,
+      settings,
+    ],
+  );
+
   return {
     errorMessage,
     isLoading,
+    isSavingLanguage,
     refresh,
     settings,
     setAccumulatePreviousBalances,
     setAutoCopyPreviousMonthBudget,
+    setLanguagePreference,
   };
 }

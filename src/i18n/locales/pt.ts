@@ -29,6 +29,7 @@ export const pt = {
     removeBudgetCategory: "Remover {{name}} do orçamento",
     transaction: "Transação {{name}}", tapSelection: "Toque para alternar a seleção",
     holdSelection: "Mantenha pressionado para selecionar",
+    selectLanguage: "Usar {{language}}",
   },
   restoreGate: {
     title: "Restaurar backup",
@@ -157,6 +158,10 @@ export const pt = {
     accumulateBalancesDescription: "Inclui o saldo histórico dos meses anteriores no mês visível.",
     copyBudget: "Copiar orçamento",
     copyBudgetDescription: "Copia automaticamente as categorias orçadas do mês anterior ao abrir um mês.",
+    language: "Idioma",
+    languageDescription: "Escolha o idioma que o Cash IO usa neste dispositivo.",
+    deviceLanguage: "Idioma do dispositivo",
+    useDeviceLanguage: "Usar idioma do dispositivo",
     saved: "Configuração salva.",
   },
   backup: {
