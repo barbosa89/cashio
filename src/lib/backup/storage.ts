@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { isAppErrorDescriptor } from '@/i18n/errors';
 import type { BackupMetadata } from '@/lib/backup/types';
 
 const BACKUP_METADATA_KEY = 'cashio.backup.metadata.v1';
@@ -21,9 +22,17 @@ export async function getBackupMetadata(): Promise<BackupMetadata> {
   }
 
   try {
+    const stored = JSON.parse(raw) as Partial<BackupMetadata> & {
+      lastError?: BackupMetadata['lastError'] | string;
+    };
     return {
       ...DEFAULT_METADATA,
-      ...(JSON.parse(raw) as Partial<BackupMetadata>),
+      ...stored,
+      lastError: isAppErrorDescriptor(stored.lastError)
+        ? stored.lastError
+        : stored.lastError
+          ? { code: 'generic' }
+          : null,
     };
   } catch {
     return DEFAULT_METADATA;

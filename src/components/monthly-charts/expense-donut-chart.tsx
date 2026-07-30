@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -17,10 +18,11 @@ type ExpenseDonutChartProps = {
 };
 
 export function ExpenseDonutChart({ data, total }: ExpenseDonutChartProps) {
-  const pieData = getTopCategoriesWithOther(data, 5);
+  const { t } = useTranslation();
+  const pieData = getTopCategoriesWithOther(data, 5, t('charts.other'));
 
   return (
-    <ChartCard title="Egresos por categoría">
+    <ChartCard title={t('charts.expensesByCategory')}>
       <View style={styles.row}>
         <DonutChart data={pieData} total={total} />
         <ChartLegend data={pieData} total={total} />

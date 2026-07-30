@@ -2,7 +2,7 @@
   "expo": {
     "name": "Cash IO",
     "slug": "cashio",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "cashio",
@@ -70,7 +70,25 @@
           }
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-web-browser",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": {
+            "ios": [
+              "en",
+              "es",
+              "pt-BR"
+            ],
+            "android": [
+              "en",
+              "es",
+              "pt-BR"
+            ]
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

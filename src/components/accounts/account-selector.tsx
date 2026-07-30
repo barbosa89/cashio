@@ -1,4 +1,5 @@
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
@@ -15,12 +16,17 @@ type AccountSelectorProps = {
   selectedAccountScope: AccountScope;
 };
 
-export function getAccountScopeLabel(accounts: Account[], accountScope: AccountScope) {
+export function getAccountScopeLabel(
+  accounts: Account[],
+  accountScope: AccountScope,
+  allLabel: string,
+  fallbackLabel: string,
+) {
   if (accountScope === 'all') {
-    return 'Todas';
+    return allLabel;
   }
 
-  return accounts.find((account) => account.id === accountScope)?.name ?? 'Principal';
+  return accounts.find((account) => account.id === accountScope)?.name ?? fallbackLabel;
 }
 
 export function AccountSelector({
@@ -31,6 +37,7 @@ export function AccountSelector({
   selectedAccountScope,
 }: AccountSelectorProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   function selectAccount(accountScope: AccountScope) {
     onSelect(accountScope);
@@ -43,9 +50,9 @@ export function AccountSelector({
         <Pressable onPress={(event) => event.stopPropagation()}>
           <ThemedView type="background" style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <ThemedText type="subtitle">Cuenta</ThemedText>
+              <ThemedText type="subtitle">{t('transaction.account')}</ThemedText>
               <Pressable
-                accessibilityLabel="Cerrar selector de cuenta"
+                accessibilityLabel={t('accessibility.closeAccountSelector')}
                 onPress={onClose}
                 style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
                 <AppIcon color={theme.text} name="x" size={22} />
@@ -54,7 +61,7 @@ export function AccountSelector({
 
             <ScrollView contentContainerStyle={styles.listContent}>
               <AccountOption
-                label="Todas"
+                label={t('common.allFeminine')}
                 onPress={() => selectAccount('all')}
                 selected={selectedAccountScope === 'all'}
               />
@@ -62,7 +69,7 @@ export function AccountSelector({
                 <AccountOption
                   key={account.id}
                   label={account.name}
-                  note={account.is_default === 1 ? 'Por defecto' : undefined}
+                  note={account.is_default === 1 ? t('admin.defaultAccount') : undefined}
                   onPress={() => selectAccount(account.id)}
                   selected={selectedAccountScope === account.id}
                 />

@@ -8,6 +8,10 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  useLocalization,
+  useTranslation,
+} from "@/i18n/localization-provider";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
@@ -15,6 +19,20 @@ import { ThemedView } from "@/components/themed-view";
 import { AppPalette, Spacing } from "@/constants/theme";
 import { useCashioSettings } from "@/hooks/use-cashio-settings";
 import { useTheme } from "@/hooks/use-theme";
+import type {
+  LanguagePreference,
+  SupportedLanguage,
+} from "@/i18n/types";
+
+const LANGUAGE_OPTIONS = [
+  { code: "EN", label: "English", value: "en" },
+  { code: "ES", label: "Español", value: "es" },
+  { code: "PT", label: "Português (Brasil)", value: "pt" },
+] as const satisfies ReadonlyArray<{
+  code: string;
+  label: string;
+  value: SupportedLanguage;
+}>;
 
 type SettingToggleCardProps = {
   description: string;
@@ -65,14 +83,128 @@ function SettingToggleCard({
   );
 }
 
+type LanguageSettingCardProps = {
+  deviceLanguage: SupportedLanguage;
+  disabled: boolean;
+  effectiveLanguage: SupportedLanguage;
+  onSelect: (preference: LanguagePreference) => void;
+  preference: LanguagePreference;
+};
+
+function LanguageSettingCard({
+  deviceLanguage,
+  disabled,
+  effectiveLanguage,
+  onSelect,
+  preference,
+}: Readonly<LanguageSettingCardProps>) {
+  const theme = useTheme();
+  const { t } = useTranslation();
+
+  return (
+    <ThemedView type="backgroundElement" style={styles.languagePanel}>
+      <View style={styles.languageIntro}>
+        <ThemedText type="smallBold" style={styles.settingTitle}>
+          {t("settings.language")}
+        </ThemedText>
+        <ThemedText
+          type="small"
+          themeColor="textSecondary"
+          style={styles.settingDescription}
+        >
+          {t("settings.languageDescription")}
+        </ThemedText>
+      </View>
+
+      <View style={styles.languageOptions}>
+        {LANGUAGE_OPTIONS.map((option) => {
+          const isSelected = option.value === effectiveLanguage;
+          const followsDevice =
+            preference === null && option.value === deviceLanguage;
+
+          return (
+            <Pressable
+              accessibilityLabel={t("accessibility.selectLanguage", {
+                language: option.label,
+              })}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: isSelected, disabled }}
+              disabled={disabled}
+              key={option.value}
+              onPress={() => onSelect(option.value)}
+              style={({ pressed }) => [
+                pressed && styles.pressed,
+                disabled && styles.disabled,
+              ]}
+            >
+              <ThemedView
+                type={isSelected ? "backgroundSelected" : "backgroundElement"}
+                style={styles.languageOption}
+              >
+                <ThemedView type="background" style={styles.languageCode}>
+                  <ThemedText type="smallBold">{option.code}</ThemedText>
+                </ThemedView>
+                <View style={styles.languageOptionCopy}>
+                  <ThemedText
+                    type="smallBold"
+                    numberOfLines={2}
+                    style={styles.languageOptionLabel}
+                  >
+                    {option.label}
+                  </ThemedText>
+                  {followsDevice && (
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {t("settings.deviceLanguage")}
+                    </ThemedText>
+                  )}
+                </View>
+                {isSelected && (
+                  <AppIcon
+                    color={AppPalette.brandOrange}
+                    name="check"
+                    size={20}
+                  />
+                )}
+              </ThemedView>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {preference !== null && (
+        <Pressable
+          accessibilityRole="button"
+          disabled={disabled}
+          onPress={() => onSelect(null)}
+          style={({ pressed }) => [
+            styles.deviceLanguageButton,
+            { borderColor: theme.backgroundSelected },
+            pressed && styles.pressed,
+            disabled && styles.disabled,
+          ]}
+        >
+          <AppIcon color={theme.textSecondary} name="smartphone" size={18} />
+          <ThemedText type="smallBold">
+            {t("settings.useDeviceLanguage")}
+          </ThemedText>
+        </Pressable>
+      )}
+    </ThemedView>
+  );
+}
+
 export default function SettingsScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
+  const { deviceLanguage, language } = useLocalization();
   const {
     errorMessage,
     isLoading,
+    isSavingLanguage,
     settings,
     setAccumulatePreviousBalances,
     setAutoCopyPreviousMonthBudget,
+    setLanguagePreference,
   } = useCashioSettings();
 
   return (
@@ -87,7 +219,7 @@ export default function SettingsScreen() {
           <ScrollView contentContainerStyle={styles.content}>
             <ThemedView style={styles.titleRow}>
               <Pressable
-                accessibilityLabel="Volver al índice de transacciones"
+                accessibilityLabel={t("accessibility.backToTransactions")}
                 onPress={() => router.replace("/")}
                 style={({ pressed }) => pressed && styles.pressed}
               >
@@ -102,29 +234,39 @@ export default function SettingsScreen() {
               </ThemedView>
               <View style={styles.titleCopy}>
                 <ThemedText type="subtitle" style={styles.title}>
-                  Configuraciones
+                  {t("settings.title")}
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Preferencias de Cash IO
+                  {t("settings.subtitle")}
                 </ThemedText>
               </View>
             </ThemedView>
 
+            <LanguageSettingCard
+              deviceLanguage={deviceLanguage}
+              disabled={isLoading || isSavingLanguage}
+              effectiveLanguage={language}
+              onSelect={(preference) =>
+                void setLanguagePreference(preference)
+              }
+              preference={settings.languagePreference}
+            />
+
             <SettingToggleCard
-              description="Incluye el saldo histórico de meses anteriores en el mes visible."
+              description={t("settings.accumulateBalancesDescription")}
               disabled={isLoading}
               onValueChange={(value) => void setAccumulatePreviousBalances(value)}
-              title="Acumular saldos"
+              title={t("settings.accumulateBalances")}
               value={settings.accumulatePreviousBalances}
             />
 
             <SettingToggleCard
-              description="Copia automáticamente las categorías presupuestadas del mes anterior al abrir un mes."
+              description={t("settings.copyBudgetDescription")}
               disabled={isLoading}
               onValueChange={(value) =>
                 void setAutoCopyPreviousMonthBudget(value)
               }
-              title="Copiar presupuesto"
+              title={t("settings.copyBudget")}
               value={settings.autoCopyPreviousMonthBudget}
             />
 
@@ -156,6 +298,55 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     padding: Spacing.three,
     paddingBottom: Spacing.five,
+  },
+  deviceLanguageButton: {
+    alignItems: "center",
+    alignSelf: "stretch",
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.two,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: Spacing.three,
+  },
+  disabled: {
+    opacity: 0.55,
+  },
+  languageCode: {
+    alignItems: "center",
+    borderRadius: 18,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  languageIntro: {
+    gap: Spacing.one,
+  },
+  languageOption: {
+    alignItems: "center",
+    borderRadius: Spacing.two,
+    flexDirection: "row",
+    gap: Spacing.three,
+    minHeight: 56,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  languageOptionCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  languageOptionLabel: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  languageOptions: {
+    gap: Spacing.one,
+  },
+  languagePanel: {
+    borderRadius: Spacing.two,
+    gap: Spacing.three,
+    padding: Spacing.three,
   },
   message: {
     borderRadius: Spacing.two,

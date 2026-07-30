@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { TagEditor } from '@/components/tag-editor';
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +9,7 @@ import { Spacing } from '@/constants/theme';
 import { useCashioData } from '@/hooks/use-cashio-data';
 
 export default function EditTagScreen() {
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{ id?: string }>();
   const { isLoading, tags } = useCashioData();
   const tagId = Number(params.id);
@@ -17,10 +19,10 @@ export default function EditTagScreen() {
     return (
       <ThemedView style={styles.notFound}>
         <View style={styles.notFoundContent}>
-          <ThemedText type="subtitle">Tag no encontrado</ThemedText>
+          <ThemedText type="subtitle">{t('admin.tagNotFound')}</ThemedText>
           <Pressable onPress={() => router.replace('/tags')} style={({ pressed }) => pressed && styles.pressed}>
             <ThemedView type="backgroundElement" style={styles.backButton}>
-              <ThemedText type="smallBold">Volver a tags</ThemedText>
+              <ThemedText type="smallBold">{t('accessibility.backToTags')}</ThemedText>
             </ThemedView>
           </Pressable>
         </View>

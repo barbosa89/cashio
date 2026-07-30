@@ -1,17 +1,15 @@
 import type { AccountBalanceRow } from '@/lib/database';
+import { formatNumber } from '@/i18n/formatters';
 
-export function formatBalanceMoney(value: number) {
-  return new Intl.NumberFormat('es-CO', {
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
-  }).format(value);
+export function formatBalanceMoney(value: number, locale: string) {
+  return formatNumber(value, locale);
 }
 
-export function buildBalanceTotals(rows: AccountBalanceRow[]): AccountBalanceRow {
+export function buildBalanceTotals(rows: AccountBalanceRow[], totalLabel = 'Total'): AccountBalanceRow {
   return rows.reduce<AccountBalanceRow>(
     (total, row) => ({
       account_id: 0,
-      account_name: 'Total',
+      account_name: totalLabel,
       balance_total: total.balance_total + row.balance_total,
       expense_total: total.expense_total + row.expense_total,
       income_total: total.income_total + row.income_total,
@@ -23,7 +21,7 @@ export function buildBalanceTotals(rows: AccountBalanceRow[]): AccountBalanceRow
     }),
     {
       account_id: 0,
-      account_name: 'Total',
+      account_name: totalLabel,
       balance_total: 0,
       expense_total: 0,
       income_total: 0,

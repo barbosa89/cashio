@@ -10,12 +10,16 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "@/i18n/localization-provider";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { AppPalette, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { translateError, translateErrorDescriptor } from "@/i18n/errors";
+import { formatDateTime } from "@/i18n/formatters";
+import { useLocalization } from "@/i18n/localization-provider";
 import { syncBackupTaskRegistration } from "@/lib/backup/backup-scheduler";
 import {
     connectBackup,
@@ -28,15 +32,12 @@ import {
 import { getDefaultBackupProviderId } from "@/lib/backup/providers";
 import type { BackupMetadata } from "@/lib/backup/types";
 
-function formatDate(value: string | null) {
+function formatDate(value: string | null, locale: string, neverLabel: string) {
   if (!value) {
-    return "Nunca";
+    return neverLabel;
   }
 
-  return new Intl.DateTimeFormat("es-CO", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+  return formatDateTime(value, locale);
 }
 
 function getProviderLabel(provider: BackupMetadata["provider"]) {
@@ -55,6 +56,8 @@ function getProviderLabel(provider: BackupMetadata["provider"]) {
 export default function BackupScreen() {
   const db = useSQLiteContext();
   const theme = useTheme();
+  const { languageTag } = useLocalization();
+  const { t } = useTranslation();
   const [metadata, setMetadata] = useState<BackupMetadata | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -80,11 +83,7 @@ export default function BackupScreen() {
       setMetadata(nextMetadata);
       setMessage(successMessage);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "No se pudo completar la operación.";
-      setMessage(errorMessage);
+      setMessage(translateError(error, t));
       await loadState();
     } finally {
       setIsBusy(false);
@@ -93,18 +92,18 @@ export default function BackupScreen() {
 
   function confirmRestore() {
     Alert.alert(
-      "Restaurar copia",
-      "Se reemplazará la base de datos local por la copia encontrada en la nube.",
+      t("backup.confirmTitle"),
+      t("backup.confirmMessage"),
       [
-        { style: "cancel", text: "Cancelar" },
+        { style: "cancel", text: t("common.cancel") },
         {
           onPress: () =>
             void runAction(
               restoreLatestBackup,
-              "Copia restaurada. Reinicia la app si no ves los cambios.",
+              t("backup.restored"),
             ),
           style: "destructive",
-          text: "Restaurar",
+          text: t("restoreGate.restore"),
         },
       ],
     );
@@ -126,7 +125,7 @@ export default function BackupScreen() {
           <ScrollView contentContainerStyle={styles.content}>
             <ThemedView style={styles.titleRow}>
               <Pressable
-                accessibilityLabel="Volver al índice de transacciones"
+                accessibilityLabel={t("accessibility.backToTransactions")}
                 onPress={() => router.replace("/")}
                 style={({ pressed }) => pressed && styles.pressed}
               >
@@ -141,7 +140,7 @@ export default function BackupScreen() {
               </ThemedView>
               <View style={styles.titleCopy}>
                 <ThemedText type="subtitle" style={styles.title}>
-                  Copia de seguridad
+                  {t("backup.title")}
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
                   {providerLabel}
@@ -151,27 +150,30 @@ export default function BackupScreen() {
 
             <ThemedView type="backgroundElement" style={styles.statusPanel}>
               <StatusRow
-                label="Estado"
-                value={isConnected ? "Conectada" : "Desactivada"}
+                label={t("backup.status")}
+                value={isConnected ? t("backup.connected") : t("backup.disconnected")}
               />
               <StatusRow
-                label="Copia diaria"
-                value={isEnabled ? "Activa" : "Inactiva"}
+                label={t("backup.dailyBackup")}
+                value={isEnabled ? t("backup.active") : t("backup.inactive")}
               />
               <StatusRow
-                label="Última copia"
-                value={formatDate(metadata?.lastBackupAt ?? null)}
+                label={t("backup.lastBackup")}
+                value={formatDate(metadata?.lastBackupAt ?? null, languageTag, t("backup.never"))}
               />
               <StatusRow
-                label="Última restauración"
-                value={formatDate(metadata?.lastRestoreAt ?? null)}
+                label={t("backup.lastRestore")}
+                value={formatDate(metadata?.lastRestoreAt ?? null, languageTag, t("backup.never"))}
               />
             </ThemedView>
 
             {(message || metadata?.lastError) && (
               <ThemedView type="backgroundSelected" style={styles.message}>
                 <ThemedText type="smallBold">
-                  {message ?? metadata?.lastError}
+                  {message ??
+                    (metadata?.lastError
+                      ? translateErrorDescriptor(metadata.lastError, t)
+                      : null)}
                 </ThemedText>
               </ThemedView>
             )}
@@ -181,14 +183,16 @@ export default function BackupScreen() {
                 disabled={isBusy}
                 icon={isConnected ? "log-out" : "log-in"}
                 label={
-                  isConnected ? "Desconectar" : `Conectar ${providerLabel}`
+                  isConnected
+                    ? t("backup.disconnect")
+                    : `${t("backup.connect")} ${providerLabel}`
                 }
                 onPress={() =>
                   void runAction(
                     isConnected ? disconnectBackup : () => connectBackup(),
                     isConnected
-                      ? "Copia de seguridad desconectada."
-                      : "Cuenta conectada.",
+                      ? t("backup.disconnectedMessage")
+                      : t("backup.connectedMessage"),
                   )
                 }
                 variant={isConnected ? "secondary" : "primary"}
@@ -196,11 +200,11 @@ export default function BackupScreen() {
               <ActionButton
                 disabled={isBusy || !isConnected}
                 icon="upload-cloud"
-                label="Ejecutar copia ahora"
+                label={t("backup.runNow")}
                 onPress={() =>
                   void runAction(
                     () => runBackupNow(db),
-                    "Copia de seguridad creada.",
+                    t("backup.created"),
                   )
                 }
                 variant="secondary"
@@ -208,7 +212,7 @@ export default function BackupScreen() {
               <ActionButton
                 disabled={isBusy || !isConnected}
                 icon="download-cloud"
-                label="Restaurar desde copia"
+                label={t("backup.restore")}
                 onPress={confirmRestore}
                 variant="secondary"
               />
@@ -216,14 +220,14 @@ export default function BackupScreen() {
                 disabled={isBusy || !isConnected}
                 icon={isEnabled ? "pause-circle" : "play-circle"}
                 label={
-                  isEnabled ? "Desactivar copia diaria" : "Activar copia diaria"
+                  isEnabled ? t("backup.disable") : t("backup.enable")
                 }
                 onPress={() =>
                   void runAction(
                     () => setDailyBackupEnabled(!isEnabled),
                     isEnabled
-                      ? "Copia diaria desactivada."
-                      : "Copia diaria activada.",
+                      ? t("backup.disabled")
+                      : t("backup.enabled"),
                   )
                 }
                 variant="secondary"
@@ -236,8 +240,8 @@ export default function BackupScreen() {
               style={styles.note}
             >
               {Platform.OS === "ios"
-                ? "iOS decide cuándo ejecutar tareas en segundo plano. Cash IO también intentará respaldar al abrir la app si pasó más de un día."
-                : "Android usa Google Drive appDataFolder. El archivo no aparece como documento normal en Drive."}
+                ? t("backup.iosSchedule")
+                : t("backup.androidDriveNote")}
             </ThemedText>
           </ScrollView>
         </ThemedView>

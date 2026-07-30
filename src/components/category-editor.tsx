@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "@/i18n/localization-provider";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
@@ -17,17 +18,17 @@ import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, DROPDOWN_LIST_MODE, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
-import { CashioValidationError } from "@/lib/cashio-repository";
+import { translateError } from "@/i18n/errors";
 import type { Category, CategoryType } from "@/lib/database";
-
-const CATEGORY_TYPE_OPTIONS: Array<{ label: string; value: CategoryType }> = [
-  { label: "Ingreso", value: "income" },
-  { label: "Egreso", value: "expense" },
-  { label: "Ambas", value: "both" },
-];
 
 export function CategoryEditor({ category }: { category?: Category }) {
   const theme = useTheme();
+  const { t } = useTranslation();
+  const categoryTypeOptions: Array<{ label: string; value: CategoryType }> = [
+    { label: t("common.income"), value: "income" },
+    { label: t("common.expense"), value: "expense" },
+    { label: t("common.both"), value: "both" },
+  ];
   const { addCategory, editCategory, isLoading } = useCashioData();
   const [description, setDescription] = useState(category?.description ?? "");
   const [categoryType, setCategoryType] = useState<CategoryType | null>(
@@ -62,11 +63,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
       resetForm();
       router.replace("/categories");
     } catch (error) {
-      if (error instanceof CashioValidationError) {
-        setMessage(error.message);
-        return;
-      }
-      setMessage("No se pudo guardar la categoría.");
+      setMessage(translateError(error, t));
     }
   }
 
@@ -85,7 +82,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
             <Pressable
-              accessibilityLabel="Volver a categorías"
+              accessibilityLabel={t("accessibility.backToCategories")}
               onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}
             >
@@ -94,24 +91,24 @@ export function CategoryEditor({ category }: { category?: Category }) {
               </ThemedView>
             </Pressable>
             <ThemedText type="title" style={styles.title}>
-              {category ? "Editar categoría" : "Nueva categoría"}
+              {category ? t("categoryEditor.editTitle") : t("categoryEditor.newTitle")}
             </ThemedText>
           </View>
 
           <View style={styles.panel}>
             {isTypeOpen && (
               <Pressable
-                accessibilityLabel="Cerrar selector"
+                accessibilityLabel={t("accessibility.closeSelector")}
                 onPress={() => setIsTypeOpen(false)}
                 style={styles.dropdownBackdrop}
               />
             )}
 
             <View style={styles.field}>
-              <ThemedText type="smallBold">Nombre</ThemedText>
+              <ThemedText type="smallBold">{t("categoryEditor.name")}</ThemedText>
               <TextInput
                 onChangeText={setDescription}
-                placeholder="Nombre"
+                placeholder={t("categoryEditor.name")}
                 placeholderTextColor={theme.textSecondary}
                 style={[
                   styles.input,
@@ -128,7 +125,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
                 { zIndex: isTypeOpen ? 30 : 10 },
               ]}
             >
-              <ThemedText type="smallBold">Tipo</ThemedText>
+              <ThemedText type="smallBold">{t("categoryEditor.type")}</ThemedText>
               <DropDownPicker<CategoryType>
                 ArrowDownIconComponent={({ style }) => (
                   <View style={style}>
@@ -157,7 +154,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
                     borderColor: theme.backgroundSelected,
                   },
                 ]}
-                items={CATEGORY_TYPE_OPTIONS}
+                items={categoryTypeOptions}
                 labelStyle={styles.dropdownLabel}
                 listItemContainerStyle={styles.dropdownItem}
                 listItemLabelStyle={{ color: theme.text }}
@@ -167,10 +164,10 @@ export function CategoryEditor({ category }: { category?: Category }) {
                   styles.dropdownModal,
                   { backgroundColor: theme.background },
                 ]}
-                modalTitle="Seleccionar tipo"
+                modalTitle={t("categoryEditor.selectType")}
                 modalTitleStyle={{ color: theme.text }}
                 open={isTypeOpen}
-                placeholder="Selecciona un tipo"
+                placeholder={t("categoryEditor.selectType")}
                 placeholderStyle={{ color: theme.textSecondary }}
                 selectedItemContainerStyle={{
                   backgroundColor: theme.backgroundSelected,
@@ -208,7 +205,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
             >
               <ThemedView type="backgroundSelected" style={styles.saveButton}>
                 <ThemedText type="smallBold">
-                  {category ? "Guardar cambios" : "Crear categoría"}
+                  {category ? t("categoryEditor.save") : t("categoryEditor.create")}
                 </ThemedText>
               </ThemedView>
             </Pressable>

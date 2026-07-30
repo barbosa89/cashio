@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useRef } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
@@ -12,6 +13,7 @@ import { useTheme } from '@/hooks/use-theme';
 
 export default function NewTransactionScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const formRef = useRef<TransactionFormHandle>(null);
   const params = useLocalSearchParams<{ accountId?: string }>();
   const parsedAccountId = Number(params.accountId);
@@ -34,7 +36,7 @@ export default function NewTransactionScreen() {
         <SafeAreaView style={styles.safeArea}>
           <ThemedView style={styles.header}>
             <Pressable
-              accessibilityLabel="Volver al índice de transacciones"
+              accessibilityLabel={t('accessibility.backToTransactions')}
               onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}>
               <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
@@ -42,7 +44,7 @@ export default function NewTransactionScreen() {
               </ThemedView>
             </Pressable>
             <ThemedText type="title" style={styles.title}>
-              Nuevo registro
+              {t('transaction.newRecord')}
             </ThemedText>
           </ThemedView>
 

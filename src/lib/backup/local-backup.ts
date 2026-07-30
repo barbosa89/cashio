@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 import { Platform } from 'react-native';
 
+import { AppError } from '@/i18n/errors';
 import type { BackupFileMetadata, CloudBackup } from '@/lib/backup/types';
 
 const DATABASE_NAME = 'cashio.db';
@@ -11,7 +12,7 @@ const RESTORE_CANDIDATE_NAME = 'cashio-restore-candidate.db';
 
 function requireNativePlatform() {
   if (Platform.OS === 'web') {
-    throw new Error('La copia de seguridad no está disponible en web.');
+    throw new AppError({ code: 'backupWebUnavailable' });
   }
 }
 
@@ -21,7 +22,7 @@ function ensureFileUri(path: string) {
 
 function getCacheFileUri(fileName: string) {
   if (!FileSystem.cacheDirectory) {
-    throw new Error('No se pudo acceder al directorio temporal.');
+    throw new AppError({ code: 'tempDirectoryUnavailable' });
   }
 
   return `${FileSystem.cacheDirectory}${fileName}`;
@@ -68,7 +69,7 @@ export async function createLocalBackup(currentDb?: SQLiteDatabase): Promise<Clo
 
     const fileInfo = await FileSystem.getInfoAsync(backupUri);
     if (!fileInfo.exists) {
-      throw new Error('No se pudo preparar la copia local.');
+      throw new AppError({ code: 'backupPrepareFailed' });
     }
 
     const databaseBase64 = await FileSystem.readAsStringAsync(backupUri, {
@@ -91,7 +92,7 @@ export async function validateBackup(backup: CloudBackup) {
 
   const hash = await hashBase64(backup.databaseBase64);
   if (hash !== backup.metadata.hash) {
-    throw new Error('La copia de seguridad no coincide con su hash.');
+    throw new AppError({ code: 'backupHashMismatch' });
   }
 
   const candidateUri = getCacheFileUri(RESTORE_CANDIDATE_NAME);
@@ -104,7 +105,7 @@ export async function validateBackup(backup: CloudBackup) {
   try {
     const result = await db.getFirstAsync<{ integrity_check: string }>('PRAGMA integrity_check;');
     if (result?.integrity_check !== 'ok') {
-      throw new Error('La copia de seguridad no pasó la validación de SQLite.');
+      throw new AppError({ code: 'backupIntegrityFailed' });
     }
   } finally {
     await db.closeAsync();

@@ -1,4 +1,7 @@
 import type { MonthlySummaryRow, Transaction } from "@/lib/database";
+import { AppError, type AppErrorDescriptor } from "@/i18n/errors";
+import { capitalizeLocalized, formatMonthYear } from "@/i18n/formatters";
+import type { AppTranslator } from "@/i18n/types";
 
 export type MonthlyReportRange = {
   startMonth: string;
@@ -9,6 +12,7 @@ export type MonthlyReportFile = {
   contents: string;
   fileName: string;
   openingBalance: number;
+  shareTitle: string;
   transactionCount: number;
 };
 
@@ -18,20 +22,13 @@ type BuildMonthlyReportInput = {
   monthlySummaries: MonthlySummaryRow[];
   range: MonthlyReportRange;
   transactions: Transaction[];
+  localization: ReportLocalization;
 };
 
-const CSV_HEADERS = [
-  "ID",
-  "Fecha",
-  "Cuenta",
-  "Tipo",
-  "Monto",
-  "Descripción",
-  "Categoría",
-  "Tags",
-  "Fecha de creación",
-  "Fecha de actualización",
-] as const;
+export type ReportLocalization = {
+  locale: string;
+  t: AppTranslator;
+};
 
 function padMonth(value: number) {
   return String(value).padStart(2, "0");
@@ -98,44 +95,39 @@ function serializeRow(
     .join(";");
 }
 
-function transactionTypeLabel(transaction: Transaction) {
+function transactionTypeLabel(transaction: Transaction, t: AppTranslator) {
   if (transaction.is_transfer === 1) {
     return transaction.type === "income"
-      ? "Traslado entrante"
-      : "Traslado saliente";
+      ? t("reports.incomingTransfer")
+      : t("reports.outgoingTransfer");
   }
 
-  return transaction.type === "income" ? "Ingreso" : "Egreso";
+  return transaction.type === "income" ? t("common.income") : t("common.expense");
 }
 
 export function getCurrentMonthKey(date = new Date()) {
   return `${date.getFullYear()}-${padMonth(date.getMonth() + 1)}`;
 }
 
-export function formatReportMonth(monthKey: string) {
+export function formatReportMonth(monthKey: string, locale: string) {
   const [year, month] = monthKey.split("-").map(Number);
-  const label = new Intl.DateTimeFormat("es-CO", {
-    month: "long",
-    year: "numeric",
-  }).format(new Date(year, month - 1, 1));
-
-  return `${label.charAt(0).toLocaleUpperCase()}${label.slice(1)}`;
+  return capitalizeLocalized(formatMonthYear(year, month, locale), locale);
 }
 
 export function validateMonthlyReportRange(
   range: MonthlyReportRange,
   currentMonth = getCurrentMonthKey(),
-) {
+): AppErrorDescriptor | null {
   if (!isMonthKey(range.startMonth) || !isMonthKey(range.endMonth)) {
-    return "Selecciona un mes inicial y final válidos.";
+    return { code: "invalidReportRange" };
   }
 
   if (range.startMonth > range.endMonth) {
-    return "El mes inicial no puede ser posterior al mes final.";
+    return { code: "reversedReportRange" };
   }
 
   if (range.startMonth > currentMonth || range.endMonth > currentMonth) {
-    return "No se pueden exportar meses futuros.";
+    return { code: "futureReportRange" };
   }
 
   return null;
@@ -144,15 +136,30 @@ export function validateMonthlyReportRange(
 export function buildMonthlyReportCsv({
   currentMonth = getCurrentMonthKey(),
   initialBalance = 0,
+  localization,
   monthlySummaries,
   range,
   transactions,
 }: BuildMonthlyReportInput): MonthlyReportFile {
+  const { t } = localization;
   const validationError = validateMonthlyReportRange(range, currentMonth);
 
   if (validationError) {
-    throw new Error(validationError);
+    throw new AppError(validationError);
   }
+
+  const csvHeaders = [
+    t("reports.headerId"),
+    t("reports.headerDate"),
+    t("reports.headerAccount"),
+    t("reports.headerType"),
+    t("reports.headerAmount"),
+    t("reports.headerDescription"),
+    t("reports.headerCategory"),
+    t("reports.headerTags"),
+    t("reports.headerCreatedAt"),
+    t("reports.headerUpdatedAt"),
+  ];
 
   const openingBalance = monthlySummaries.reduce(
     (total, summary) =>
@@ -174,14 +181,14 @@ export function buildMonthlyReportCsv({
       return dateComparison || left.id - right.id;
     });
   const rows = [
-    serializeRow([...CSV_HEADERS]),
+    serializeRow(csvHeaders),
     serializeRow([
       "",
       getPreviousMonthLastDate(range.startMonth),
       "",
-      "Saldo",
+      t("reports.openingBalanceType"),
       openingBalance,
-      "Saldo anterior",
+      t("reports.previousBalance"),
       "",
       "",
       "",
@@ -193,7 +200,7 @@ export function buildMonthlyReportCsv({
           transaction.id,
           transaction.transaction_date,
           transaction.account_name,
-          transactionTypeLabel(transaction),
+          transactionTypeLabel(transaction, t),
           transaction.amount,
           transaction.description ?? "",
           transaction.category_description,
@@ -208,8 +215,12 @@ export function buildMonthlyReportCsv({
 
   return {
     contents: `\uFEFF${rows.join("\r\n")}\r\n`,
-    fileName: `cashio-reporte-${range.startMonth}_a_${range.endMonth}.csv`,
+    fileName: t("reports.csvFileName", {
+      end: range.endMonth,
+      start: range.startMonth,
+    }),
     openingBalance,
+    shareTitle: t("reports.shareTitle"),
     transactionCount: reportTransactions.length,
   };
 }

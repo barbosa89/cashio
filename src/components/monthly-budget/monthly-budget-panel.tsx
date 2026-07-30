@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -31,13 +32,14 @@ export function MonthlyBudgetPanel({
   onSaveAmount,
   readOnly = false,
 }: MonthlyBudgetPanelProps) {
+  const { t } = useTranslation();
   const hasBudgetItems = budgetData.items.length > 0;
 
   return (
     <View style={styles.panel}>
       {readOnly ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.readOnlyText}>
-          Vista consolidada de todas las cuentas. Selecciona una cuenta para editar su presupuesto.
+          {t('budget.consolidatedDescription')}
         </ThemedText>
       ) : (
         <View style={styles.actionRow}>
@@ -60,12 +62,12 @@ export function MonthlyBudgetPanel({
       {!hasBudgetItems ? (
         <ThemedView style={styles.emptyState}>
           <ThemedText type="subtitle" style={styles.emptyTitle}>
-            {readOnly ? 'Sin presupuesto consolidado' : 'Sin categorías presupuestadas'}
+            {readOnly ? t('budget.noConsolidated') : t('budget.noCategories')}
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {readOnly
-              ? 'No hay categorías presupuestadas en las cuentas para este mes.'
-              : 'Agrega categorías para planear cuánto esperas gastar este mes.'}
+              ? t('budget.noConsolidatedDescription')
+              : t('budget.noCategoriesDescription')}
           </ThemedText>
         </ThemedView>
       ) : (

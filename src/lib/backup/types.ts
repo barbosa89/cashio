@@ -5,7 +5,7 @@ export type BackupMetadata = {
   provider: BackupProviderId | null;
   lastBackupAt: string | null;
   lastRestoreAt: string | null;
-  lastError: string | null;
+  lastError: AppErrorDescriptor | null;
 };
 
 export type BackupFileMetadata = {
@@ -31,3 +31,4 @@ export type BackupProvider = {
   upload(backup: CloudBackup): Promise<void>;
   downloadLatest(): Promise<CloudBackup | null>;
 };
+import type { AppErrorDescriptor } from '@/i18n/errors';

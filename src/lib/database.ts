@@ -1,5 +1,11 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { AppError } from '@/i18n/errors';
+import { en } from '@/i18n/locales/en';
+import { es } from '@/i18n/locales/es';
+import { pt } from '@/i18n/locales/pt';
+import type { SupportedLanguage } from '@/i18n/types';
+
 export type CategoryType = 'income' | 'expense' | 'both';
 export type TransactionType = 'income' | 'expense';
 export type AccountScope = number | 'all';
@@ -137,31 +143,41 @@ export type SettingRow = {
 
 const DATABASE_VERSION = 6;
 
-const DEFAULT_CATEGORIES: Array<{ description: string; type: CategoryType }> = [
-  { description: 'Alimentación', type: 'expense' },
-  { description: 'Transporte', type: 'expense' },
-  { description: 'Vivienda', type: 'expense' },
-  { description: 'Servicios', type: 'expense' },
-  { description: 'Salud', type: 'expense' },
-  { description: 'Educación', type: 'expense' },
-  { description: 'Entretenimiento', type: 'expense' },
-  { description: 'Compras', type: 'expense' },
-  { description: 'Deudas', type: 'expense' },
-  { description: 'Ahorro', type: 'expense' },
-  { description: 'Salario', type: 'income' },
-  { description: 'Freelance', type: 'income' },
-  { description: 'Inversiones', type: 'income' },
-  { description: 'Regalos', type: 'income' },
-  { description: 'Otros ingresos', type: 'income' },
-  { description: 'Transferencias', type: 'both' },
-  { description: 'Ajustes', type: 'both' },
-];
+const seedTranslations = { en: en.seeds, es: es.seeds, pt: pt.seeds };
 
-export async function migrateDatabase(db: SQLiteDatabase) {
+function getDefaultCategories(language: SupportedLanguage) {
+  const seeds = seedTranslations[language];
+  return [
+    { description: seeds.food, type: 'expense' },
+    { description: seeds.transportation, type: 'expense' },
+    { description: seeds.housing, type: 'expense' },
+    { description: seeds.utilities, type: 'expense' },
+    { description: seeds.health, type: 'expense' },
+    { description: seeds.education, type: 'expense' },
+    { description: seeds.entertainment, type: 'expense' },
+    { description: seeds.shopping, type: 'expense' },
+    { description: seeds.debt, type: 'expense' },
+    { description: seeds.savings, type: 'expense' },
+    { description: seeds.salary, type: 'income' },
+    { description: seeds.freelance, type: 'income' },
+    { description: seeds.investments, type: 'income' },
+    { description: seeds.gifts, type: 'income' },
+    { description: seeds.otherIncome, type: 'income' },
+    { description: seeds.transfers, type: 'both' },
+    { description: seeds.adjustments, type: 'both' },
+  ] satisfies Array<{ description: string; type: CategoryType }>;
+}
+
+export async function migrateDatabase(
+  db: SQLiteDatabase,
+  { seedLanguage = 'en' }: { seedLanguage?: SupportedLanguage } = {},
+) {
   await db.execAsync('PRAGMA foreign_keys = ON;');
 
   const versionResult = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let currentDbVersion = versionResult?.user_version ?? 0;
+  const databaseSeedLanguage: SupportedLanguage =
+    currentDbVersion === 0 ? seedLanguage : 'es';
 
   if (currentDbVersion >= DATABASE_VERSION) {
     return;
@@ -213,7 +229,7 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     `);
 
     const now = new Date().toISOString();
-    for (const category of DEFAULT_CATEGORIES) {
+    for (const category of getDefaultCategories(databaseSeedLanguage)) {
       await db.runAsync(
         `INSERT OR IGNORE INTO categories (description, type, created_at, updated_at)
          VALUES (?, ?, ?, ?)`,
@@ -370,7 +386,8 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     await db.runAsync(
       `INSERT OR IGNORE INTO accounts
         (id, name, initial_balance, is_default, is_archived, sort_order, created_at, updated_at)
-       VALUES (1, 'Principal', 0, 1, 0, 0, ?, ?)`,
+       VALUES (1, ?, 0, 1, 0, 0, ?, ?)`,
+      seedTranslations[databaseSeedLanguage].primaryAccount,
       now,
       now
     );
@@ -522,7 +539,7 @@ export async function migrateDatabase(db: SQLiteDatabase) {
       fkid: number;
     }>('PRAGMA foreign_key_check;');
     if (foreignKeyCheck.length > 0) {
-      throw new Error('La migración de cuentas dejó referencias inválidas.');
+      throw new AppError({ code: 'invalidAccountMigration' });
     }
 
     currentDbVersion = 6;

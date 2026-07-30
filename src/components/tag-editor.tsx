@@ -9,6 +9,7 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "@/i18n/localization-provider";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
@@ -16,11 +17,12 @@ import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
-import { CashioValidationError } from "@/lib/cashio-repository";
+import { translateError } from "@/i18n/errors";
 import type { Tag } from "@/lib/database";
 
 export function TagEditor({ tag }: { tag?: Tag }) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { addTag, editTag, isLoading } = useCashioData();
   const [description, setDescription] = useState(tag?.description ?? "");
   const [message, setMessage] = useState("");
@@ -45,11 +47,7 @@ export function TagEditor({ tag }: { tag?: Tag }) {
       resetForm();
       router.replace("/tags");
     } catch (error) {
-      if (error instanceof CashioValidationError) {
-        setMessage(error.message);
-        return;
-      }
-      setMessage("No se pudo guardar el tag.");
+      setMessage(translateError(error, t));
     }
   }
 
@@ -68,7 +66,7 @@ export function TagEditor({ tag }: { tag?: Tag }) {
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
             <Pressable
-              accessibilityLabel="Volver a tags"
+              accessibilityLabel={t("accessibility.backToTags")}
               onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}
             >
@@ -79,16 +77,16 @@ export function TagEditor({ tag }: { tag?: Tag }) {
               </ThemedView>
             </Pressable>
             <ThemedText type="title" style={styles.title}>
-              {tag ? "Editar tag" : "Nuevo tag"}
+              {tag ? t("tagEditor.editTitle") : t("tagEditor.newTitle")}
             </ThemedText>
           </View>
 
           <View style={styles.panel}>
             <View style={styles.field}>
-              <ThemedText type="smallBold">Nombre</ThemedText>
+              <ThemedText type="smallBold">{t("tagEditor.name")}</ThemedText>
               <TextInput
                 onChangeText={setDescription}
-                placeholder="Nombre"
+                placeholder={t("tagEditor.name")}
                 placeholderTextColor={theme.textSecondary}
                 style={[
                   styles.input,
@@ -114,7 +112,7 @@ export function TagEditor({ tag }: { tag?: Tag }) {
             >
               <ThemedView type="backgroundSelected" style={styles.saveButton}>
                 <ThemedText type="smallBold">
-                  {tag ? "Guardar cambios" : "Crear tag"}
+                  {tag ? t("tagEditor.save") : t("tagEditor.create")}
                 </ThemedText>
               </ThemedView>
             </Pressable>

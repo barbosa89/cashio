@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { AppError, getErrorDescriptor } from '@/i18n/errors';
 import { createLocalBackup, restoreLocalBackup } from '@/lib/backup/local-backup';
 import { getBackupProvider, getDefaultBackupProviderId } from '@/lib/backup/providers';
 import {
@@ -9,10 +10,6 @@ import {
 import type { BackupMetadata, BackupProviderId } from '@/lib/backup/types';
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-function messageFromError(error: unknown) {
-  return error instanceof Error ? error.message : 'No se pudo completar la operación.';
-}
 
 function hasDailyBackupExpired(metadata: BackupMetadata) {
   if (!metadata.lastBackupAt) {
@@ -30,7 +27,7 @@ export async function connectBackup(providerId: BackupProviderId | null = getDef
   const provider = await getBackupProvider(providerId);
 
   if (!provider) {
-    throw new Error('No hay proveedor de copia de seguridad para esta plataforma.');
+    throw new AppError({ code: 'backupProviderUnavailable' });
   }
 
   await provider.connect();
@@ -60,7 +57,7 @@ export async function setDailyBackupEnabled(enabled: boolean) {
   const providerId = metadata.provider ?? getDefaultBackupProviderId();
 
   if (enabled && !providerId) {
-    throw new Error('No hay proveedor de copia de seguridad para esta plataforma.');
+    throw new AppError({ code: 'backupProviderUnavailable' });
   }
 
   return updateBackupMetadata((currentMetadata) => ({
@@ -76,7 +73,7 @@ export async function runBackupNow(db?: SQLiteDatabase) {
   const provider = await getBackupProvider(providerId);
 
   if (!provider) {
-    throw new Error('No hay proveedor de copia de seguridad para esta plataforma.');
+    throw new AppError({ code: 'backupProviderUnavailable' });
   }
 
   try {
@@ -93,7 +90,7 @@ export async function runBackupNow(db?: SQLiteDatabase) {
   } catch (error) {
     await updateBackupMetadata((currentMetadata) => ({
       ...currentMetadata,
-      lastError: messageFromError(error),
+      lastError: getErrorDescriptor(error),
       provider: providerId,
     }));
     throw error;
@@ -106,7 +103,7 @@ export async function restoreLatestBackup() {
   const provider = await getBackupProvider(providerId);
 
   if (!provider) {
-    throw new Error('No hay proveedor de copia de seguridad para esta plataforma.');
+    throw new AppError({ code: 'backupProviderUnavailable' });
   }
 
   try {
@@ -114,7 +111,7 @@ export async function restoreLatestBackup() {
     const backup = await provider.downloadLatest();
 
     if (!backup) {
-      throw new Error('No se encontró una copia de seguridad.');
+      throw new AppError({ code: 'backupNotFound' });
     }
 
     await restoreLocalBackup(backup);
@@ -128,7 +125,7 @@ export async function restoreLatestBackup() {
   } catch (error) {
     await updateBackupMetadata((currentMetadata) => ({
       ...currentMetadata,
-      lastError: messageFromError(error),
+      lastError: getErrorDescriptor(error),
       provider: providerId,
     }));
     throw error;

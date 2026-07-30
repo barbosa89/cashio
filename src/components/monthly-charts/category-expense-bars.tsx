@@ -1,8 +1,10 @@
 import { StyleSheet, View, type DimensionValue } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useLocalization } from '@/i18n/localization-provider';
 
 import { ChartCard } from './chart-card';
 import { type CategoryChartPoint, formatMoney } from './chart-formatters';
@@ -15,6 +17,8 @@ type CategoryExpenseBarsProps = {
 
 export function CategoryExpenseBars({ data, total }: CategoryExpenseBarsProps) {
   const theme = useTheme();
+  const { languageTag } = useLocalization();
+  const { t } = useTranslation();
   let maxAmount = 1;
 
   for (const item of data) {
@@ -24,7 +28,7 @@ export function CategoryExpenseBars({ data, total }: CategoryExpenseBarsProps) {
   }
 
   return (
-    <ChartCard title="Acumulado">
+    <ChartCard title={t('charts.accumulated')}>
       <View style={styles.list}>
         {data.map((item) => {
           const percentage =
@@ -45,7 +49,7 @@ export function CategoryExpenseBars({ data, total }: CategoryExpenseBarsProps) {
                   </ThemedText>
                 </View>
                 <ThemedText type="smallBold" style={styles.amount}>
-                  $ {formatMoney(item.amount)}
+                  $ {formatMoney(item.amount, languageTag)}
                 </ThemedText>
               </View>
               <View style={[styles.track, { backgroundColor: theme.background }]}>

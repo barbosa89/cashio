@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import CurrencyInput from "react-native-currency-input";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "@/i18n/localization-provider";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
@@ -17,11 +18,16 @@ import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
-import { CashioValidationError } from "@/lib/cashio-repository";
+import { translateError } from "@/i18n/errors";
+import { getNumberSeparators } from "@/i18n/formatters";
+import { useLocalization } from "@/i18n/localization-provider";
 import type { Account } from "@/lib/database";
 
 export function AccountEditor({ account }: { account?: Account }) {
   const theme = useTheme();
+  const { languageTag } = useLocalization();
+  const { t } = useTranslation();
+  const numberSeparators = getNumberSeparators(languageTag);
   const { addAccount, editAccount, isLoading } = useCashioData();
   const [name, setName] = useState(account?.name ?? "");
   const [initialBalance, setInitialBalance] = useState<number | null>(
@@ -57,11 +63,7 @@ export function AccountEditor({ account }: { account?: Account }) {
       resetForm();
       router.replace("/accounts");
     } catch (error) {
-      if (error instanceof CashioValidationError) {
-        setMessage(error.message);
-        return;
-      }
-      setMessage("No se pudo guardar la cuenta.");
+      setMessage(translateError(error, t));
     }
   }
 
@@ -80,7 +82,7 @@ export function AccountEditor({ account }: { account?: Account }) {
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
             <Pressable
-              accessibilityLabel="Volver a cuentas"
+              accessibilityLabel={t("accessibility.backToAccounts")}
               onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}
             >
@@ -89,16 +91,16 @@ export function AccountEditor({ account }: { account?: Account }) {
               </ThemedView>
             </Pressable>
             <ThemedText type="title" style={styles.title}>
-              {account ? "Editar cuenta" : "Nueva cuenta"}
+              {account ? t("accountEditor.editTitle") : t("accountEditor.newTitle")}
             </ThemedText>
           </View>
 
           <ThemedView type="backgroundElement" style={styles.panel}>
             <View style={styles.field}>
-              <ThemedText type="smallBold">Nombre</ThemedText>
+              <ThemedText type="smallBold">{t("accountEditor.name")}</ThemedText>
               <TextInput
                 onChangeText={setName}
-                placeholder="Nombre"
+                placeholder={t("accountEditor.name")}
                 placeholderTextColor={theme.textSecondary}
                 style={[
                   styles.input,
@@ -109,16 +111,16 @@ export function AccountEditor({ account }: { account?: Account }) {
             </View>
 
             <View style={styles.field}>
-              <ThemedText type="smallBold">Saldo inicial</ThemedText>
+              <ThemedText type="smallBold">{t("accountEditor.initialBalance")}</ThemedText>
               <CurrencyInput
-                delimiter="."
+                delimiter={numberSeparators.delimiter}
                 keyboardType="numeric"
                 onChangeValue={setInitialBalance}
                 placeholder="$ 0"
                 placeholderTextColor={theme.textSecondary}
                 precision={0}
                 prefix="$ "
-                separator=","
+                separator={numberSeparators.separator}
                 style={[
                   styles.input,
                   { borderColor: theme.backgroundSelected, color: theme.text },
@@ -143,7 +145,7 @@ export function AccountEditor({ account }: { account?: Account }) {
             >
               <ThemedView type="backgroundSelected" style={styles.saveButton}>
                 <ThemedText type="smallBold">
-                  {account ? "Guardar cambios" : "Crear cuenta"}
+                  {account ? t("accountEditor.save") : t("accountEditor.create")}
                 </ThemedText>
               </ThemedView>
             </Pressable>

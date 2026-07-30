@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { AppError, type AppErrorCode, type AppErrorDescriptor } from '@/i18n/errors';
 import type {
   Account,
   AccountBalanceRow,
@@ -57,9 +58,9 @@ export type SaveMonthlyBudgetAmountInput = {
   plannedAmount: number;
 };
 
-export class CashioValidationError extends Error {
-  constructor(message: string) {
-    super(message);
+export class CashioValidationError extends AppError {
+  constructor(descriptor: AppErrorDescriptor) {
+    super(descriptor);
     this.name = 'CashioValidationError';
   }
 }
@@ -76,18 +77,22 @@ function isUniqueError(error: unknown) {
   return error instanceof Error && error.message.toLowerCase().includes('unique');
 }
 
-function assertDescription(description: string, entity: 'cuenta' | 'categoría' | 'tag') {
+function assertDescription(description: string, entity: 'account' | 'category' | 'tag') {
   const normalized = normalizeDescription(description);
   if (!normalized) {
-    const article = entity === 'tag' ? 'del' : 'de la';
-    throw new CashioValidationError(`El nombre ${article} ${entity} no puede estar vacío.`);
+    const codeByEntity = {
+      account: 'emptyAccountName',
+      category: 'emptyCategoryName',
+      tag: 'emptyTagName',
+    } satisfies Record<typeof entity, AppErrorCode>;
+    throw new CashioValidationError({ code: codeByEntity[entity] });
   }
   return normalized;
 }
 
-function assertAmount(value: number, message: string) {
+function assertAmount(value: number, code: AppErrorCode) {
   if (!Number.isFinite(value)) {
-    throw new CashioValidationError(message);
+    throw new CashioValidationError({ code });
   }
   return value;
 }
@@ -106,7 +111,7 @@ function getNextMonth(month: string) {
 
 function assertMonth(month: string) {
   if (!/^\d{4}-\d{2}$/.test(month)) {
-    throw new CashioValidationError('El mes no es válido.');
+    throw new CashioValidationError({ code: 'invalidMonth' });
   }
   return month;
 }
@@ -117,7 +122,7 @@ function escapeLikePattern(value: string) {
 
 function assertConcreteAccountScope(accountScope: AccountScope) {
   if (accountScope === 'all') {
-    throw new CashioValidationError('Selecciona una cuenta específica.');
+    throw new CashioValidationError({ code: 'concreteAccountRequired' });
   }
   return accountScope;
 }
@@ -137,7 +142,7 @@ async function assertAccountExists(db: SQLiteDatabase, accountId: number) {
   );
 
   if (!account || account.is_archived === 1) {
-    throw new CashioValidationError('Selecciona una cuenta válida.');
+    throw new CashioValidationError({ code: 'invalidAccount' });
   }
 }
 
@@ -148,11 +153,11 @@ async function assertBudgetableCategory(db: SQLiteDatabase, categoryId: number) 
   );
 
   if (!category) {
-    throw new CashioValidationError('Selecciona una categoría válida.');
+    throw new CashioValidationError({ code: 'invalidCategory' });
   }
 
   if (!canBudgetCategory(category.type)) {
-    throw new CashioValidationError('Solo las categorías de egreso pueden tener presupuesto.');
+    throw new CashioValidationError({ code: 'budgetCategoryType' });
   }
 }
 
@@ -266,8 +271,8 @@ export async function listAccounts(db: SQLiteDatabase, includeArchived = false) 
 }
 
 export async function createAccount(db: SQLiteDatabase, input: SaveAccountInput) {
-  const name = assertDescription(input.name, 'cuenta');
-  const initialBalance = assertAmount(input.initialBalance, 'El saldo inicial no es válido.');
+  const name = assertDescription(input.name, 'account');
+  const initialBalance = assertAmount(input.initialBalance, 'invalidInitialBalance');
   const timestamp = nowIso();
   const sortOrder = await db.getFirstAsync<{ sort_order: number }>(
     'SELECT COALESCE(MAX(sort_order), 0) + 1 AS sort_order FROM accounts'
@@ -304,15 +309,15 @@ export async function createAccount(db: SQLiteDatabase, input: SaveAccountInput)
     );
   } catch (error) {
     if (isUniqueError(error)) {
-      throw new CashioValidationError('Ya existe una cuenta con ese nombre.');
+      throw new CashioValidationError({ code: 'duplicateAccount' });
     }
     throw error;
   }
 }
 
 export async function updateAccount(db: SQLiteDatabase, id: number, input: SaveAccountInput) {
-  const name = assertDescription(input.name, 'cuenta');
-  const initialBalance = assertAmount(input.initialBalance, 'El saldo inicial no es válido.');
+  const name = assertDescription(input.name, 'account');
+  const initialBalance = assertAmount(input.initialBalance, 'invalidInitialBalance');
 
   try {
     await db.runAsync(
@@ -328,7 +333,7 @@ export async function updateAccount(db: SQLiteDatabase, id: number, input: SaveA
     );
   } catch (error) {
     if (isUniqueError(error)) {
-      throw new CashioValidationError('Ya existe una cuenta con ese nombre.');
+      throw new CashioValidationError({ code: 'duplicateAccount' });
     }
     throw error;
   }
@@ -345,7 +350,7 @@ export async function deleteAccount(db: SQLiteDatabase, id: number) {
   }
 
   if (account.is_default === 1) {
-    throw new CashioValidationError('La cuenta principal no se puede eliminar.');
+    throw new CashioValidationError({ code: 'defaultAccountDelete' });
   }
 
   const usage = await db.getFirstAsync<{ has_transactions: number }>(
@@ -361,7 +366,7 @@ export async function deleteAccount(db: SQLiteDatabase, id: number) {
   );
 
   if ((usage?.has_transactions ?? 0) === 1) {
-    throw new CashioValidationError('No se puede eliminar una cuenta asociada a registros.');
+    throw new CashioValidationError({ code: 'accountInUse' });
   }
 
   await db.runAsync('DELETE FROM accounts WHERE id = ?', id);
@@ -416,7 +421,7 @@ export async function listCategoriesForTransaction(
 }
 
 export async function createCategory(db: SQLiteDatabase, input: SaveCategoryInput) {
-  const description = assertDescription(input.description, 'categoría');
+  const description = assertDescription(input.description, 'category');
   const timestamp = nowIso();
 
   try {
@@ -439,14 +444,14 @@ export async function createCategory(db: SQLiteDatabase, input: SaveCategoryInpu
     );
   } catch (error) {
     if (isUniqueError(error)) {
-      throw new CashioValidationError('Ya existe una categoría con ese nombre.');
+      throw new CashioValidationError({ code: 'duplicateCategory' });
     }
     throw error;
   }
 }
 
 export async function updateCategory(db: SQLiteDatabase, id: number, input: SaveCategoryInput) {
-  const description = assertDescription(input.description, 'categoría');
+  const description = assertDescription(input.description, 'category');
 
   try {
     await db.withTransactionAsync(async () => {
@@ -466,7 +471,7 @@ export async function updateCategory(db: SQLiteDatabase, id: number, input: Save
     });
   } catch (error) {
     if (isUniqueError(error)) {
-      throw new CashioValidationError('Ya existe una categoría con ese nombre.');
+      throw new CashioValidationError({ code: 'duplicateCategory' });
     }
     throw error;
   }
@@ -479,7 +484,7 @@ export async function deleteCategory(db: SQLiteDatabase, id: number) {
   );
 
   if ((usage?.count ?? 0) > 0) {
-    throw new CashioValidationError('No se puede eliminar una categoría asociada a transacciones.');
+    throw new CashioValidationError({ code: 'categoryInUse' });
   }
 
   await db.runAsync('DELETE FROM categories WHERE id = ?', id);
@@ -528,7 +533,7 @@ export async function createTag(db: SQLiteDatabase, input: SaveTagInput) {
     );
   } catch (error) {
     if (isUniqueError(error)) {
-      throw new CashioValidationError('Ya existe un tag con ese nombre.');
+      throw new CashioValidationError({ code: 'duplicateTag' });
     }
     throw error;
   }
@@ -548,7 +553,7 @@ export async function updateTag(db: SQLiteDatabase, id: number, input: SaveTagIn
     );
   } catch (error) {
     if (isUniqueError(error)) {
-      throw new CashioValidationError('Ya existe un tag con ese nombre.');
+      throw new CashioValidationError({ code: 'duplicateTag' });
     }
     throw error;
   }
@@ -561,7 +566,7 @@ export async function deleteTag(db: SQLiteDatabase, id: number) {
   );
 
   if ((usage?.count ?? 0) > 0) {
-    throw new CashioValidationError('No se puede eliminar un tag asociado a transacciones.');
+    throw new CashioValidationError({ code: 'tagInUse' });
   }
 
   await db.runAsync('DELETE FROM tags WHERE id = ?', id);
@@ -581,21 +586,21 @@ export async function createTransaction(db: SQLiteDatabase, input: CreateTransac
   const description = normalizeDescription(input.description);
 
   if (!Number.isFinite(input.amount) || input.amount <= 0) {
-    throw new CashioValidationError('El monto debe ser mayor que cero.');
+    throw new CashioValidationError({ code: 'invalidAmount' });
   }
 
   if (!input.categoryId) {
-    throw new CashioValidationError('Selecciona una categoría.');
+    throw new CashioValidationError({ code: 'categoryRequired' });
   }
 
   await assertAccountExists(db, input.accountId);
 
   if (input.destinationAccountId != null) {
     if (input.type !== 'expense') {
-      throw new CashioValidationError('Los traslados se registran desde un egreso.');
+      throw new CashioValidationError({ code: 'transferMustBeExpense' });
     }
     if (input.destinationAccountId === input.accountId) {
-      throw new CashioValidationError('La cuenta destino debe ser diferente.');
+      throw new CashioValidationError({ code: 'sameDestinationAccount' });
     }
     await assertAccountExists(db, input.destinationAccountId);
   }
@@ -1016,7 +1021,7 @@ export async function updateMonthlyBudgetAmount(
   const month = assertMonth(input.month);
 
   if (!Number.isFinite(input.plannedAmount) || input.plannedAmount < 0) {
-    throw new CashioValidationError('El valor del presupuesto no es válido.');
+    throw new CashioValidationError({ code: 'invalidBudgetAmount' });
   }
 
   await assertBudgetableCategory(db, input.categoryId);
@@ -1036,7 +1041,7 @@ export async function updateMonthlyBudgetAmount(
   );
 
   if (result.changes === 0) {
-    throw new CashioValidationError('Agrega la categoría al presupuesto antes de asignar un valor.');
+    throw new CashioValidationError({ code: 'budgetCategoryMissing' });
   }
 }
 

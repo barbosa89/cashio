@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { useTranslation } from "@/i18n/localization-provider";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
@@ -34,6 +35,7 @@ export function TransactionFilterSheet({
   tags,
 }: TransactionFilterSheetProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const [draftFilters, setDraftFilters] =
     useState<TransactionFilters>(filters);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -51,21 +53,21 @@ export function TransactionFilterSheet({
 
   const categoryItems = useMemo(
     () => [
-      { label: "Todas", value: 0 },
+      { label: t("filters.allCategories"), value: 0 },
       ...categories.map((category) => ({
         label: category.description,
         value: category.id,
       })),
     ],
-    [categories],
+    [categories, t],
   );
 
   const tagItems = useMemo(
     () => [
-      { label: "Todos", value: 0 },
+      { label: t("filters.allTags"), value: 0 },
       ...tags.map((tag) => ({ label: tag.description, value: tag.id })),
     ],
-    [tags],
+    [tags, t],
   );
 
   function resetTransientState() {
@@ -106,14 +108,14 @@ export function TransactionFilterSheet({
             <View style={styles.header}>
               <View>
                 <ThemedText type="subtitle" style={styles.title}>
-                  Filtros
+                  {t("filters.title")}
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Refina el listado por categoría y tag.
+                  {t("filters.description")}
                 </ThemedText>
               </View>
               <Pressable
-                accessibilityLabel="Cerrar filtros"
+                accessibilityLabel={t("accessibility.closeFilters")}
                 onPress={closeAndDiscard}
                 style={({ pressed }) => [
                   styles.closeButton,
@@ -127,15 +129,15 @@ export function TransactionFilterSheet({
 
             <FilterSelectField
               items={categoryItems}
-              label="Categorías"
+              label={t("filters.categories")}
               onOpen={() => setIsTagOpen(false)}
               onValueChange={(categoryId) =>
                 setDraftFilters((current) => ({ ...current, categoryId }))
               }
               open={isCategoryOpen}
-              placeholder="Todas"
+              placeholder={t("filters.allCategories")}
               resetSignal={resetSignal}
-              searchPlaceholder="Buscar categoría"
+              searchPlaceholder={t("transaction.searchCategory")}
               setOpen={setIsCategoryOpen}
               value={draftFilters.categoryId}
               zIndex={isCategoryOpen ? 3000 : 1000}
@@ -143,23 +145,23 @@ export function TransactionFilterSheet({
 
             <FilterSelectField
               items={tagItems}
-              label="Tags"
+              label={t("filters.tags")}
               onOpen={() => setIsCategoryOpen(false)}
               onValueChange={(tagId) =>
                 setDraftFilters((current) => ({ ...current, tagId }))
               }
               open={isTagOpen}
-              placeholder="Todos"
+              placeholder={t("filters.allTags")}
               resetSignal={resetSignal}
-              searchPlaceholder="Buscar tag"
+              searchPlaceholder={t("transaction.searchTag")}
               setOpen={setIsTagOpen}
               value={draftFilters.tagId}
               zIndex={isTagOpen ? 3000 : 1000}
             />
 
             <View style={styles.actions}>
-              <SheetButton label="Limpiar" onPress={clearAndClose} />
-              <SheetButton label="Aplicar" onPress={applyAndClose} />
+              <SheetButton label={t("filters.clear")} onPress={clearAndClose} />
+              <SheetButton label={t("filters.apply")} onPress={applyAndClose} />
             </View>
           </ThemedView>
         </Pressable>

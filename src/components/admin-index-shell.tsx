@@ -9,6 +9,7 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "@/i18n/localization-provider";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
@@ -37,6 +38,7 @@ export function AdminIndexShell({
 }) {
   const navigation = useNavigation<{ openDrawer: () => void }>();
   const theme = useTheme();
+  const { t } = useTranslation();
 
   return (
     <ThemedView style={styles.container}>
@@ -49,7 +51,7 @@ export function AdminIndexShell({
         >
           <ThemedView style={styles.header}>
             <Pressable
-              accessibilityLabel="Abrir menú"
+              accessibilityLabel={t("accessibility.openMenu")}
               onPress={() => navigation.openDrawer()}
               style={({ pressed }) => pressed && styles.pressed}
             >
@@ -61,9 +63,9 @@ export function AdminIndexShell({
             <View style={styles.headerActions}>
               <ThemedView type="backgroundSelected" style={styles.searchWrap}>
                 <TextInput
-                  accessibilityLabel={`Buscar ${title.toLocaleLowerCase()}`}
+                  accessibilityLabel={`${t("common.search")} ${title}`}
                   onChangeText={setSearch}
-                  placeholder="Buscar"
+                  placeholder={t("common.search")}
                   placeholderTextColor={theme.text}
                   style={[styles.searchInput, { color: theme.text }]}
                   value={search}
@@ -79,7 +81,7 @@ export function AdminIndexShell({
             ]}
           >
             <Pressable
-              accessibilityLabel="Volver al índice de transacciones"
+              accessibilityLabel={t("accessibility.backToTransactions")}
               onPress={() => router.replace("/")}
               style={({ pressed }) => pressed && styles.pressed}
             >

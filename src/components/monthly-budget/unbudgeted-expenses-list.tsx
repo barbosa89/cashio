@@ -1,8 +1,10 @@
 import { StyleSheet, View } from 'react-native';
+import { useTranslation } from '@/i18n/localization-provider';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useLocalization } from '@/i18n/localization-provider';
 import type { MonthlyBudgetUnbudgetedExpense } from '@/lib/database';
 
 import { formatBudgetMoney } from './budget-formatters';
@@ -12,6 +14,9 @@ type UnbudgetedExpensesListProps = {
 };
 
 export function UnbudgetedExpensesList({ expenses }: UnbudgetedExpensesListProps) {
+  const { t } = useTranslation();
+  const { languageTag } = useLocalization();
+
   if (expenses.length === 0) {
     return null;
   }
@@ -19,7 +24,7 @@ export function UnbudgetedExpensesList({ expenses }: UnbudgetedExpensesListProps
   return (
     <View style={styles.wrap}>
       <ThemedText type="smallBold" style={styles.title}>
-        Gastos sin presupuesto
+        {t('budget.unbudgetedExpenses')}
       </ThemedText>
       <View style={styles.rows}>
         {expenses.map((expense) => (
@@ -27,7 +32,9 @@ export function UnbudgetedExpensesList({ expenses }: UnbudgetedExpensesListProps
             <ThemedText type="smallBold" style={styles.categoryName} numberOfLines={1}>
               {expense.category_description}
             </ThemedText>
-            <ThemedText type="smallBold">$ {formatBudgetMoney(expense.spent_amount)}</ThemedText>
+            <ThemedText type="smallBold">
+              $ {formatBudgetMoney(expense.spent_amount, languageTag)}
+            </ThemedText>
           </ThemedView>
         ))}
       </View>
@@ -59,4 +66,3 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
 });
-
