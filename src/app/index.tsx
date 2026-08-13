@@ -26,6 +26,10 @@ import { AccountBalancePanel } from "@/components/account-balance";
 import { AccountSelector, getAccountScopeLabel } from "@/components/accounts";
 import { AppIcon } from "@/components/app-icon";
 import {
+  MonthChangeToast,
+  MonthNavigation,
+} from "@/components/month-navigation";
+import {
     BudgetSummaryCard,
     MonthlyBudgetPanel,
 } from "@/components/monthly-budget";
@@ -279,6 +283,13 @@ export default function HomeScreen() {
     t("common.allFeminine"),
     t("seeds.primaryAccount"),
   );
+  const canGoNextMonth =
+    !isSelectionMode && compareMonths(visibleMonth, getCurrentMonth()) < 0;
+  const canGoPreviousMonth = !isSelectionMode;
+  const monthNavigationContext =
+    activeView === "balance"
+      ? t("dashboard.balanceTitle")
+      : selectedAccountLabel;
 
   const visibleMonthlySummaries = useMemo(
     () => aggregateMonthlySummaries(monthlySummaries, selectedAccountScope),
@@ -727,11 +738,9 @@ export default function HomeScreen() {
   };
   const balanceSummary = (
     <BalanceSummary
-      accountLabel={selectedAccountLabel}
       balance={summary.balance}
       expense={summary.expense}
       income={summary.income}
-      monthLabel={visibleMonthLabel}
       openingBalance={summary.openingBalance}
       openingBalanceLabel={summary.openingBalanceLabel}
       showTransfers={selectedAccountScope !== "all"}
@@ -741,13 +750,7 @@ export default function HomeScreen() {
   );
   const activeSummaries: Record<ActiveView, ReactNode> = {
     balance: null,
-    budgets: (
-      <BudgetDashboardSummary
-        accountLabel={selectedAccountLabel}
-        monthLabel={visibleMonthLabel}
-        summary={budgetSummary}
-      />
-    ),
+    budgets: <BudgetSummaryCard summary={budgetSummary} />,
     charts: balanceSummary,
     list: balanceSummary,
     reports: null,
@@ -755,10 +758,7 @@ export default function HomeScreen() {
   const activeContent: Record<ActiveView, ReactElement> = {
     balance: (
       <SwipeableDashboardView gesture={monthSwipeGesture}>
-        <AccountBalanceDashboardView
-          monthLabel={visibleMonthLabel}
-          rows={accountBalances}
-        />
+        <AccountBalanceDashboardView rows={accountBalances} />
       </SwipeableDashboardView>
     ),
     budgets: (
@@ -844,6 +844,16 @@ export default function HomeScreen() {
             onDeleteSelection={handleDeleteSelectedTransactions}
             selectedTransactionCount={selectedTransactionCount}
           />
+          {activeView !== "reports" ? (
+            <MonthNavigation
+              canGoNext={canGoNextMonth}
+              canGoPrevious={canGoPreviousMonth}
+              contextLabel={monthNavigationContext}
+              monthLabel={visibleMonthLabel}
+              onNextMonth={goToNextMonth}
+              onPreviousMonth={goToPreviousMonth}
+            />
+          ) : null}
           {activeSummaries[activeView]}
           {activeContent[activeView]}
           {activeOverlays[activeView]}
@@ -851,6 +861,12 @@ export default function HomeScreen() {
             activeView={activeView}
             onSelectView={handleViewPress}
           />
+          {activeView !== "reports" ? (
+            <MonthChangeToast
+              monthKey={visibleMonthKey}
+              monthLabel={visibleMonthLabel}
+            />
+          ) : null}
         </ThemedView>
       </SafeAreaView>
 
@@ -1008,23 +1024,6 @@ function TransactionsDashboardHeader({
         </IconButton>
       </View>
     </ThemedView>
-  );
-}
-
-function BudgetDashboardSummary({
-  accountLabel,
-  monthLabel,
-  summary,
-}: Readonly<{
-  accountLabel: string;
-  monthLabel: string;
-  summary: ComponentProps<typeof BudgetSummaryCard>["summary"];
-}>) {
-  return (
-    <>
-      <BudgetSummaryCard monthLabel={monthLabel} summary={summary} />
-      <AccountScopeHint label={accountLabel} />
-    </>
   );
 }
 
@@ -1440,22 +1439,18 @@ function SelectionHeader({
 }
 
 function BalanceSummary({
-  accountLabel,
   balance,
   expense,
   income,
-  monthLabel,
   openingBalance,
   openingBalanceLabel,
   showTransfers,
   transferIn,
   transferOut,
 }: Readonly<{
-  accountLabel: string;
   balance: number;
   expense: number;
   income: number;
-  monthLabel: string;
   openingBalance: number;
   openingBalanceLabel: string;
   showTransfers: boolean;
@@ -1469,16 +1464,6 @@ function BalanceSummary({
 
   return (
     <View style={styles.summaryWrap}>
-      <ThemedText type="smallBold" style={styles.summaryMonth}>
-        {monthLabel}
-      </ThemedText>
-      <ThemedText
-        type="small"
-        themeColor="textSecondary"
-        style={styles.summaryAccount}
-      >
-        {accountLabel}
-      </ThemedText>
       <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
         <View style={styles.summaryMainRow}>
           <ThemedText type="subtitle" style={styles.summaryTitle}>
@@ -1531,18 +1516,6 @@ function BalanceSummary({
         )}
       </ThemedView>
     </View>
-  );
-}
-
-function AccountScopeHint({ label }: Readonly<{ label: string }>) {
-  return (
-    <ThemedText
-      type="small"
-      themeColor="textSecondary"
-      style={styles.accountHint}
-    >
-      {label}
-    </ThemedText>
   );
 }
 
@@ -1780,18 +1753,6 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
     marginHorizontal: Spacing.three,
     marginTop: Spacing.two,
-  },
-  summaryMonth: {
-    fontSize: 18,
-    lineHeight: 22,
-    textAlign: "center",
-  },
-  summaryAccount: {
-    textAlign: "center",
-  },
-  accountHint: {
-    marginTop: Spacing.one,
-    textAlign: "center",
   },
   summaryPanel: {
     borderRadius: Spacing.two,

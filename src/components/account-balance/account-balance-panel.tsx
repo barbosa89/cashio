@@ -10,14 +10,10 @@ import type { AccountBalanceRow } from "@/lib/database";
 import { buildBalanceTotals, formatBalanceMoney } from "./balance-formatters";
 
 type AccountBalancePanelProps = {
-  monthLabel: string;
   rows: AccountBalanceRow[];
 };
 
-export function AccountBalancePanel({
-  monthLabel,
-  rows,
-}: AccountBalancePanelProps) {
+export function AccountBalancePanel({ rows }: AccountBalancePanelProps) {
   const { languageTag } = useLocalization();
   const { t } = useTranslation();
   const totals = buildBalanceTotals(rows, t("common.total"));
@@ -39,14 +35,6 @@ export function AccountBalancePanel({
 
   return (
     <View style={styles.panel}>
-      <ThemedText
-        type="smallBold"
-        themeColor="textSecondary"
-        style={styles.monthLabel}
-      >
-        {monthLabel}
-      </ThemedText>
-
       <View style={styles.rows}>
         {rows.map((row) => (
           <AccountBalanceCard key={row.account_id} locale={languageTag} row={row} />
@@ -211,9 +199,6 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     fontVariant: ["tabular-nums"],
-  },
-  monthLabel: {
-    textAlign: "center",
   },
   panel: {
     gap: Spacing.three,
