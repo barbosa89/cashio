@@ -102,7 +102,11 @@ export function MonthChangeToast({
   );
 
   return (
-    <View pointerEvents="none" style={styles.toastOverlay}>
+    <View
+      pointerEvents="none"
+      style={styles.toastOverlay}
+      testID="month-change-toast-overlay"
+    >
       {notice ? (
         <Animated.View
           key={monthKey}
