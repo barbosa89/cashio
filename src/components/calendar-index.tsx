@@ -112,7 +112,10 @@ export function CalendarIndex() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={[styles.phoneSurface, { borderColor: theme.backgroundSelected }]}>
+        <ThemedView
+          testID="calendar-phone-surface"
+          style={[styles.phoneSurface, { borderColor: theme.backgroundSelected }]}
+        >
           <ThemedView style={styles.header}>
             <Pressable
               accessibilityLabel={t("accessibility.openMenu")}
@@ -215,19 +218,19 @@ export function CalendarIndex() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, minHeight: 0 },
   emptyState: { alignItems: "center", gap: Spacing.two, justifyContent: "center", minHeight: 280 },
-  fab: { alignItems: "center", backgroundColor: AppPalette.brandOrange, borderRadius: Spacing.two, bottom: BottomTabInset + Spacing.three, height: 48, justifyContent: "center", position: "absolute", right: Spacing.three, width: 64, zIndex: 2 },
+  fab: { alignItems: "center", backgroundColor: AppPalette.brandOrange, borderRadius: Spacing.two, bottom: BottomTabInset + Spacing.three, boxShadow: "0 4px 12px rgba(0, 0, 0, 0.24)", height: 48, justifyContent: "center", position: "absolute", right: Spacing.three, width: 64, zIndex: 40 },
   fabPressed: { backgroundColor: AppPalette.brandOrangeActive },
   header: { alignItems: "center", flexDirection: "row", gap: Spacing.two, paddingBottom: Spacing.two, paddingTop: Spacing.four, zIndex: 30 },
-  list: { flex: 1 },
+  list: { flex: 1, minHeight: 0 },
   listContent: { gap: Spacing.two, paddingBottom: BottomTabInset + 96, paddingHorizontal: Spacing.three, paddingTop: Spacing.three },
   menuButton: { alignItems: "center", height: 48, justifyContent: "center", width: 48 },
   message: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
   notice: { alignItems: "center", borderRadius: Spacing.two, flexDirection: "row", gap: Spacing.two, justifyContent: "space-between", marginHorizontal: Spacing.three, padding: Spacing.three },
   noticeText: { flex: 1 },
-  phoneSurface: { borderWidth: Platform.OS === "web" ? 1 : 0, flex: 1, maxWidth: 430, position: "relative", width: "100%" },
+  phoneSurface: { borderWidth: Platform.OS === "web" ? 1 : 0, flex: 1, maxWidth: 430, minHeight: 0, overflow: "hidden", position: "relative", width: "100%" },
   pressed: { opacity: 0.7 },
-  safeArea: { alignItems: "center", flex: 1, paddingHorizontal: Spacing.three, paddingTop: Platform.OS === "web" ? Spacing.three : 0 },
+  safeArea: { alignItems: "center", flex: 1, minHeight: 0, paddingHorizontal: Spacing.three, paddingTop: Platform.OS === "web" ? Spacing.three : 0 },
   screenTitle: { flex: 1, fontSize: 24, lineHeight: 30 },
 });

@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     gap: Spacing.half,
   },
   pressed: { opacity: 0.7 },
-  scrollView: { flex: 1 },
+  scrollView: { flex: 1, minHeight: 0 },
   selectedDay: {
     backgroundColor: AppPalette.brandOrange,
     borderColor: AppPalette.brandOrange,

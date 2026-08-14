@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { Alert } from "react-native";
+import { Alert, StyleSheet } from "react-native";
 
 import { CalendarIndex } from "@/components/calendar-index";
 
@@ -89,6 +89,23 @@ describe("CalendarIndex", () => {
     expect(screen.getByText("There are no financial events.")).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole("button", { name: "Add calendar event" }));
     expect(mockPush).toHaveBeenCalledWith("/calendar/new");
+  });
+
+  test("keeps the FAB above a viewport-bounded calendar surface", async () => {
+    mockUseCalendarViewMode.mockReturnValue({
+      setViewMode: jest.fn(),
+      viewMode: "calendar",
+    });
+    await render(<CalendarIndex />);
+
+    expect(
+      StyleSheet.flatten(screen.getByTestId("calendar-phone-surface").props.style),
+    ).toMatchObject({ minHeight: 0, overflow: "hidden", position: "relative" });
+    expect(
+      StyleSheet.flatten(
+        screen.getByRole("button", { name: "Add calendar event" }).props.style,
+      ),
+    ).toMatchObject({ position: "absolute", zIndex: 40 });
   });
 
   test("renders event edit and delete actions with accessible names", async () => {
