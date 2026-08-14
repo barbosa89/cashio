@@ -10,19 +10,15 @@ import type { MonthlyBudgetSummary } from '@/lib/database';
 import { formatBudgetMoney } from './budget-formatters';
 
 type BudgetSummaryCardProps = {
-  monthLabel: string;
   summary: MonthlyBudgetSummary;
 };
 
-export function BudgetSummaryCard({ monthLabel, summary }: BudgetSummaryCardProps) {
+export function BudgetSummaryCard({ summary }: BudgetSummaryCardProps) {
   const { t } = useTranslation();
   const { languageTag } = useLocalization();
 
   return (
     <View style={styles.summaryWrap}>
-      <ThemedText type="smallBold" style={styles.summaryMonth}>
-        {monthLabel}
-      </ThemedText>
       <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
         <View style={styles.summaryMainRow}>
           <ThemedText type="subtitle" style={styles.summaryTitle}>
@@ -56,11 +52,6 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
     marginHorizontal: Spacing.three,
     marginTop: Spacing.two,
-  },
-  summaryMonth: {
-    fontSize: 18,
-    lineHeight: 22,
-    textAlign: 'center',
   },
   summaryPanel: {
     borderRadius: Spacing.two,

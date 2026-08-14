@@ -1,7 +1,7 @@
 {
   "name": "cashio",
   "main": "expo-router/entry",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "dependencies": {
     "@expo/ui": "~56.0.23",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -17,8 +17,10 @@
     "expo-font": "~56.0.6",
     "expo-glass-effect": "~56.0.4",
     "expo-image": "~56.0.11",
+    "expo-intent-launcher": "~56.0.4",
     "expo-linking": "~56.0.16",
     "expo-localization": "~56.0.6",
+    "expo-notifications": "~56.0.23",
     "expo-router": "~56.2.16",
     "expo-sharing": "~56.0.23",
     "expo-splash-screen": "~56.0.14",
@@ -47,7 +49,11 @@
     "victory-native": "^41.26.0"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "29.5.14",
     "@types/react": "~19.2.2",
+    "jest": "~29.7.0",
+    "jest-expo": "~56.0.5",
     "typescript": "~6.0.3"
   },
   "expo": {
@@ -66,7 +72,15 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watchAll"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "\\.css$": "<rootDir>/__mocks__/style-mock.js"
+    },
+    "preset": "jest-expo"
   },
   "private": true
 }

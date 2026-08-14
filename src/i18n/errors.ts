@@ -50,7 +50,12 @@ export type AppErrorCode =
   | "localFileMissing"
   | "icloudContainerMissing"
   | "icloudUnavailable"
-  | "invalidAccountMigration";
+  | "invalidAccountMigration"
+  | "emptyCalendarTitle"
+  | "invalidCalendarAmount"
+  | "invalidCalendarTime"
+  | "invalidCalendarSchedule"
+  | "pastCalendarEvent";
 
 export type AppErrorDescriptor = {
   code: AppErrorCode;

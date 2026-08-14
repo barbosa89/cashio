@@ -141,7 +141,7 @@ export type SettingRow = {
   updated_at: string;
 };
 
-const DATABASE_VERSION = 6;
+export const DATABASE_VERSION = 7;
 
 const seedTranslations = { en: en.seeds, es: es.seeds, pt: pt.seeds };
 
@@ -543,6 +543,49 @@ export async function migrateDatabase(
     }
 
     currentDbVersion = 6;
+  }
+
+  if (currentDbVersion === 6) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS calendar_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL CHECK(length(trim(title)) > 0),
+        notes TEXT NULL,
+        amount REAL NULL CHECK(amount IS NULL OR amount > 0),
+        recurrence TEXT NOT NULL
+          CHECK(recurrence IN ('one_time', 'weekly', 'semimonthly', 'monthly', 'yearly')),
+        event_date TEXT NULL,
+        weekday INTEGER NULL CHECK(weekday IS NULL OR weekday BETWEEN 1 AND 7),
+        day_of_month INTEGER NULL CHECK(day_of_month IS NULL OR day_of_month BETWEEN 1 AND 31),
+        month_of_year INTEGER NULL CHECK(month_of_year IS NULL OR month_of_year BETWEEN 1 AND 12),
+        notification_time TEXT NOT NULL CHECK(
+          length(notification_time) = 5
+          AND notification_time GLOB '[0-2][0-9]:[0-5][0-9]'
+          AND substr(notification_time, 3, 1) = ':'
+          AND CAST(substr(notification_time, 1, 2) AS INTEGER) BETWEEN 0 AND 23
+          AND CAST(substr(notification_time, 4, 2) AS INTEGER) BETWEEN 0 AND 59
+        ),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        CHECK(
+          (recurrence = 'one_time' AND event_date IS NOT NULL AND weekday IS NULL
+            AND day_of_month IS NULL AND month_of_year IS NULL)
+          OR (recurrence = 'weekly' AND event_date IS NULL AND weekday IS NOT NULL
+            AND day_of_month IS NULL AND month_of_year IS NULL)
+          OR (recurrence = 'semimonthly' AND event_date IS NULL AND weekday IS NULL
+            AND day_of_month IS NULL AND month_of_year IS NULL)
+          OR (recurrence = 'monthly' AND event_date IS NULL AND weekday IS NULL
+            AND day_of_month IS NOT NULL AND month_of_year IS NULL)
+          OR (recurrence = 'yearly' AND event_date IS NULL AND weekday IS NULL
+            AND day_of_month IS NOT NULL AND month_of_year IS NOT NULL)
+        )
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_calendar_events_created_at
+        ON calendar_events(created_at DESC, id DESC);
+    `);
+
+    currentDbVersion = 7;
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
