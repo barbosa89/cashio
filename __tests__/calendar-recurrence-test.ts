@@ -1,4 +1,5 @@
 import {
+  getInitialCalendarEventDate,
   getNextCalendarOccurrence,
   type CalendarEventSchedule,
 } from "@/lib/calendar-events";
@@ -74,5 +75,26 @@ describe("getNextCalendarOccurrence", () => {
     expect(next(schedule, new Date(2028, 2, 1))).toEqual(
       new Date(2029, 1, 28, 8, 30),
     );
+  });
+});
+
+describe("getInitialCalendarEventDate", () => {
+  test("uses a selected future date and rejects a past selection", () => {
+    const now = new Date(2026, 7, 14, 10);
+    const defaultMoment = new Date(2026, 7, 14, 11);
+    expect(
+      getInitialCalendarEventDate("2026-08-20", defaultMoment, now),
+    ).toBe("2026-08-20");
+    expect(
+      getInitialCalendarEventDate("2026-08-01", defaultMoment, now),
+    ).toBe("2026-08-14");
+  });
+
+  test("falls back when today's default time would already be past", () => {
+    const now = new Date(2026, 7, 14, 23, 30);
+    const defaultMoment = new Date(2026, 7, 15, 0, 30);
+    expect(
+      getInitialCalendarEventDate("2026-08-14", defaultMoment, now),
+    ).toBe("2026-08-15");
   });
 });

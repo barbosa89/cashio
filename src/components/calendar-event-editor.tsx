@@ -32,6 +32,7 @@ import {
   daysInMonth,
   formatLocalDate,
   formatLocalTime,
+  getInitialCalendarEventDate,
   parseLocalDateTime,
   type CalendarEvent,
   type CalendarRecurrence,
@@ -42,6 +43,7 @@ import { openExactAlarmSettings } from "@/lib/calendar-notifications";
 type CalendarEventFormProps = {
   event?: CalendarEvent;
   heading: string;
+  initialEventDate?: string;
   submitLabel: string;
 };
 
@@ -347,7 +349,12 @@ function YearlyScheduleFields({
   );
 }
 
-function CalendarEventForm({ event, heading, submitLabel }: CalendarEventFormProps) {
+function CalendarEventForm({
+  event,
+  heading,
+  initialEventDate,
+  submitLabel,
+}: CalendarEventFormProps) {
   const theme = useTheme();
   const { languageTag } = useLocalization();
   const { t } = useTranslation();
@@ -361,7 +368,9 @@ function CalendarEventForm({ event, heading, submitLabel }: CalendarEventFormPro
     event?.recurrence ?? "one_time",
   );
   const [eventDate, setEventDate] = useState(
-    event?.recurrence === "one_time" ? event.eventDate : formatLocalDate(defaults),
+    event?.recurrence === "one_time"
+      ? event.eventDate
+      : getInitialCalendarEventDate(initialEventDate, defaults),
   );
   const [notificationTime, setNotificationTime] = useState(
     event?.notificationTime ?? formatLocalTime(defaults),
@@ -635,9 +644,19 @@ function CalendarEventForm({ event, heading, submitLabel }: CalendarEventFormPro
   );
 }
 
-export function NewCalendarEventEditor() {
+export function NewCalendarEventEditor({
+  initialEventDate,
+}: {
+  initialEventDate?: string;
+}) {
   const { t } = useTranslation();
-  return <CalendarEventForm heading={t("calendar.newTitle")} submitLabel={t("calendar.create")} />;
+  return (
+    <CalendarEventForm
+      heading={t("calendar.newTitle")}
+      initialEventDate={initialEventDate}
+      submitLabel={t("calendar.create")}
+    />
+  );
 }
 
 export function EditCalendarEventEditor({ event }: { event: CalendarEvent }) {

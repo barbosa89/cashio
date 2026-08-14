@@ -94,6 +94,23 @@ export function parseLocalDateTime(dateValue: string, timeValue: string) {
   return date;
 }
 
+export function getInitialCalendarEventDate(
+  requestedDate: string | undefined,
+  defaultMoment: Date,
+  now = new Date(),
+) {
+  if (requestedDate) {
+    const requestedMoment = parseLocalDateTime(
+      requestedDate,
+      formatLocalTime(defaultMoment),
+    );
+    if (requestedMoment && requestedMoment.getTime() > now.getTime()) {
+      return requestedDate;
+    }
+  }
+  return formatLocalDate(defaultMoment);
+}
+
 export function daysInMonth(year: number, monthOfYear: number) {
   return new Date(year, monthOfYear, 0).getDate();
 }

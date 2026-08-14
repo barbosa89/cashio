@@ -22,10 +22,23 @@ jest.mock("@/hooks/use-calendar-events", () => ({
   useCalendarEvents: jest.fn(),
 }));
 
+jest.mock("@/hooks/use-calendar-view-mode", () => ({
+  useCalendarViewMode: jest.fn(),
+}));
+
+jest.mock("@/components/calendar-view-menu", () => ({
+  CalendarViewMenu: () => null,
+}));
+
 const mockPush = (jest.requireMock("expo-router") as { router: { push: jest.Mock } }).router.push;
 const mockUseCalendarEvents = (
   jest.requireMock("@/hooks/use-calendar-events") as { useCalendarEvents: jest.Mock }
 ).useCalendarEvents;
+const mockUseCalendarViewMode = (
+  jest.requireMock("@/hooks/use-calendar-view-mode") as {
+    useCalendarViewMode: jest.Mock;
+  }
+).useCalendarViewMode;
 const mockRemoveEvent = jest.fn();
 
 jest.mock("@/lib/calendar-notifications", () => ({
@@ -42,6 +55,7 @@ jest.mock("@/i18n/localization-provider", () => ({
         "accessibility.addCalendarEvent": "Add calendar event",
         "accessibility.openMenu": "Open menu",
         "calendar.empty": "There are no financial events.",
+        "calendar.title": "Financial calendar",
         "calendar.mobileOnly": "Mobile only",
         "calendar.notificationActive": "Notification active",
         "calendar.webNotice": "Web notice",
@@ -63,6 +77,10 @@ describe("CalendarIndex", () => {
       notificationStatus: "web",
       refresh: jest.fn(),
       removeEvent: mockRemoveEvent,
+    });
+    mockUseCalendarViewMode.mockReturnValue({
+      setViewMode: jest.fn(),
+      viewMode: "list",
     });
   });
 
@@ -137,5 +155,22 @@ describe("CalendarIndex", () => {
     });
     expect(mockRemoveEvent).toHaveBeenCalledWith(8);
     alert.mockRestore();
+  });
+
+  test("passes the selected calendar date to the creation route", async () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 7, 14, 10));
+    mockUseCalendarViewMode.mockReturnValue({
+      setViewMode: jest.fn(),
+      viewMode: "calendar",
+    });
+    await render(<CalendarIndex />);
+    await fireEvent.press(
+      screen.getByRole("button", { name: "Add calendar event" }),
+    );
+    expect(mockPush).toHaveBeenCalledWith({
+      params: { date: "2026-08-14" },
+      pathname: "/calendar/new",
+    });
+    jest.useRealTimers();
   });
 });
