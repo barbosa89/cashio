@@ -36,6 +36,7 @@ import { useTranslation } from "@/i18n/localization-provider";
 import { AnimatedSplashOverlay } from "@/components/animated-icon";
 import { AppIcon } from "@/components/app-icon";
 import { CashioLogo } from "@/components/cashio-logo";
+import { CalendarNotificationController } from "@/components/calendar-notification-controller";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/theme";
@@ -114,6 +115,10 @@ function CashioNavigator() {
         />
         <Drawer.Screen name="tags" options={{ title: t("navigation.tags") }} />
         <Drawer.Screen
+          name="calendar"
+          options={{ title: t("navigation.calendar") }}
+        />
+        <Drawer.Screen
           name="backup"
           options={{ title: t("navigation.backup") }}
         />
@@ -149,7 +154,7 @@ function CashioDrawerContent(
   const { t } = useTranslation();
 
   function navigateTo(
-    path: "/" | "/accounts" | "/categories" | "/tags" | "/backup" | "/settings",
+    path: "/" | "/calendar" | "/accounts" | "/categories" | "/tags" | "/backup" | "/settings",
   ) {
     props.navigation.closeDrawer();
     router.push(path as never);
@@ -196,6 +201,12 @@ function CashioDrawerContent(
         onPress={() => navigateTo("/tags")}
       />
       <DrawerMenuItem
+        active={pathname.startsWith("/calendar")}
+        icon="calendar"
+        label={t("navigation.calendar")}
+        onPress={() => navigateTo("/calendar")}
+      />
+      <DrawerMenuItem
         active={pathname.startsWith("/backup")}
         icon="cloud"
         label={t("navigation.backup")}
@@ -218,7 +229,7 @@ function DrawerMenuItem({
   onPress,
 }: Readonly<{
   active: boolean;
-  icon: "bank" | "cash" | "cloud" | "folder" | "home" | "settings" | "tag";
+  icon: "bank" | "calendar" | "cash" | "cloud" | "folder" | "home" | "settings" | "tag";
   label: string;
   onPress: () => void;
 }>) {
@@ -350,6 +361,7 @@ function DatabaseProvider() {
         useSuspense
       >
         <LocalizationPreferenceGate>
+          <CalendarNotificationController />
           <CashioNavigator />
         </LocalizationPreferenceGate>
       </SQLiteProvider>
