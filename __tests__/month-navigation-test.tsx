@@ -1,9 +1,15 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react-native";
 
 import {
   MonthChangeToast,
   MonthNavigation,
 } from "@/components/month-navigation";
+import { AppIcon } from "@/components/app-icon";
 
 jest.mock("react-native-worklets", () =>
   require("react-native-worklets/src/mock"),
@@ -14,7 +20,7 @@ jest.mock("react-native-reanimated", () =>
 );
 
 jest.mock("@/components/app-icon", () => ({
-  AppIcon: () => null,
+  AppIcon: jest.fn(() => null),
 }));
 
 jest.mock("@/hooks/use-theme", () => ({
@@ -58,9 +64,11 @@ describe("MonthNavigation", () => {
     expect(screen.getByText("Primary")).toBeOnTheScreen();
   });
 
-  test("exposes the inverted controls with accessible labels", async () => {
+  test("places previous on the left and next on the right", async () => {
     const onNextMonth = jest.fn();
     const onPreviousMonth = jest.fn();
+    const appIconMock = jest.mocked(AppIcon);
+    appIconMock.mockClear();
 
     await render(
       <MonthNavigation
@@ -73,12 +81,17 @@ describe("MonthNavigation", () => {
       />,
     );
 
-    await fireEvent.press(
-      screen.getByRole("button", { name: "Next month" }),
-    );
-    await fireEvent.press(
-      screen.getByRole("button", { name: "Previous month" }),
-    );
+    const [previousButton, nextButton] = screen.getAllByRole("button");
+
+    expect(previousButton).toHaveAccessibleName("Previous month");
+    expect(nextButton).toHaveAccessibleName("Next month");
+    expect(appIconMock.mock.calls.map(([props]) => props.name)).toEqual([
+      "chevron-left",
+      "chevron-right",
+    ]);
+
+    await fireEvent.press(previousButton);
+    await fireEvent.press(nextButton);
 
     expect(onNextMonth).toHaveBeenCalledTimes(1);
     expect(onPreviousMonth).toHaveBeenCalledTimes(1);

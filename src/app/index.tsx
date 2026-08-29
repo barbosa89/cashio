@@ -678,12 +678,12 @@ export default function HomeScreen() {
   const handleMonthSwipe = useCallback(
     (translationX: number) => {
       if (translationX <= -MONTH_SWIPE_THRESHOLD) {
-        goToPreviousMonth();
+        goToNextMonth();
         return;
       }
 
       if (translationX >= MONTH_SWIPE_THRESHOLD) {
-        goToNextMonth();
+        goToPreviousMonth();
       }
     },
     [goToNextMonth, goToPreviousMonth],
@@ -1321,7 +1321,6 @@ function TransactionRow({
         style={styles.transactionRow}
       >
         <TypeIcon
-          color={theme.text}
           selected={selected}
           type={transaction.type}
         />
@@ -1570,20 +1569,19 @@ function FlatIconButton({
 }
 
 function TypeIcon({
-  color,
   selected,
   type,
 }: Readonly<{
-  color: string;
   selected?: boolean;
   type: Transaction["type"];
 }>) {
-  const iconColor = type === "income" ? AppPalette.incomeGreen : color;
+  const iconColor =
+    type === "income" ? AppPalette.incomeGreen : AppPalette.brandOrange;
   const iconName = selected
     ? "check"
     : type === "income"
-      ? "arrow-up"
-      : "arrow-down";
+      ? "arrow-down-left"
+      : "arrow-up-right";
 
   return (
     <View style={[styles.typeIcon, { borderColor: iconColor }]}>
