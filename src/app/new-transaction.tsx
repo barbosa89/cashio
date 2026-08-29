@@ -8,7 +8,7 @@ import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { TransactionForm, type TransactionFormHandle } from '@/components/transaction-form';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, MaxPhoneContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function NewTransactionScreen() {
@@ -37,6 +37,7 @@ export default function NewTransactionScreen() {
           <ThemedView style={styles.header}>
             <Pressable
               accessibilityLabel={t('accessibility.backToTransactions')}
+              accessibilityRole="button"
               onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}>
               <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     width: '100%',
-    maxWidth: MaxContentWidth,
+    maxWidth: MaxPhoneContentWidth,
     paddingHorizontal: Spacing.four,
     gap: Spacing.four,
   },
@@ -84,11 +85,11 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: 'center',
-    borderRadius: 16,
-    borderWidth: 2,
-    height: 32,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    height: 44,
     justifyContent: 'center',
-    width: 32,
+    width: 44,
   },
   title: {
     flex: 1,

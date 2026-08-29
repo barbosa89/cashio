@@ -1,9 +1,8 @@
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 
 import { EditCalendarEventEditor } from "@/components/calendar-event-editor";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
+import { ScreenStatus } from "@/components/screen-status";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useTranslation } from "@/i18n/localization-provider";
 import type { CalendarEvent } from "@/lib/calendar-events";
@@ -17,23 +16,28 @@ export default function EditCalendarEventScreen() {
   const [event, setEvent] = useState<CalendarEvent | null | undefined>(
     hasValidEventId ? undefined : null,
   );
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (!hasValidEventId) {
       return;
     }
-    void getEvent(eventId).then(setEvent);
+    void getEvent(eventId)
+      .then(setEvent)
+      .catch(() => setHasError(true));
   }, [eventId, getEvent, hasValidEventId]);
 
-  if (event === undefined) {
-    return null;
-  }
-  if (event === null) {
+  if (hasError || event === null) {
     return (
-      <ThemedView style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
-        <ThemedText type="smallBold">{t("calendar.notFound")}</ThemedText>
-      </ThemedView>
+      <ScreenStatus
+        actionLabel={t("accessibility.backToCalendar")}
+        message={hasError ? t("errors.generic") : t("calendar.notFound")}
+        onAction={() => router.replace("/calendar")}
+      />
     );
+  }
+  if (event === undefined) {
+    return <ScreenStatus message={t("common.loading")} />;
   }
   return <EditCalendarEventEditor event={event} />;
 }

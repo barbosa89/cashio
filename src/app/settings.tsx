@@ -1,10 +1,9 @@
-import { router } from "expo-router";
+import { useNavigation } from "expo-router";
 import {
     Platform,
     Pressable,
     ScrollView,
     StyleSheet,
-    Switch,
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +13,7 @@ import {
 } from "@/i18n/localization-provider";
 
 import { AppIcon } from "@/components/app-icon";
+import { SettingSwitch } from "@/components/setting-switch";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { AppPalette, Spacing } from "@/constants/theme";
@@ -28,11 +28,11 @@ const LANGUAGE_OPTIONS = [
   { code: "EN", label: "English", value: "en" },
   { code: "ES", label: "Español", value: "es" },
   { code: "PT", label: "Português (Brasil)", value: "pt" },
-] as const satisfies ReadonlyArray<{
+] as const satisfies readonly {
   code: string;
   label: string;
   value: SupportedLanguage;
-}>;
+}[];
 
 type SettingToggleCardProps = {
   description: string;
@@ -49,8 +49,6 @@ function SettingToggleCard({
   title,
   value,
 }: SettingToggleCardProps) {
-  const theme = useTheme();
-
   return (
     <ThemedView type="backgroundElement" style={styles.settingsPanel}>
       <View style={styles.settingRow}>
@@ -66,16 +64,10 @@ function SettingToggleCard({
             {description}
           </ThemedText>
         </View>
-        <Switch
+        <SettingSwitch
           accessibilityLabel={title}
           disabled={disabled}
-          ios_backgroundColor={theme.backgroundSelected}
           onValueChange={onValueChange}
-          thumbColor={AppPalette.foregroundInverse}
-          trackColor={{
-            false: theme.backgroundSelected,
-            true: AppPalette.brandOrange,
-          }}
           value={value}
         />
       </View>
@@ -194,6 +186,7 @@ function LanguageSettingCard({
 }
 
 export default function SettingsScreen() {
+  const navigation = useNavigation<{ openDrawer: () => void }>();
   const theme = useTheme();
   const { t } = useTranslation();
   const { deviceLanguage, language } = useLocalization();
@@ -219,14 +212,15 @@ export default function SettingsScreen() {
           <ScrollView contentContainerStyle={styles.content}>
             <ThemedView style={styles.titleRow}>
               <Pressable
-                accessibilityLabel={t("accessibility.backToTransactions")}
-                onPress={() => router.replace("/")}
+                accessibilityLabel={t("accessibility.openMenu")}
+                accessibilityRole="button"
+                onPress={() => navigation.openDrawer()}
                 style={({ pressed }) => pressed && styles.pressed}
               >
                 <ThemedView
-                  style={[styles.backButton, { borderColor: theme.text }]}
+                  style={styles.menuButton}
                 >
-                  <AppIcon color={theme.text} name="arrow-left" size={22} />
+                  <AppIcon color={theme.text} name="menu" size={28} />
                 </ThemedView>
               </Pressable>
               <ThemedView type="backgroundSelected" style={styles.titleIcon}>
@@ -271,7 +265,12 @@ export default function SettingsScreen() {
             />
 
             {!!errorMessage && (
-              <ThemedView type="backgroundSelected" style={styles.message}>
+              <ThemedView
+                accessibilityLiveRegion="assertive"
+                accessibilityRole="alert"
+                type="backgroundSelected"
+                style={styles.message}
+              >
                 <ThemedText type="smallBold">{errorMessage}</ThemedText>
               </ThemedView>
             )}
@@ -283,13 +282,12 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  backButton: {
+  menuButton: {
     alignItems: "center",
-    borderRadius: 17,
-    borderWidth: 1,
-    height: 34,
+    borderRadius: Spacing.two,
+    height: 48,
     justifyContent: "center",
-    width: 34,
+    width: 48,
   },
   container: {
     flex: 1,

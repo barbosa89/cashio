@@ -18,7 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { BottomTabInset, MaxPhoneContentWidth, Spacing } from "@/constants/theme";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
@@ -671,7 +671,7 @@ export function EditCalendarEventEditor({ event }: { event: CalendarEvent }) {
 }
 
 const styles = StyleSheet.create({
-  backButton: { alignItems: "center", borderRadius: 16, borderWidth: 2, height: 32, justifyContent: "center", width: 32 },
+  backButton: { alignItems: "center", borderRadius: Spacing.two, borderWidth: 1, height: 44, justifyContent: "center", width: 44 },
   choice: { borderRadius: Spacing.two, minHeight: 38, justifyContent: "center", paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   choices: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.two },
   container: { flex: 1 },
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
   panel: { borderRadius: Spacing.two, gap: Spacing.three, padding: Spacing.three },
   pickerPanel: { borderRadius: Spacing.two, padding: Spacing.two },
   pressed: { opacity: 0.7 },
-  safeArea: { gap: Spacing.four, maxWidth: MaxContentWidth, paddingHorizontal: Spacing.four, width: "100%" },
+  safeArea: { gap: Spacing.four, maxWidth: MaxPhoneContentWidth, paddingHorizontal: Spacing.four, width: "100%" },
   saveButton: { alignItems: "center", borderRadius: Spacing.two, minHeight: 48, justifyContent: "center", paddingHorizontal: Spacing.three },
   scrollContent: { alignItems: "center", paddingBottom: BottomTabInset + Spacing.five },
   scrollView: { flex: 1 },

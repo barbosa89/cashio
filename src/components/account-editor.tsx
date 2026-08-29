@@ -15,7 +15,7 @@ import { useTranslation } from "@/i18n/localization-provider";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { BottomTabInset, MaxPhoneContentWidth, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
@@ -83,6 +83,7 @@ export function AccountEditor({ account }: { account?: Account }) {
           <View style={styles.header}>
             <Pressable
               accessibilityLabel={t("accessibility.backToAccounts")}
+              accessibilityRole="button"
               onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}
             >
@@ -99,6 +100,7 @@ export function AccountEditor({ account }: { account?: Account }) {
             <View style={styles.field}>
               <ThemedText type="smallBold">{t("accountEditor.name")}</ThemedText>
               <TextInput
+                accessibilityLabel={t("accountEditor.name")}
                 onChangeText={setName}
                 placeholder={t("accountEditor.name")}
                 placeholderTextColor={theme.textSecondary}
@@ -113,6 +115,7 @@ export function AccountEditor({ account }: { account?: Account }) {
             <View style={styles.field}>
               <ThemedText type="smallBold">{t("accountEditor.initialBalance")}</ThemedText>
               <CurrencyInput
+                accessibilityLabel={t("accountEditor.initialBalance")}
                 delimiter={numberSeparators.delimiter}
                 keyboardType="numeric"
                 onChangeValue={setInitialBalance}
@@ -136,6 +139,8 @@ export function AccountEditor({ account }: { account?: Account }) {
             )}
 
             <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ busy: isLoading, disabled: isLoading }}
               disabled={isLoading}
               onPress={handleSave}
               style={({ pressed }) => [
@@ -159,11 +164,11 @@ export function AccountEditor({ account }: { account?: Account }) {
 const styles = StyleSheet.create({
   backButton: {
     alignItems: "center",
-    borderRadius: 16,
-    borderWidth: 2,
-    height: 32,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    height: 44,
     justifyContent: "center",
-    width: 32,
+    width: 44,
   },
   container: {
     flex: 1,
@@ -198,7 +203,7 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     gap: Spacing.four,
-    maxWidth: MaxContentWidth,
+    maxWidth: MaxPhoneContentWidth,
     paddingHorizontal: Spacing.four,
     width: "100%",
   },

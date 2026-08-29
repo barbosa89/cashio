@@ -296,8 +296,8 @@ const styles = StyleSheet.create({
     backgroundColor: AppPalette.brandOrange,
     borderColor: AppPalette.brandOrange,
   },
-  selectedDayText: { color: AppPalette.foregroundInverse },
-  selectedDot: { backgroundColor: AppPalette.foregroundInverse },
+  selectedDayText: { color: AppPalette.foregroundOnBrand },
+  selectedDot: { backgroundColor: AppPalette.foregroundOnBrand },
   weekdayLabel: { textAlign: "center" },
   weekdayRow: { flexDirection: "row" },
 });

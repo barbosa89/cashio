@@ -794,6 +794,7 @@ export default function HomeScreen() {
         <TransactionListDashboardView
           accountScope={selectedAccountScope}
           filteredTransactions={filteredTransactions}
+          isLoading={isLoading}
           isSelectionMode={isSelectionMode}
           onSelectTransaction={selectTransaction}
           onToggleTransactionSelection={toggleTransactionSelection}
@@ -1040,6 +1041,7 @@ function SwipeableDashboardView({
 function TransactionListDashboardView({
   accountScope,
   filteredTransactions,
+  isLoading,
   isSelectionMode,
   onSelectTransaction,
   onToggleTransactionSelection,
@@ -1048,6 +1050,7 @@ function TransactionListDashboardView({
 }: Readonly<{
   accountScope: AccountScope;
   filteredTransactions: readonly Transaction[];
+  isLoading: boolean;
   isSelectionMode: boolean;
   onSelectTransaction: (id: number) => void;
   onToggleTransactionSelection: (id: number) => void;
@@ -1070,7 +1073,13 @@ function TransactionListDashboardView({
       ]}
       style={styles.list}
     >
-      {filteredTransactions.length === 0 ? (
+      {isLoading ? (
+        <ThemedView style={styles.emptyState}>
+          <ThemedText type="smallBold" themeColor="textSecondary">
+            {t("common.loading")}
+          </ThemedText>
+        </ThemedView>
+      ) : filteredTransactions.length === 0 ? (
         <ThemedView style={styles.emptyState}>
           <ThemedText type="subtitle" style={styles.emptyTitle}>
             {t("dashboard.emptyTitle")}
@@ -1214,9 +1223,9 @@ function AddTransactionButton({
         pressed && styles.fabPressed,
       ]}
     >
-      <AppIcon
-        color={AppPalette.foregroundInverse}
-        name="plus"
+        <AppIcon
+          color={AppPalette.foregroundOnBrand}
+          name="plus"
         size={36}
       />
     </Pressable>

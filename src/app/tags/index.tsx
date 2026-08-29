@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from '@/i18n/localization-provider';
 
 import { AdminIndexShell } from '@/components/admin-index-shell';
@@ -19,7 +19,7 @@ function matchesSearch(value: string, search: string) {
 
 export default function TagsIndexScreen() {
   const { t } = useTranslation();
-  const { removeTag, tags } = useCashioData();
+  const { isLoading, removeTag, tags } = useCashioData();
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
 
@@ -38,22 +38,39 @@ export default function TagsIndexScreen() {
     }
   }
 
+  function confirmDelete(tag: Tag) {
+    const message = t('accessibility.deleteNamed', { name: tag.description });
+
+    if (Platform.OS === 'web') {
+      if (confirm(message)) {
+        void handleDelete(tag);
+      }
+      return;
+    }
+
+    Alert.alert(t('common.delete'), message, [
+      { style: 'cancel', text: t('common.cancel') },
+      { onPress: () => void handleDelete(tag), style: 'destructive', text: t('common.delete') },
+    ]);
+  }
+
   return (
     <AdminIndexShell
       ctaHref="/tags/new"
       ctaLabel={t('admin.addTag')}
       emptyText={t('admin.noTags')}
       hasRows={!!message || visibleTags.length > 0}
+      isLoading={isLoading}
       search={search}
       setSearch={setSearch}
       title={t('navigation.tags')}>
       {!!message && (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
+        <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary" style={styles.message}>
           {message}
         </ThemedText>
       )}
       {visibleTags.map((tag) => (
-        <TagRow key={tag.id} tag={tag} onDelete={() => handleDelete(tag)} />
+        <TagRow key={tag.id} tag={tag} onDelete={() => confirmDelete(tag)} />
       ))}
     </AdminIndexShell>
   );
@@ -77,6 +94,7 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
       <View style={styles.rowActions}>
         <Pressable
           accessibilityLabel={t('accessibility.editNamed', { name: tag.description })}
+          accessibilityRole="button"
           onPress={() =>
             router.push({
               pathname: '/tags/[id]/edit',
@@ -88,6 +106,8 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
         </Pressable>
         <Pressable
           accessibilityLabel={t('accessibility.deleteNamed', { name: tag.description })}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canDelete }}
           disabled={!canDelete}
           onPress={onDelete}
           style={({ pressed }) => [styles.iconAction, pressed && styles.pressed, !canDelete && styles.disabled]}>
@@ -126,9 +146,9 @@ const styles = StyleSheet.create({
   },
   iconAction: {
     alignItems: 'center',
-    height: 32,
+    height: 44,
     justifyContent: 'center',
-    width: 32,
+    width: 44,
   },
   pressed: {
     opacity: 0.7,

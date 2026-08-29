@@ -29,6 +29,7 @@ export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 export const AppPalette = {
   brandOrange: '#f97316',
   brandOrangeActive: '#ea580c',
+  foregroundOnBrand: '#000000',
   foregroundInverse: '#ffffff',
   incomeGreen: '#10b981',
 } as const;
@@ -73,3 +74,4 @@ export const Spacing = {
 export const BottomTabInset = Platform.select({ ios: 50, android: 0 }) ?? 0;
 export const DROPDOWN_LIST_MODE = Platform.OS === 'android' ? 'MODAL' : 'SCROLLVIEW';
 export const MaxContentWidth = 800;
+export const MaxPhoneContentWidth = 430;

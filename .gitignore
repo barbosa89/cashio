@@ -48,6 +48,7 @@ example
 .github/prompts
 .github/skills
 .github/agents
+.github/hooks
 .agents
 .atl
 
