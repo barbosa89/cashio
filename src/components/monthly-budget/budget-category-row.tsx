@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: "700",
-    height: 38,
+    minHeight: 44,
     minWidth: 0,
     paddingHorizontal: Spacing.two,
     textAlign: "right",
@@ -226,9 +226,9 @@ const styles = StyleSheet.create({
   iconButton: {
     alignItems: "center",
     borderRadius: Spacing.two,
-    height: 38,
+    height: 44,
     justifyContent: "center",
-    width: 38,
+    width: 44,
   },
   readOnlyAmount: {
     flexShrink: 0,

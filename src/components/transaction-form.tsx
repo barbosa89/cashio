@@ -637,23 +637,39 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
       </Field>
 
       <Field label={t("transaction.date")}>
-        <Pressable
-          accessibilityLabel={t("accessibility.selectTransactionDate")}
-          onPress={openDatePicker}
-          style={({ pressed }) => pressed && styles.pressed}
-        >
-          <View
+        {Platform.OS === "web" ? (
+          <TextInput
+            accessibilityLabel={t("accessibility.selectTransactionDate")}
+            inputMode="numeric"
+            onChangeText={setTransactionDate}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={theme.textSecondary}
             style={[
-              styles.dateInput,
-              { borderColor: theme.backgroundSelected },
+              styles.input,
+              { borderColor: theme.backgroundSelected, color: theme.text },
             ]}
+            value={transactionDate}
+          />
+        ) : (
+          <Pressable
+            accessibilityLabel={t("accessibility.selectTransactionDate")}
+            accessibilityRole="button"
+            onPress={openDatePicker}
+            style={({ pressed }) => pressed && styles.pressed}
           >
-            <ThemedText style={styles.dateInputText}>
-              {transactionDate}
-            </ThemedText>
-            <AppIcon color={theme.text} name="calendar" size={20} />
-          </View>
-        </Pressable>
+            <View
+              style={[
+                styles.dateInput,
+                { borderColor: theme.backgroundSelected },
+              ]}
+            >
+              <ThemedText style={styles.dateInputText}>
+                {transactionDate}
+              </ThemedText>
+              <AppIcon color={theme.text} name="calendar" size={20} />
+            </View>
+          </Pressable>
+        )}
         {isDatePickerOpen && Platform.OS === "ios" && (
           <ThemedView type="background" style={styles.datePickerPanel}>
             <DateTimePicker
@@ -1058,7 +1074,7 @@ function DropdownListItem({
       {itemProps.custom ? (
         <View style={styles.dropdownCreateButton}>
           <AppIcon
-            color={AppPalette.foregroundInverse}
+            color={AppPalette.foregroundOnBrand}
             name={isCreatingCustomItem ? "loader" : "plus"}
             size={20}
           />
@@ -1192,6 +1208,7 @@ const styles = StyleSheet.create({
   segmentButtonInner: {
     alignItems: "center",
     borderRadius: Spacing.two,
+    minHeight: 44,
     paddingVertical: Spacing.two,
   },
   field: {
@@ -1281,7 +1298,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   dropdownCreateButtonText: {
-    color: AppPalette.foregroundInverse,
+    color: AppPalette.foregroundOnBrand,
     flexShrink: 1,
     textAlign: "center",
   },

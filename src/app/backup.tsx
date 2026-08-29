@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { useNavigation } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useEffect, useState, type ComponentProps } from "react";
 import {
@@ -55,6 +55,7 @@ function getProviderLabel(provider: BackupMetadata["provider"]) {
 
 export default function BackupScreen() {
   const db = useSQLiteContext();
+  const navigation = useNavigation<{ openDrawer: () => void }>();
   const theme = useTheme();
   const { languageTag } = useLocalization();
   const { t } = useTranslation();
@@ -91,6 +92,13 @@ export default function BackupScreen() {
   }
 
   function confirmRestore() {
+    if (Platform.OS === "web") {
+      if (confirm(t("backup.confirmMessage"))) {
+        void runAction(restoreLatestBackup, t("backup.restored"));
+      }
+      return;
+    }
+
     Alert.alert(
       t("backup.confirmTitle"),
       t("backup.confirmMessage"),
@@ -125,14 +133,15 @@ export default function BackupScreen() {
           <ScrollView contentContainerStyle={styles.content}>
             <ThemedView style={styles.titleRow}>
               <Pressable
-                accessibilityLabel={t("accessibility.backToTransactions")}
-                onPress={() => router.replace("/")}
+                accessibilityLabel={t("accessibility.openMenu")}
+                accessibilityRole="button"
+                onPress={() => navigation.openDrawer()}
                 style={({ pressed }) => pressed && styles.pressed}
               >
                 <ThemedView
-                  style={[styles.backButton, { borderColor: theme.text }]}
+                  style={styles.menuButton}
                 >
-                  <AppIcon color={theme.text} name="arrow-left" size={22} />
+                  <AppIcon color={theme.text} name="menu" size={28} />
                 </ThemedView>
               </Pressable>
               <ThemedView type="backgroundSelected" style={styles.titleIcon}>
@@ -297,7 +306,7 @@ function ActionButton({
       ]}
     >
       <AppIcon
-        color={isPrimary ? AppPalette.foregroundInverse : theme.text}
+        color={isPrimary ? AppPalette.foregroundOnBrand : theme.text}
         name={icon}
         size={20}
       />
@@ -324,13 +333,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
-  backButton: {
+  menuButton: {
     alignItems: "center",
-    borderRadius: 17,
-    borderWidth: 1,
-    height: 34,
+    borderRadius: Spacing.two,
+    height: 48,
     justifyContent: "center",
-    width: 34,
+    width: 48,
   },
   container: {
     flex: 1,
@@ -354,7 +362,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   primaryButtonText: {
-    color: AppPalette.foregroundInverse,
+    color: AppPalette.foregroundOnBrand,
   },
   pressed: {
     opacity: 0.6,

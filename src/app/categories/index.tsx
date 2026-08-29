@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from '@/i18n/localization-provider';
 
 import { AdminIndexShell } from '@/components/admin-index-shell';
@@ -29,7 +29,7 @@ function categoryTypeLabel(type: CategoryType | null, t: ReturnType<typeof useTr
 
 export default function CategoriesIndexScreen() {
   const { t } = useTranslation();
-  const { categories, removeCategory } = useCashioData();
+  const { categories, isLoading, removeCategory } = useCashioData();
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
 
@@ -48,22 +48,39 @@ export default function CategoriesIndexScreen() {
     }
   }
 
+  function confirmDelete(category: Category) {
+    const message = t('accessibility.deleteNamed', { name: category.description });
+
+    if (Platform.OS === 'web') {
+      if (confirm(message)) {
+        void handleDelete(category);
+      }
+      return;
+    }
+
+    Alert.alert(t('common.delete'), message, [
+      { style: 'cancel', text: t('common.cancel') },
+      { onPress: () => void handleDelete(category), style: 'destructive', text: t('common.delete') },
+    ]);
+  }
+
   return (
     <AdminIndexShell
       ctaHref="/categories/new"
       ctaLabel={t('admin.addCategory')}
       emptyText={t('admin.noCategories')}
       hasRows={!!message || visibleCategories.length > 0}
+      isLoading={isLoading}
       search={search}
       setSearch={setSearch}
       title={t('navigation.categories')}>
       {!!message && (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
+        <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary" style={styles.message}>
           {message}
         </ThemedText>
       )}
       {visibleCategories.map((category) => (
-        <CategoryRow key={category.id} category={category} onDelete={() => handleDelete(category)} />
+        <CategoryRow key={category.id} category={category} onDelete={() => confirmDelete(category)} />
       ))}
     </AdminIndexShell>
   );
@@ -87,6 +104,7 @@ function CategoryRow({ category, onDelete }: { category: Category; onDelete: () 
       <View style={styles.rowActions}>
         <Pressable
           accessibilityLabel={t('accessibility.editNamed', { name: category.description })}
+          accessibilityRole="button"
           onPress={() =>
             router.push({
               pathname: '/categories/[id]/edit',
@@ -98,6 +116,8 @@ function CategoryRow({ category, onDelete }: { category: Category; onDelete: () 
         </Pressable>
         <Pressable
           accessibilityLabel={t('accessibility.deleteNamed', { name: category.description })}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canDelete }}
           disabled={!canDelete}
           onPress={onDelete}
           style={({ pressed }) => [styles.iconAction, pressed && styles.pressed, !canDelete && styles.disabled]}>
@@ -136,9 +156,9 @@ const styles = StyleSheet.create({
   },
   iconAction: {
     alignItems: 'center',
-    height: 32,
+    height: 44,
     justifyContent: 'center',
-    width: 32,
+    width: 44,
   },
   pressed: {
     opacity: 0.7,

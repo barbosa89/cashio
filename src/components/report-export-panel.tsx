@@ -163,7 +163,7 @@ export function ReportExportPanel({
             pressed && styles.pressed,
           ]}
         >
-          <AppIcon color={AppPalette.foregroundInverse} name="download" size={20} />
+          <AppIcon color={AppPalette.foregroundOnBrand} name="download" size={20} />
           <ThemedText type="smallBold" style={styles.exportButtonText}>
             {exportButtonLabel}
           </ThemedText>
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   exportButtonText: {
-    color: AppPalette.foregroundInverse,
+    color: AppPalette.foregroundOnBrand,
   },
   message: {
     borderRadius: Spacing.two,

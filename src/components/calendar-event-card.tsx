@@ -163,9 +163,9 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: Spacing.one },
   iconAction: {
     alignItems: "center",
-    height: 32,
+    height: 44,
     justifyContent: "center",
-    width: 32,
+    width: 44,
   },
   pressed: { opacity: 0.7 },
   row: {

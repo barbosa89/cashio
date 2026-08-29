@@ -23,6 +23,7 @@ export function AdminIndexShell({
   ctaLabel,
   emptyText,
   hasRows,
+  isLoading,
   search,
   setSearch,
   title,
@@ -32,6 +33,7 @@ export function AdminIndexShell({
   ctaLabel: string;
   emptyText: string;
   hasRows: boolean;
+  isLoading: boolean;
   search: string;
   setSearch: (value: string) => void;
   title: string;
@@ -52,6 +54,7 @@ export function AdminIndexShell({
           <ThemedView style={styles.header}>
             <Pressable
               accessibilityLabel={t("accessibility.openMenu")}
+              accessibilityRole="button"
               onPress={() => navigation.openDrawer()}
               style={({ pressed }) => pressed && styles.pressed}
             >
@@ -80,17 +83,6 @@ export function AdminIndexShell({
               { borderBottomColor: theme.backgroundSelected },
             ]}
           >
-            <Pressable
-              accessibilityLabel={t("accessibility.backToTransactions")}
-              onPress={() => router.replace("/")}
-              style={({ pressed }) => pressed && styles.pressed}
-            >
-              <ThemedView
-                style={[styles.backButton, { borderColor: theme.text }]}
-              >
-                <AppIcon color={theme.text} name="arrow-left" size={22} />
-              </ThemedView>
-            </Pressable>
             <ThemedText type="subtitle" style={styles.title}>
               {title}
             </ThemedText>
@@ -100,7 +92,13 @@ export function AdminIndexShell({
             contentContainerStyle={styles.listContent}
             style={styles.list}
           >
-            {hasRows ? (
+            {isLoading ? (
+              <ThemedView style={styles.emptyState}>
+                <ThemedText type="smallBold" themeColor="textSecondary">
+                  {t("common.loading")}
+                </ThemedText>
+              </ThemedView>
+            ) : hasRows ? (
               children
             ) : (
               <ThemedView style={styles.emptyState}>
@@ -119,7 +117,7 @@ export function AdminIndexShell({
               pressed && styles.fabPressed,
             ]}
           >
-            <AppIcon color={AppPalette.foregroundInverse} name="plus" size={36} />
+            <AppIcon color={AppPalette.foregroundOnBrand} name="plus" size={36} />
           </Pressable>
         </ThemedView>
       </SafeAreaView>
@@ -163,8 +161,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: Spacing.two,
     flex: 1,
-    height: 38,
     justifyContent: "center",
+    minHeight: 44,
     minWidth: 0,
     paddingHorizontal: Spacing.three,
   },
@@ -192,16 +190,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
     paddingTop: Spacing.three,
   },
-  backButton: {
-    alignItems: "center",
-    borderRadius: 16,
-    borderWidth: 2,
-    height: 32,
-    justifyContent: "center",
-    width: 32,
-  },
   title: {
-    flex: 1,
     fontSize: 24,
     lineHeight: 30,
   },
