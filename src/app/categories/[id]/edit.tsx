@@ -1,11 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from '@/i18n/localization-provider';
 
 import { CategoryEditor } from '@/components/category-editor';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { ScreenStatus } from '@/components/screen-status';
 import { useCashioData } from '@/hooks/use-cashio-data';
 
 export default function EditCategoryScreen() {
@@ -15,41 +12,19 @@ export default function EditCategoryScreen() {
   const categoryId = Number(params.id);
   const category = categories.find((item) => item.id === categoryId);
 
+  if (isLoading) {
+    return <ScreenStatus message={t('common.loading')} />;
+  }
+
   if (!category && !isLoading) {
     return (
-      <ThemedView style={styles.notFound}>
-        <View style={styles.notFoundContent}>
-          <ThemedText type="subtitle">{t('admin.categoryNotFound')}</ThemedText>
-          <Pressable onPress={() => router.replace('/categories')} style={({ pressed }) => pressed && styles.pressed}>
-            <ThemedView type="backgroundElement" style={styles.backButton}>
-              <ThemedText type="smallBold">{t('accessibility.backToCategories')}</ThemedText>
-            </ThemedView>
-          </Pressable>
-        </View>
-      </ThemedView>
+      <ScreenStatus
+        actionLabel={t('accessibility.backToCategories')}
+        message={t('admin.categoryNotFound')}
+        onAction={() => router.replace('/categories')}
+      />
     );
   }
 
   return <CategoryEditor category={category} />;
 }
-
-const styles = StyleSheet.create({
-  notFound: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: Spacing.four,
-  },
-  notFoundContent: {
-    gap: Spacing.three,
-  },
-  backButton: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-});

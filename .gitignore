@@ -47,7 +47,12 @@ example
 
 .github/prompts
 .github/skills
+.github/agents
+.github/hooks
 .agents
+.atl
 
 AGENTS.md
 skills-lock.json
+.opencode
+.codex

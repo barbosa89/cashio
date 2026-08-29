@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   useLocalization,
   useTranslation,
@@ -28,8 +28,6 @@ export function useCashioSettings() {
     language,
     languagePreference,
   } = useLocalization();
-  const tRef = useRef(t);
-  tRef.current = t;
   const [settings, setSettings] = useState<AppSettings>(() => ({
     ...DEFAULT_SETTINGS,
     languagePreference,
@@ -45,11 +43,11 @@ export function useCashioSettings() {
       applyLanguagePreference(nextSettings.languagePreference);
       setErrorMessage('');
     } catch {
-      setErrorMessage(tRef.current('errors.settingsLoad'));
+      setErrorMessage(t('errors.settingsLoad'));
     } finally {
       setIsLoading(false);
     }
-  }, [applyLanguagePreference, db]);
+  }, [applyLanguagePreference, db, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -72,11 +70,18 @@ export function useCashioSettings() {
       try {
         await updateSetting(db, key, value);
       } catch {
-        setSettings(previousSettings);
-        setErrorMessage(tRef.current('errors.settingsSave'));
+        setSettings((currentSettings) =>
+          currentSettings[key] === value
+            ? {
+                ...currentSettings,
+                [key]: previousSettings[key],
+              }
+            : currentSettings
+        );
+        setErrorMessage(t('errors.settingsSave'));
       }
     },
-    [db, settings]
+    [db, settings, t]
   );
 
   const setAccumulatePreviousBalances = useCallback(
@@ -120,7 +125,7 @@ export function useCashioSettings() {
           languagePreference: previousPreference,
         }));
         applyLanguagePreference(previousPreference);
-        setErrorMessage(tRef.current('errors.settingsSave'));
+        setErrorMessage(t('errors.settingsSave'));
       } finally {
         setIsSavingLanguage(false);
       }
@@ -130,6 +135,7 @@ export function useCashioSettings() {
       db,
       language,
       settings,
+      t,
     ],
   );
 

@@ -172,7 +172,13 @@ export function CalendarIndex() {
               contentInsetAdjustmentBehavior="automatic"
               style={styles.list}
             >
-              {!isLoading && events.length === 0 ? (
+              {isLoading ? (
+                <ThemedView style={styles.emptyState}>
+                  <ThemedText type="smallBold" themeColor="textSecondary">
+                    {t("common.loading")}
+                  </ThemedText>
+                </ThemedView>
+              ) : events.length === 0 ? (
                 <ThemedView style={styles.emptyState}>
                   <AppIcon color={theme.textSecondary} name="calendar" size={42} />
                   <ThemedText type="smallBold" themeColor="textSecondary">
@@ -209,7 +215,7 @@ export function CalendarIndex() {
             onPress={createEvent}
             style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
           >
-            <AppIcon color={AppPalette.foregroundInverse} name="plus" size={36} />
+            <AppIcon color={AppPalette.foregroundOnBrand} name="plus" size={36} />
           </Pressable>
         </ThemedView>
       </SafeAreaView>

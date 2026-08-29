@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from '@/i18n/localization-provider';
 
 import { AdminIndexShell } from '@/components/admin-index-shell';
@@ -22,7 +22,7 @@ function matchesSearch(value: string, search: string) {
 export default function AccountsIndexScreen() {
   const { languageTag } = useLocalization();
   const { t } = useTranslation();
-  const { accounts, removeAccount } = useCashioData();
+  const { accounts, isLoading, removeAccount } = useCashioData();
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
 
@@ -41,17 +41,34 @@ export default function AccountsIndexScreen() {
     }
   }
 
+  function confirmDelete(account: Account) {
+    const message = t('accessibility.deleteNamed', { name: account.name });
+
+    if (Platform.OS === 'web') {
+      if (confirm(message)) {
+        void handleDelete(account);
+      }
+      return;
+    }
+
+    Alert.alert(t('common.delete'), message, [
+      { style: 'cancel', text: t('common.cancel') },
+      { onPress: () => void handleDelete(account), style: 'destructive', text: t('common.delete') },
+    ]);
+  }
+
   return (
     <AdminIndexShell
       ctaHref="/accounts/new"
       ctaLabel={t('admin.addAccount')}
       emptyText={t('admin.noAccounts')}
       hasRows={!!message || visibleAccounts.length > 0}
+      isLoading={isLoading}
       search={search}
       setSearch={setSearch}
       title={t('navigation.accounts')}>
       {!!message && (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.message}>
+        <ThemedText accessibilityRole="alert" type="small" themeColor="textSecondary" style={styles.message}>
           {message}
         </ThemedText>
       )}
@@ -60,7 +77,7 @@ export default function AccountsIndexScreen() {
           key={account.id}
           account={account}
           languageTag={languageTag}
-          onDelete={() => handleDelete(account)}
+          onDelete={() => confirmDelete(account)}
         />
       ))}
     </AdminIndexShell>
@@ -102,6 +119,7 @@ function AccountRow({
       <View style={styles.rowActions}>
         <Pressable
           accessibilityLabel={t('accessibility.editNamed', { name: account.name })}
+          accessibilityRole="button"
           onPress={() =>
             router.push({
               pathname: '/accounts/[id]/edit',
@@ -113,6 +131,8 @@ function AccountRow({
         </Pressable>
         <Pressable
           accessibilityLabel={t('accessibility.deleteNamed', { name: account.name })}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canDelete }}
           disabled={!canDelete}
           onPress={onDelete}
           style={({ pressed }) => [styles.iconAction, pressed && styles.pressed, !canDelete && styles.disabled]}>
@@ -129,9 +149,9 @@ const styles = StyleSheet.create({
   },
   iconAction: {
     alignItems: 'center',
-    height: 32,
+    height: 44,
     justifyContent: 'center',
-    width: 32,
+    width: 44,
   },
   message: {
     paddingBottom: Spacing.one,

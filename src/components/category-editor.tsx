@@ -15,7 +15,7 @@ import { useTranslation } from "@/i18n/localization-provider";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, DROPDOWN_LIST_MODE, MaxContentWidth, Spacing } from "@/constants/theme";
+import { BottomTabInset, DROPDOWN_LIST_MODE, MaxPhoneContentWidth, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
@@ -83,6 +83,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
           <View style={styles.header}>
             <Pressable
               accessibilityLabel={t("accessibility.backToCategories")}
+              accessibilityRole="button"
               onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}
             >
@@ -95,7 +96,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
             </ThemedText>
           </View>
 
-          <View style={styles.panel}>
+          <ThemedView type="backgroundElement" style={styles.panel}>
             {isTypeOpen && (
               <Pressable
                 accessibilityLabel={t("accessibility.closeSelector")}
@@ -107,6 +108,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
             <View style={styles.field}>
               <ThemedText type="smallBold">{t("categoryEditor.name")}</ThemedText>
               <TextInput
+                accessibilityLabel={t("categoryEditor.name")}
                 onChangeText={setDescription}
                 placeholder={t("categoryEditor.name")}
                 placeholderTextColor={theme.textSecondary}
@@ -196,6 +198,8 @@ export function CategoryEditor({ category }: { category?: Category }) {
             )}
 
             <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ busy: isLoading, disabled: isLoading }}
               disabled={isLoading}
               onPress={handleSave}
               style={({ pressed }) => [
@@ -209,7 +213,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
                 </ThemedText>
               </ThemedView>
             </Pressable>
-          </View>
+          </ThemedView>
         </SafeAreaView>
       </ScrollView>
     </ThemedView>
@@ -229,7 +233,7 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     gap: Spacing.four,
-    maxWidth: MaxContentWidth,
+    maxWidth: MaxPhoneContentWidth,
     paddingHorizontal: Spacing.four,
     width: "100%",
   },
@@ -241,11 +245,11 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: "center",
-    borderRadius: 16,
-    borderWidth: 2,
-    height: 32,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    height: 44,
     justifyContent: "center",
-    width: 32,
+    width: 44,
   },
   title: {
     flex: 1,
@@ -302,6 +306,7 @@ const styles = StyleSheet.create({
   saveButton: {
     alignItems: "center",
     borderRadius: Spacing.two,
+    minHeight: 48,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
   },

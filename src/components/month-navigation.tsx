@@ -32,10 +32,10 @@ export function MonthNavigation({
     <View style={styles.container}>
       <View style={styles.navigationRow}>
         <MonthButton
-          disabled={!canGoNext}
+          disabled={!canGoPrevious}
           icon="chevron-left"
-          label={t("accessibility.nextMonth")}
-          onPress={onNextMonth}
+          label={t("accessibility.previousMonth")}
+          onPress={onPreviousMonth}
         />
 
         <View style={styles.labels}>
@@ -54,10 +54,10 @@ export function MonthNavigation({
         </View>
 
         <MonthButton
-          disabled={!canGoPrevious}
+          disabled={!canGoNext}
           icon="chevron-right"
-          label={t("accessibility.previousMonth")}
-          onPress={onPreviousMonth}
+          label={t("accessibility.nextMonth")}
+          onPress={onNextMonth}
         />
       </View>
     </View>
