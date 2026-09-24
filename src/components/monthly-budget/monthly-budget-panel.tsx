@@ -3,7 +3,7 @@ import { useTranslation } from '@/i18n/localization-provider';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import type { MonthlyBudgetData, MonthlyBudgetItem } from '@/lib/database';
 
 import { AddBudgetCategory } from './add-budget-category';
@@ -60,7 +60,7 @@ export function MonthlyBudgetPanel({
       )}
 
       {!hasBudgetItems ? (
-        <ThemedView style={styles.emptyState}>
+        <ThemedView type="surfaceMuted" style={styles.emptyState}>
           <ThemedText type="subtitle" style={styles.emptyTitle}>
             {readOnly ? t('budget.noConsolidated') : t('budget.noCategories')}
           </ThemedText>
@@ -110,10 +110,12 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
+    borderRadius: Radius.card,
     flex: 1,
     gap: Spacing.two,
     justifyContent: 'center',
     minHeight: 300,
+    padding: Spacing.three,
   },
   emptyTitle: {
     fontSize: 22,

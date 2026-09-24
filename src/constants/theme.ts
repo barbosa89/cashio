@@ -14,6 +14,20 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    canvas: '#F7F7F5',
+    surface: '#FFFFFF',
+    surfaceRaised: '#FFFFFF',
+    surfaceMuted: '#F0F0EE',
+    surfaceSelected: '#FFF0E6',
+    border: '#D7D8D4',
+    primary: '#F97316',
+    primaryPressed: '#EA580C',
+    primaryContainer: '#FFF0E6',
+    onPrimary: '#17120E',
+    success: '#047857',
+    danger: '#C2413A',
+    warning: '#A16207',
+    focus: '#C2410C',
   },
   dark: {
     text: '#ffffff',
@@ -21,6 +35,20 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    canvas: '#0E0F11',
+    surface: '#17181B',
+    surfaceRaised: '#202226',
+    surfaceMuted: '#282A2F',
+    surfaceSelected: '#422413',
+    border: '#3A3D43',
+    primary: '#FB923C',
+    primaryPressed: '#F97316',
+    primaryContainer: '#422413',
+    onPrimary: '#1A1009',
+    success: '#34D399',
+    danger: '#FB7185',
+    warning: '#FBBF24',
+    focus: '#FDBA74',
   },
 } as const;
 
@@ -67,6 +95,18 @@ export const Spacing = {
   four: 24,
   five: 32,
   six: 64,
+} as const;
+
+export const Radius = {
+  control: 10,
+  card: 16,
+  pill: 999,
+} as const;
+
+export const ControlSize = {
+  compact: 44,
+  default: 48,
+  large: 52,
 } as const;
 
 // Android screens already sit inside SafeAreaView, which applies the system

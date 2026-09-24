@@ -10,7 +10,7 @@ import DropDownPicker from "react-native-dropdown-picker";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
-import { DROPDOWN_LIST_MODE, Spacing } from "@/constants/theme";
+import { DROPDOWN_LIST_MODE, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 type FilterSelectItem = {
@@ -90,8 +90,8 @@ export function FilterSelectField({
         dropDownContainerStyle={[
           styles.dropdownMenu,
           {
-            backgroundColor: theme.background,
-            borderColor: theme.backgroundSelected,
+            backgroundColor: theme.surfaceRaised,
+            borderColor: theme.border,
           },
         ]}
         items={items}
@@ -103,7 +103,7 @@ export function FilterSelectField({
         modalAnimationType="slide"
         modalContentContainerStyle={[
           styles.dropdownModal,
-          { backgroundColor: theme.background },
+          { backgroundColor: theme.surface },
         ]}
         onChangeSearchText={setSearchText}
         onOpen={onOpen}
@@ -116,10 +116,10 @@ export function FilterSelectField({
         searchTextInputProps={{ value: searchText }}
         searchTextInputStyle={[
           styles.dropdownSearchInput,
-          { borderColor: theme.backgroundSelected, color: theme.text },
+          { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
         ]}
         selectedItemContainerStyle={{
-          backgroundColor: theme.backgroundSelected,
+          backgroundColor: theme.primaryContainer,
         }}
         selectedItemLabelStyle={{
           color: theme.text,
@@ -130,8 +130,8 @@ export function FilterSelectField({
         style={[
           styles.dropdown,
           {
-            backgroundColor: theme.background,
-            borderColor: theme.backgroundSelected,
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
           },
         ]}
         textStyle={{ color: theme.text }}
@@ -145,7 +145,7 @@ export function FilterSelectField({
 
 const styles = StyleSheet.create({
   dropdown: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     minHeight: 44,
     paddingHorizontal: Spacing.three,
@@ -157,14 +157,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   dropdownMenu: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
   },
   dropdownModal: {
     padding: Spacing.three,
   },
   dropdownSearchInput: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     fontSize: 16,
     minHeight: 40,

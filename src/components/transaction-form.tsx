@@ -5,6 +5,7 @@ import {
     useMemo,
     useRef,
     useState,
+    type ComponentProps,
     type ReactNode,
 } from "react";
 import {
@@ -31,7 +32,7 @@ import { useTranslation } from "@/i18n/localization-provider";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { AppPalette, DROPDOWN_LIST_MODE, Spacing } from "@/constants/theme";
+import { AppPalette, DROPDOWN_LIST_MODE, Radius, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
@@ -528,7 +529,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
   }
 
   return (
-    <ThemedView type="backgroundElement" style={styles.panel}>
+    <ThemedView type="surface" style={styles.panel}>
       {(isAccountOpen || isCategoryOpen || isDestinationAccountOpen || isTagsOpen) && (
         <Pressable
           accessibilityLabel={t("accessibility.closeSelector")}
@@ -537,16 +538,20 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
         />
       )}
 
-      <ThemedView type="backgroundSelected" style={styles.segmentedControl}>
+      <ThemedView type="surfaceMuted" style={styles.segmentedControl}>
         <SegmentButton
           active={transactionType === "expense"}
+          icon="arrow-up-right"
           label={t("common.expense")}
           onPress={() => setTransactionType("expense")}
+          tone="expense"
         />
         <SegmentButton
           active={transactionType === "income"}
+          icon="arrow-down-left"
           label={t("common.income")}
           onPress={() => setTransactionType("income")}
+          tone="income"
         />
       </ThemedView>
 
@@ -578,8 +583,8 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           dropDownContainerStyle={[
             styles.dropdownMenu,
             {
-              backgroundColor: theme.background,
-              borderColor: theme.backgroundSelected,
+              backgroundColor: theme.surfaceRaised,
+              borderColor: theme.border,
             },
           ]}
           items={accountItems}
@@ -598,7 +603,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           placeholder={t("transaction.selectAccount")}
           placeholderStyle={{ color: theme.textSecondary }}
           selectedItemContainerStyle={{
-            backgroundColor: theme.backgroundSelected,
+            backgroundColor: theme.primaryContainer,
           }}
           selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
           setOpen={setIsAccountOpen}
@@ -606,8 +611,8 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           style={[
             styles.dropdown,
             {
-              backgroundColor: theme.background,
-              borderColor: theme.backgroundSelected,
+              backgroundColor: theme.surfaceRaised,
+              borderColor: theme.border,
             },
           ]}
           textStyle={{ color: theme.text }}
@@ -630,7 +635,8 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           separator={numberSeparators.separator}
           style={[
             styles.input,
-            { color: theme.text, borderColor: theme.backgroundSelected },
+            styles.amountInput,
+            { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised },
           ]}
           value={amount}
         />
@@ -646,7 +652,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
             placeholderTextColor={theme.textSecondary}
             style={[
               styles.input,
-              { borderColor: theme.backgroundSelected, color: theme.text },
+              { borderColor: theme.border, color: theme.text, backgroundColor: theme.surfaceRaised },
             ]}
             value={transactionDate}
           />
@@ -660,7 +666,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
             <View
               style={[
                 styles.dateInput,
-                { borderColor: theme.backgroundSelected },
+                { borderColor: theme.border, backgroundColor: theme.surfaceRaised },
               ]}
             >
               <ThemedText style={styles.dateInputText}>
@@ -671,7 +677,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           </Pressable>
         )}
         {isDatePickerOpen && Platform.OS === "ios" && (
-          <ThemedView type="background" style={styles.datePickerPanel}>
+          <ThemedView type="surfaceRaised" style={styles.datePickerPanel}>
             <DateTimePicker
               display="spinner"
               mode="date"
@@ -707,7 +713,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           placeholderTextColor={theme.textSecondary}
           style={[
             styles.input,
-            { color: theme.text, borderColor: theme.backgroundSelected },
+            { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceRaised },
           ]}
           value={description}
         />
@@ -742,13 +748,13 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           dropDownContainerStyle={[
             styles.dropdownMenu,
             {
-              backgroundColor: theme.background,
-              borderColor: theme.backgroundSelected,
+              backgroundColor: theme.surfaceRaised,
+              borderColor: theme.border,
             },
           ]}
           customItemContainerStyle={[
             styles.dropdownCustomItem,
-            { borderTopColor: theme.backgroundSelected },
+            { borderTopColor: theme.border },
           ]}
           flatListProps={SEARCHABLE_DROPDOWN_FLAT_LIST_PROPS}
           items={categoryItems}
@@ -786,12 +792,12 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           searchTextInputStyle={[
             styles.dropdownSearchInput,
             {
-              borderColor: theme.backgroundSelected,
+              borderColor: theme.border,
               color: theme.text,
             },
           ]}
           selectedItemContainerStyle={{
-            backgroundColor: theme.backgroundSelected,
+            backgroundColor: theme.primaryContainer,
           }}
           selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
           setOpen={setIsCategoryOpen}
@@ -799,8 +805,8 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           style={[
             styles.dropdown,
             {
-              backgroundColor: theme.background,
-              borderColor: theme.backgroundSelected,
+              backgroundColor: theme.surfaceRaised,
+              borderColor: theme.border,
             },
           ]}
           textStyle={{ color: theme.text }}
@@ -842,8 +848,8 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
             dropDownContainerStyle={[
               styles.dropdownMenu,
               {
-                backgroundColor: theme.background,
-                borderColor: theme.backgroundSelected,
+                backgroundColor: theme.surfaceRaised,
+                borderColor: theme.border,
               },
             ]}
             items={destinationAccountItems}
@@ -862,7 +868,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
             placeholder={t("transaction.optionalTransfer")}
             placeholderStyle={{ color: theme.textSecondary }}
             selectedItemContainerStyle={{
-              backgroundColor: theme.backgroundSelected,
+              backgroundColor: theme.primaryContainer,
             }}
             selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
             setOpen={setIsDestinationAccountOpen}
@@ -870,8 +876,8 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
             style={[
               styles.dropdown,
               {
-                backgroundColor: theme.background,
-                borderColor: theme.backgroundSelected,
+                backgroundColor: theme.surfaceRaised,
+                borderColor: theme.border,
               },
             ]}
             textStyle={{ color: theme.text }}
@@ -919,13 +925,13 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           dropDownContainerStyle={[
             styles.dropdownMenu,
             {
-              backgroundColor: theme.background,
-              borderColor: theme.backgroundSelected,
+              backgroundColor: theme.surfaceRaised,
+              borderColor: theme.border,
             },
           ]}
           customItemContainerStyle={[
             styles.dropdownCustomItem,
-            { borderTopColor: theme.backgroundSelected },
+            { borderTopColor: theme.border },
           ]}
           flatListProps={SEARCHABLE_DROPDOWN_FLAT_LIST_PROPS}
           items={tagItems}
@@ -964,12 +970,12 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           searchTextInputStyle={[
             styles.dropdownSearchInput,
             {
-              borderColor: theme.backgroundSelected,
+              borderColor: theme.border,
               color: theme.text,
             },
           ]}
           selectedItemContainerStyle={{
-            backgroundColor: theme.backgroundSelected,
+            backgroundColor: theme.primaryContainer,
           }}
           selectedItemLabelStyle={{
             color: selectedTagTextColor,
@@ -980,8 +986,8 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           style={[
             styles.dropdown,
             {
-              backgroundColor: theme.background,
-              borderColor: theme.backgroundSelected,
+              backgroundColor: theme.surfaceRaised,
+              borderColor: theme.border,
             },
           ]}
           textStyle={{
@@ -1124,25 +1130,44 @@ function Field({
 
 function SegmentButton({
   active,
+  icon,
   label,
   onPress,
+  tone,
 }: {
   active: boolean;
+  icon: ComponentProps<typeof AppIcon>["name"];
   label: string;
   onPress: () => void;
+  tone: "expense" | "income";
 }) {
+  const theme = useTheme();
+  const color = tone === "expense" ? theme.danger : theme.success;
+
   return (
     <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: active }}
       onPress={onPress}
       style={({ pressed }) => [styles.segmentButton, pressed && styles.pressed]}
     >
       <ThemedView
-        type={active ? "background" : "backgroundSelected"}
-        style={styles.segmentButtonInner}
+        type="surfaceRaised"
+        style={[
+          styles.segmentButtonInner,
+          { borderColor: active ? color : "transparent" },
+          active && { backgroundColor: `${color}24` },
+        ]}
       >
+        <AppIcon
+          color={active ? color : theme.textSecondary}
+          name={icon}
+          size={18}
+        />
         <ThemedText
           type="smallBold"
-          themeColor={active ? "text" : "textSecondary"}
+          style={active && { color }}
+          themeColor={active ? undefined : "textSecondary"}
         >
           {label}
         </ThemedText>
@@ -1162,6 +1187,8 @@ function ActionButton({
   onPress: () => void;
   primary?: boolean;
 }) {
+  const theme = useTheme();
+
   return (
     <Pressable
       disabled={disabled}
@@ -1172,10 +1199,15 @@ function ActionButton({
       ]}
     >
       <ThemedView
-        type={primary ? "backgroundSelected" : "background"}
-        style={styles.actionButton}
+        type={primary ? "primary" : "surfaceMuted"}
+        style={[
+          styles.actionButton,
+          primary && { backgroundColor: theme.primary },
+        ]}
       >
-        <ThemedText type="smallBold">{label}</ThemedText>
+        <ThemedText type="smallBold" themeColor={primary ? "onPrimary" : "text"}>
+          {label}
+        </ThemedText>
       </ThemedView>
     </Pressable>
   );
@@ -1183,9 +1215,10 @@ function ActionButton({
 
 const styles = StyleSheet.create({
   panel: {
-    borderRadius: Spacing.two,
-    gap: Spacing.three,
-    padding: Spacing.three,
+    borderCurve: "continuous",
+    borderRadius: Radius.card,
+    gap: Spacing.four,
+    padding: Spacing.four,
     position: "relative",
   },
   dropdownBackdrop: {
@@ -1197,7 +1230,7 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   segmentedControl: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     flexDirection: "row",
     gap: Spacing.one,
     padding: Spacing.one,
@@ -1207,7 +1240,11 @@ const styles = StyleSheet.create({
   },
   segmentButtonInner: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderWidth: 1,
+    borderRadius: Radius.control,
+    flexDirection: "row",
+    gap: Spacing.one,
+    justifyContent: "center",
     minHeight: 44,
     paddingVertical: Spacing.two,
   },
@@ -1218,20 +1255,26 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   input: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     fontSize: 16,
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
+  amountInput: {
+    fontSize: 28,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
+    minHeight: 64,
+  },
   dateInput: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
@@ -1255,16 +1298,16 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   dropdown: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: Spacing.three,
   },
   dropdownLabel: {
     fontWeight: "700",
   },
   dropdownMenu: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
   },
   dropdownModal: {
@@ -1317,7 +1360,10 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderCurve: "continuous",
+    borderRadius: Radius.control,
+    justifyContent: "center",
+    minHeight: 52,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
   },

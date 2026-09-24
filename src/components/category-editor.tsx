@@ -15,7 +15,7 @@ import { useTranslation } from "@/i18n/localization-provider";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, DROPDOWN_LIST_MODE, MaxPhoneContentWidth, Spacing } from "@/constants/theme";
+import { BottomTabInset, DROPDOWN_LIST_MODE, MaxPhoneContentWidth, Radius, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
@@ -73,7 +73,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView type="canvas" style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -87,7 +87,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
               onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}
             >
-              <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
+              <ThemedView type="surface" style={[styles.backButton, { borderColor: theme.border }]}>
                 <AppIcon color={theme.text} name="arrow-left" size={22} />
               </ThemedView>
             </Pressable>
@@ -96,7 +96,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
             </ThemedText>
           </View>
 
-          <ThemedView type="backgroundElement" style={styles.panel}>
+          <ThemedView type="surface" style={styles.panel}>
             {isTypeOpen && (
               <Pressable
                 accessibilityLabel={t("accessibility.closeSelector")}
@@ -114,7 +114,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
                 placeholderTextColor={theme.textSecondary}
                 style={[
                   styles.input,
-                  { borderColor: theme.backgroundSelected, color: theme.text },
+                  { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
                 ]}
                 value={description}
               />
@@ -152,8 +152,8 @@ export function CategoryEditor({ category }: { category?: Category }) {
                 dropDownContainerStyle={[
                   styles.dropdownMenu,
                   {
-                    backgroundColor: theme.background,
-                    borderColor: theme.backgroundSelected,
+                    backgroundColor: theme.surfaceRaised,
+                    borderColor: theme.border,
                   },
                 ]}
                 items={categoryTypeOptions}
@@ -164,7 +164,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
                 modalAnimationType="slide"
                 modalContentContainerStyle={[
                   styles.dropdownModal,
-                  { backgroundColor: theme.background },
+                  { backgroundColor: theme.surface },
                 ]}
                 modalTitle={t("categoryEditor.selectType")}
                 modalTitleStyle={{ color: theme.text }}
@@ -172,7 +172,7 @@ export function CategoryEditor({ category }: { category?: Category }) {
                 placeholder={t("categoryEditor.selectType")}
                 placeholderStyle={{ color: theme.textSecondary }}
                 selectedItemContainerStyle={{
-                  backgroundColor: theme.backgroundSelected,
+                  backgroundColor: theme.primaryContainer,
                 }}
                 selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
                 setOpen={setIsTypeOpen}
@@ -180,8 +180,8 @@ export function CategoryEditor({ category }: { category?: Category }) {
                 style={[
                   styles.dropdown,
                   {
-                    backgroundColor: theme.background,
-                    borderColor: theme.backgroundSelected,
+                    backgroundColor: theme.surfaceRaised,
+                    borderColor: theme.border,
                   },
                 ]}
                 textStyle={{ color: theme.text }}
@@ -207,8 +207,8 @@ export function CategoryEditor({ category }: { category?: Category }) {
                 isLoading && styles.disabled,
               ]}
             >
-              <ThemedView type="backgroundSelected" style={styles.saveButton}>
-                <ThemedText type="smallBold">
+              <ThemedView type="primary" style={styles.saveButton}>
+                <ThemedText type="smallBold" themeColor="onPrimary">
                   {category ? t("categoryEditor.save") : t("categoryEditor.create")}
                 </ThemedText>
               </ThemedView>
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     height: 44,
     justifyContent: "center",
@@ -253,13 +253,11 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: 32,
-    lineHeight: 38,
   },
   panel: {
-    borderRadius: Spacing.two,
-    gap: Spacing.three,
-    padding: Spacing.three,
+    borderRadius: Radius.card,
+    gap: Spacing.four,
+    padding: Spacing.four,
     position: "relative",
   },
   dropdownBackdrop: {
@@ -277,24 +275,24 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   input: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     fontSize: 16,
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
   dropdown: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: Spacing.three,
   },
   dropdownLabel: {
     fontWeight: "700",
   },
   dropdownMenu: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
   },
   dropdownModal: {
@@ -305,7 +303,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     minHeight: 48,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,

@@ -16,7 +16,7 @@ import { AppIcon } from "@/components/app-icon";
 import { SettingSwitch } from "@/components/setting-switch";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { AppPalette, Spacing } from "@/constants/theme";
+import { AppPalette, MaxContentWidth, Radius, Spacing } from "@/constants/theme";
 import { useCashioSettings } from "@/hooks/use-cashio-settings";
 import { useTheme } from "@/hooks/use-theme";
 import type {
@@ -50,7 +50,7 @@ function SettingToggleCard({
   value,
 }: SettingToggleCardProps) {
   return (
-    <ThemedView type="backgroundElement" style={styles.settingsPanel}>
+    <ThemedView type="surfaceMuted" style={styles.settingsPanel}>
       <View style={styles.settingRow}>
         <View style={styles.settingCopy}>
           <ThemedText type="smallBold" style={styles.settingTitle}>
@@ -94,7 +94,7 @@ function LanguageSettingCard({
   const { t } = useTranslation();
 
   return (
-    <ThemedView type="backgroundElement" style={styles.languagePanel}>
+    <ThemedView type="surfaceMuted" style={styles.languagePanel}>
       <View style={styles.languageIntro}>
         <ThemedText type="smallBold" style={styles.settingTitle}>
           {t("settings.language")}
@@ -130,10 +130,10 @@ function LanguageSettingCard({
               ]}
             >
               <ThemedView
-                type={isSelected ? "backgroundSelected" : "backgroundElement"}
+                type={isSelected ? "primaryContainer" : "surfaceRaised"}
                 style={styles.languageOption}
               >
-                <ThemedView type="background" style={styles.languageCode}>
+                <ThemedView type="surface" style={styles.languageCode}>
                   <ThemedText type="smallBold">{option.code}</ThemedText>
                 </ThemedView>
                 <View style={styles.languageOptionCopy}>
@@ -170,7 +170,7 @@ function LanguageSettingCard({
           onPress={() => onSelect(null)}
           style={({ pressed }) => [
             styles.deviceLanguageButton,
-            { borderColor: theme.backgroundSelected },
+            { borderColor: theme.border },
             pressed && styles.pressed,
             disabled && styles.disabled,
           ]}
@@ -201,29 +201,27 @@ export default function SettingsScreen() {
   } = useCashioSettings();
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView type="canvas" style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView
           style={[
             styles.phoneSurface,
-            { borderColor: theme.backgroundSelected },
+            { backgroundColor: theme.surface, borderColor: theme.border },
           ]}
         >
           <ScrollView contentContainerStyle={styles.content}>
-            <ThemedView style={styles.titleRow}>
+            <View style={styles.titleRow}>
               <Pressable
                 accessibilityLabel={t("accessibility.openMenu")}
                 accessibilityRole="button"
                 onPress={() => navigation.openDrawer()}
                 style={({ pressed }) => pressed && styles.pressed}
               >
-                <ThemedView
-                  style={styles.menuButton}
-                >
+                <ThemedView type="surfaceMuted" style={styles.menuButton}>
                   <AppIcon color={theme.text} name="menu" size={28} />
                 </ThemedView>
               </Pressable>
-              <ThemedView type="backgroundSelected" style={styles.titleIcon}>
+              <ThemedView type="primaryContainer" style={styles.titleIcon}>
                 <AppIcon color={theme.text} name="settings" size={28} />
               </ThemedView>
               <View style={styles.titleCopy}>
@@ -234,7 +232,7 @@ export default function SettingsScreen() {
                   {t("settings.subtitle")}
                 </ThemedText>
               </View>
-            </ThemedView>
+            </View>
 
             <LanguageSettingCard
               deviceLanguage={deviceLanguage}
@@ -268,7 +266,7 @@ export default function SettingsScreen() {
               <ThemedView
                 accessibilityLiveRegion="assertive"
                 accessibilityRole="alert"
-                type="backgroundSelected"
+                type="surfaceMuted"
                 style={styles.message}
               >
                 <ThemedText type="smallBold">{errorMessage}</ThemedText>
@@ -284,7 +282,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   menuButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     height: 48,
     justifyContent: "center",
     width: 48,
@@ -300,7 +298,7 @@ const styles = StyleSheet.create({
   deviceLanguageButton: {
     alignItems: "center",
     alignSelf: "stretch",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     flexDirection: "row",
     gap: Spacing.two,
@@ -323,7 +321,7 @@ const styles = StyleSheet.create({
   },
   languageOption: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     flexDirection: "row",
     gap: Spacing.three,
     minHeight: 56,
@@ -342,18 +340,18 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   languagePanel: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
     gap: Spacing.three,
     padding: Spacing.three,
   },
   message: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     padding: Spacing.three,
   },
   phoneSurface: {
     borderWidth: Platform.OS === "web" ? 1 : 0,
     flex: 1,
-    maxWidth: 430,
+    maxWidth: MaxContentWidth,
     width: "100%",
   },
   pressed: {
@@ -380,7 +378,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   settingsPanel: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
     padding: Spacing.three,
   },
   settingTitle: {
@@ -397,7 +395,7 @@ const styles = StyleSheet.create({
   },
   titleIcon: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
     height: 52,
     justifyContent: "center",
     width: 52,

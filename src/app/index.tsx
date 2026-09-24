@@ -50,11 +50,18 @@ import {
     TransactionFilterSheet,
     type TransactionFilters,
 } from "@/components/transaction-filters";
-import { AppPalette, BottomTabInset, Spacing } from "@/constants/theme";
+import {
+    AppPalette,
+    BottomTabInset,
+    MaxContentWidth,
+    MaxPhoneContentWidth,
+    Radius,
+    Spacing,
+} from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useCashioSettings } from "@/hooks/use-cashio-settings";
 import { useTheme } from "@/hooks/use-theme";
-import { capitalizeLocalized, formatMonthYear } from "@/i18n/formatters";
+import { capitalizeLocalized, formatDate, formatMonthYear } from "@/i18n/formatters";
 import { useLocalization } from "@/i18n/localization-provider";
 import type {
     Account,
@@ -831,12 +838,12 @@ export default function HomeScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView type="canvas" style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView
           style={[
             styles.phoneSurface,
-            { borderColor: theme.backgroundSelected },
+            { backgroundColor: theme.surface, borderColor: theme.border },
           ]}
         >
           <DashboardHeader
@@ -927,7 +934,7 @@ function BalanceDashboardHeader({
   const { t } = useTranslation();
 
   return (
-    <ThemedView style={styles.header}>
+    <View style={styles.header}>
       <IconButton label={t("accessibility.openMenu")} onPress={onOpenMenu}>
         <AppIcon color={theme.text} name="menu" size={30} />
       </IconButton>
@@ -935,7 +942,7 @@ function BalanceDashboardHeader({
         {t("dashboard.balanceTitle")}
       </ThemedText>
       <View style={styles.headerSpacer} />
-    </ThemedView>
+    </View>
   );
 }
 
@@ -954,7 +961,7 @@ function ScopedDashboardHeader({
   const { t } = useTranslation();
 
   return (
-    <ThemedView style={styles.header}>
+    <View style={styles.header}>
       <IconButton label={t("accessibility.openMenu")} onPress={onOpenMenu}>
         <AppIcon color={theme.text} name="menu" size={30} />
       </IconButton>
@@ -968,7 +975,7 @@ function ScopedDashboardHeader({
       >
         <AppIcon color={theme.text} name="bank" size={30} />
       </IconButton>
-    </ThemedView>
+    </View>
   );
 }
 
@@ -993,18 +1000,18 @@ function TransactionsDashboardHeader({
   const { t } = useTranslation();
 
   return (
-    <ThemedView style={styles.header}>
+    <View style={styles.header}>
       <IconButton label={t("accessibility.openMenu")} onPress={onOpenMenu}>
         <AppIcon color={theme.text} name="menu" size={30} />
       </IconButton>
 
       <View style={styles.headerActions}>
-        <ThemedView type="backgroundSelected" style={styles.searchWrap}>
+        <ThemedView type="surfaceMuted" style={styles.searchWrap}>
           <TextInput
             accessibilityLabel={t("accessibility.searchTransactions")}
             onChangeText={onChangeDescriptionSearch}
             placeholder={t("dashboard.search")}
-            placeholderTextColor={theme.text}
+            placeholderTextColor={theme.textSecondary}
             style={[styles.searchInput, { color: theme.text }]}
             value={descriptionSearch}
           />
@@ -1024,7 +1031,7 @@ function TransactionsDashboardHeader({
           <AppIcon color={theme.text} name="bank" size={30} />
         </IconButton>
       </View>
-    </ThemedView>
+    </View>
   );
 }
 
@@ -1074,20 +1081,20 @@ function TransactionListDashboardView({
       style={styles.list}
     >
       {isLoading ? (
-        <ThemedView style={styles.emptyState}>
+        <View style={styles.emptyState}>
           <ThemedText type="smallBold" themeColor="textSecondary">
             {t("common.loading")}
           </ThemedText>
-        </ThemedView>
+        </View>
       ) : filteredTransactions.length === 0 ? (
-        <ThemedView style={styles.emptyState}>
+        <View style={styles.emptyState}>
           <ThemedText type="subtitle" style={styles.emptyTitle}>
             {t("dashboard.emptyTitle")}
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {t("dashboard.noTransactions")}
           </ThemedText>
-        </ThemedView>
+        </View>
       ) : (
         filteredTransactions.map((transaction) => (
           <TransactionRow
@@ -1246,44 +1253,39 @@ function DashboardBottomBar({
     <ThemedView
       style={[
         styles.bottomBar,
-        { borderTopColor: theme.backgroundSelected },
+        { backgroundColor: theme.surface, borderTopColor: theme.border },
       ]}
     >
-      <IconButton
+      <DashboardTab
+        icon="list"
         label={t("dashboard.list")}
         selected={activeView === "list"}
         onPress={() => onSelectView("list")}
-      >
-        <AppIcon color={theme.text} name="list" size={34} />
-      </IconButton>
-      <IconButton
+      />
+      <DashboardTab
+        icon="bar-chart-2"
         label={t("dashboard.charts")}
         selected={activeView === "charts"}
         onPress={() => onSelectView("charts")}
-      >
-        <AppIcon color={theme.text} name="bar-chart-2" size={34} />
-      </IconButton>
-      <IconButton
+      />
+      <DashboardTab
+        icon="columns"
         label={t("dashboard.balance")}
         selected={activeView === "balance"}
         onPress={() => onSelectView("balance")}
-      >
-        <AppIcon color={theme.text} name="columns" size={34} />
-      </IconButton>
-      <IconButton
+      />
+      <DashboardTab
+        icon="target"
         label={t("dashboard.budget")}
         selected={activeView === "budgets"}
         onPress={() => onSelectView("budgets")}
-      >
-        <AppIcon color={theme.text} name="target" size={34} />
-      </IconButton>
-      <IconButton
+      />
+      <DashboardTab
+        icon="file-text"
         label={t("dashboard.reports")}
         selected={activeView === "reports"}
         onPress={() => onSelectView("reports")}
-      >
-        <AppIcon color={theme.text} name="file-text" size={34} />
-      </IconButton>
+      />
     </ThemedView>
   );
 }
@@ -1326,16 +1328,16 @@ function TransactionRow({
       style={({ pressed }) => pressed && styles.pressed}
     >
       <ThemedView
-        type={selected ? "backgroundSelected" : "background"}
-        style={styles.transactionRow}
+        type={selected ? "primaryContainer" : "surface"}
+        style={[styles.transactionRow, { borderBottomColor: theme.border }]}
       >
-        <TypeIcon
-          selected={selected}
-          type={transaction.type}
-        />
         <View style={styles.transactionBody}>
-          <ThemedText type="subtitle" style={styles.amount}>
-            {formatMoney(transaction.amount, languageTag)}
+          <ThemedText
+            type="subtitle"
+            themeColor={transaction.type === "income" ? "success" : "danger"}
+            style={styles.amount}
+          >
+            {transaction.type === "income" ? "+" : "-"}$ {formatMoney(transaction.amount, languageTag)}
           </ThemedText>
           <View style={styles.metadataRow}>
             <AppIcon
@@ -1410,8 +1412,8 @@ function TransactionRow({
             </View>
           )}
         </View>
-        <ThemedText type="smallBold" style={styles.dateText}>
-          {transaction.transaction_date}
+        <ThemedText type="caption" themeColor="textSecondary" style={styles.dateText}>
+          {formatDate(transaction.transaction_date, languageTag)}
         </ThemedText>
       </ThemedView>
     </Pressable>
@@ -1472,19 +1474,19 @@ function BalanceSummary({
 
   return (
     <View style={styles.summaryWrap}>
-      <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
+      <ThemedView type="surfaceMuted" style={styles.summaryPanel}>
         <View style={styles.summaryMainRow}>
-          <ThemedText type="subtitle" style={styles.summaryTitle}>
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.summaryTitle}>
             {t("dashboard.balance")}
           </ThemedText>
-          <ThemedText type="subtitle" style={styles.summaryAmount}>
+          <ThemedText type="display" style={styles.summaryAmount}>
             $ {formatMoney(balance, languageTag)}
           </ThemedText>
         </View>
         <View
           style={[
             styles.summaryOpeningRow,
-            { borderTopColor: theme.textSecondary },
+            { borderTopColor: theme.border },
           ]}
         >
           <ThemedText type="smallBold" style={styles.summaryDetail}>
@@ -1494,13 +1496,23 @@ function BalanceSummary({
             $ {formatMoney(openingBalance, languageTag)}
           </ThemedText>
         </View>
-        <View style={styles.summaryDetailRow}>
-          <ThemedText type="smallBold" style={styles.summaryDetail}>
-            {t("balance.income")}: $ {formatMoney(income, languageTag)}
-          </ThemedText>
-          <ThemedText type="smallBold" style={styles.summaryDetail}>
-            {t("balance.expenses")}: $ {formatMoney(expense, languageTag)}
-          </ThemedText>
+        <View style={styles.summaryMetrics}>
+          <View style={styles.summaryMetric}>
+            <ThemedText type="caption" themeColor="textSecondary">
+              {t("balance.income")}
+            </ThemedText>
+            <ThemedText type="smallBold" themeColor="success">
+              +$ {formatMoney(income, languageTag)}
+            </ThemedText>
+          </View>
+          <View style={styles.summaryMetric}>
+            <ThemedText type="caption" themeColor="textSecondary">
+              {t("balance.expenses")}
+            </ThemedText>
+            <ThemedText type="smallBold" themeColor="danger">
+              -$ {formatMoney(expense, languageTag)}
+            </ThemedText>
+          </View>
         </View>
         {hasTransfers && transferIn > 0 && (
           <View style={styles.summaryDetailRow}>
@@ -1545,11 +1557,51 @@ function IconButton({
       style={({ pressed }) => pressed && styles.pressed}
     >
       <ThemedView
-        type={selected ? "backgroundSelected" : "background"}
+        type={selected ? "primaryContainer" : "surfaceMuted"}
         style={styles.iconButton}
       >
         {children}
       </ThemedView>
+    </Pressable>
+  );
+}
+
+function DashboardTab({
+  icon,
+  label,
+  onPress,
+  selected,
+}: Readonly<{
+  icon: ComponentProps<typeof AppIcon>["name"];
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+}>) {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="tab"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => [styles.dashboardTab, pressed && styles.tabPressed]}
+    >
+      <View style={[styles.dashboardTabIndicator, selected && { backgroundColor: theme.primaryContainer }]}>
+        <AppIcon
+          color={selected ? theme.primary : theme.textSecondary}
+          name={icon}
+          size={22}
+        />
+      </View>
+      <ThemedText
+        numberOfLines={1}
+        type="caption"
+        themeColor={selected ? "primary" : "textSecondary"}
+        style={styles.dashboardTabLabel}
+      >
+        {label}
+      </ThemedText>
     </Pressable>
   );
 }
@@ -1577,28 +1629,6 @@ function FlatIconButton({
   );
 }
 
-function TypeIcon({
-  selected,
-  type,
-}: Readonly<{
-  selected?: boolean;
-  type: Transaction["type"];
-}>) {
-  const iconColor =
-    type === "income" ? AppPalette.incomeGreen : AppPalette.brandOrange;
-  const iconName = selected
-    ? "check"
-    : type === "income"
-      ? "arrow-down-left"
-      : "arrow-up-right";
-
-  return (
-    <View style={[styles.typeIcon, { borderColor: iconColor }]}>
-      <AppIcon color={iconColor} name={iconName} size={18} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1606,28 +1636,32 @@ const styles = StyleSheet.create({
   safeArea: {
     alignItems: "center",
     flex: 1,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Platform.OS === "web" ? Spacing.three : 0,
+    minHeight: 0,
   },
   phoneSurface: {
     borderWidth: Platform.OS === "web" ? 1 : 0,
     flex: 1,
-    maxWidth: 430,
+    maxWidth: Platform.OS === "web" ? MaxContentWidth : MaxPhoneContentWidth,
+    minHeight: 0,
+    overflow: "hidden",
     position: "relative",
     width: "100%",
   },
   header: {
     alignItems: "center",
     flexDirection: "row",
-    gap: Spacing.two,
+    flexShrink: 0,
+    gap: 12,
     justifyContent: "space-between",
-    paddingTop: Spacing.four,
+    paddingBottom: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
   },
   headerActions: {
     alignItems: "center",
     flexDirection: "row",
     flex: 1,
-    gap: Spacing.two,
+    gap: 12,
     justifyContent: "space-between",
     minWidth: 0,
   },
@@ -1656,16 +1690,17 @@ const styles = StyleSheet.create({
   },
   searchWrap: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderCurve: "continuous",
+    borderRadius: Radius.control,
     flex: 1,
-    height: 38,
+    height: 48,
     justifyContent: "center",
     minWidth: 0,
     paddingHorizontal: Spacing.three,
   },
   searchInput: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "600",
     minWidth: 0,
     paddingVertical: 0,
     textAlign: "center",
@@ -1673,7 +1708,7 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     height: 48,
     justifyContent: "center",
     width: 48,
@@ -1687,9 +1722,11 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
     marginTop: Spacing.three,
+    minHeight: 0,
   },
   listContent: {
-    gap: Spacing.four,
+    flexGrow: 1,
+    gap: 0,
     paddingHorizontal: Spacing.three,
     paddingBottom: BottomTabInset + 152,
   },
@@ -1714,11 +1751,12 @@ const styles = StyleSheet.create({
   },
   transactionRow: {
     alignItems: "flex-start",
-    borderRadius: Spacing.two,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     gap: Spacing.two,
-    minHeight: 64,
-    padding: Spacing.two,
+    minHeight: 76,
+    paddingHorizontal: Spacing.one,
+    paddingVertical: Spacing.three,
   },
   transactionBody: {
     flex: 1,
@@ -1744,42 +1782,30 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   dateText: {
-    minWidth: 96,
+    minWidth: 56,
     textAlign: "right",
   },
-  typeIcon: {
-    alignItems: "center",
-    borderRadius: 15,
-    borderWidth: 2,
-    height: 30,
-    justifyContent: "center",
-    marginTop: Spacing.half,
-    width: 30,
-  },
   summaryWrap: {
+    flexShrink: 0,
     gap: Spacing.one,
     marginHorizontal: Spacing.three,
     marginTop: Spacing.two,
   },
   summaryPanel: {
-    borderRadius: Spacing.two,
-    gap: Spacing.half,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
+    borderCurve: "continuous",
+    borderRadius: Radius.card,
+    gap: Spacing.two,
+    padding: Spacing.three,
   },
   summaryMainRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: Spacing.one,
   },
   summaryTitle: {
-    fontSize: 18,
-    lineHeight: 22,
+    textTransform: "uppercase",
   },
   summaryAmount: {
-    fontSize: 18,
-    lineHeight: 22,
-    textAlign: "right",
+    alignSelf: "stretch",
   },
   summaryDetailRow: {
     flexDirection: "row",
@@ -1791,7 +1817,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: Spacing.two,
-    paddingTop: Spacing.half,
+    paddingTop: Spacing.two,
   },
   summaryDetail: {
     flexShrink: 1,
@@ -1804,20 +1830,53 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     textAlign: "right",
   },
+  summaryMetrics: {
+    flexDirection: "row",
+    gap: Spacing.two,
+  },
+  summaryMetric: {
+    flex: 1,
+    gap: Spacing.half,
+  },
   bottomBar: {
     alignItems: "center",
     borderTopWidth: 1,
     flexDirection: "row",
-    justifyContent: "space-around",
+    flexShrink: 0,
+    justifyContent: "space-between",
     paddingBottom: BottomTabInset + Spacing.three,
     paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
+    paddingTop: Spacing.one,
+  },
+  dashboardTab: {
+    alignItems: "center",
+    flex: 1,
+    gap: Spacing.half,
+    minHeight: 56,
+    minWidth: 0,
+    paddingTop: Spacing.one,
+  },
+  dashboardTabIndicator: {
+    alignItems: "center",
+    borderRadius: Radius.pill,
+    height: 28,
+    justifyContent: "center",
+    width: 48,
+  },
+  dashboardTabLabel: {
+    fontSize: 10,
+    lineHeight: 13,
+    maxWidth: "100%",
+    textAlign: "center",
+  },
+  tabPressed: {
+    transform: [{ scale: 0.96 }],
   },
   fab: {
     alignItems: "center",
     backgroundColor: AppPalette.brandOrange,
     borderColor: "transparent",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
     borderWidth: 2,
     bottom: BottomTabInset + 104,
     height: 48,

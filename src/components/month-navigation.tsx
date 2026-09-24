@@ -5,7 +5,7 @@ import Animated, { FadeInDown, FadeOutUp } from "react-native-reanimated";
 import { AppIcon, type AppIconName } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Spacing } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n/localization-provider";
 
@@ -116,7 +116,7 @@ export function MonthChangeToast({
           entering={FadeInDown.duration(200)}
           exiting={FadeOutUp.duration(180)}
         >
-          <ThemedView type="backgroundElement" style={styles.toast}>
+          <ThemedView type="surfaceRaised" style={[styles.toast, { borderColor: theme.border }]}>
             <AppIcon color={theme.text} name="calendar" size={16} />
             <ThemedText type="smallBold" style={styles.toastText}>
               {notice}
@@ -155,7 +155,7 @@ function MonthButton({
       ]}
     >
       <ThemedView
-        type="backgroundElement"
+        type="surfaceMuted"
         style={[styles.button, disabled && styles.buttonDisabled]}
       >
         <AppIcon
@@ -172,20 +172,20 @@ const styles = StyleSheet.create({
   button: {
     alignItems: "center",
     borderCurve: "continuous",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     height: 48,
     justifyContent: "center",
     width: 48,
   },
   buttonDisabled: {
-    opacity: 0.4,
+    opacity: 0.35,
   },
   buttonPressable: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
   },
   container: {
     marginHorizontal: Spacing.three,
-    marginTop: Spacing.two,
+    marginTop: Spacing.three,
   },
   contextLabel: {
     textAlign: "center",
@@ -213,7 +213,8 @@ const styles = StyleSheet.create({
   toast: {
     alignItems: "center",
     borderCurve: "continuous",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
+    borderWidth: 1,
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.18)",
     flexDirection: "row",
     gap: Spacing.two,

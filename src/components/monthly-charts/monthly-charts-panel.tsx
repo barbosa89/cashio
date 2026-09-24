@@ -2,7 +2,6 @@ import { StyleSheet, View } from 'react-native';
 import { useTranslation } from '@/i18n/localization-provider';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import type { MonthlySummaryRow } from '@/lib/database';
 
@@ -48,11 +47,11 @@ function MonthlyExpenseEmptyChart() {
   const { t } = useTranslation();
   return (
     <ChartCard title={t('charts.expensesByCategory')}>
-      <ThemedView style={styles.emptyState}>
+      <View style={styles.emptyState}>
         <ThemedText themeColor="textSecondary" style={styles.emptyText}>
           {t('charts.noExpenses')}
         </ThemedText>
-      </ThemedView>
+      </View>
     </ChartCard>
   );
 }

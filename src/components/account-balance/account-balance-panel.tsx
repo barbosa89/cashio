@@ -3,7 +3,7 @@ import { useTranslation } from "@/i18n/localization-provider";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { AppPalette, Spacing } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
 import { useLocalization } from "@/i18n/localization-provider";
 import type { AccountBalanceRow } from "@/lib/database";
 
@@ -41,7 +41,7 @@ export function AccountBalancePanel({ rows }: AccountBalancePanelProps) {
         ))}
       </View>
 
-      <ThemedView type="backgroundSelected" style={styles.totalCard}>
+      <ThemedView type="primaryContainer" style={styles.totalCard}>
         <AccountBalanceContent locale={languageTag} row={totals} />
       </ThemedView>
     </View>
@@ -50,7 +50,7 @@ export function AccountBalancePanel({ rows }: AccountBalancePanelProps) {
 
 function AccountBalanceCard({ locale, row }: { locale: string; row: AccountBalanceRow }) {
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <ThemedView type="surfaceMuted" style={styles.card}>
       <AccountBalanceContent locale={locale} row={row} />
     </ThemedView>
   );
@@ -120,12 +120,7 @@ function BalanceMetric({
   tone?: "expense" | "income";
   value: number;
 }) {
-  const color =
-    tone === "income"
-      ? AppPalette.incomeGreen
-      : tone === "expense"
-        ? AppPalette.brandOrange
-        : undefined;
+  const themeColor = tone === "income" ? "success" : tone === "expense" ? "danger" : "text";
 
   return (
     <View style={styles.metric}>
@@ -134,7 +129,8 @@ function BalanceMetric({
       </ThemedText>
       <ThemedText
         type="smallBold"
-        style={[styles.metricValue, color ? { color } : null]}
+        themeColor={themeColor}
+        style={styles.metricValue}
       >
         $ {formatBalanceMoney(value, locale)}
       </ThemedText>
@@ -161,7 +157,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   card: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
     padding: Spacing.three,
   },
   cardContent: {
@@ -207,7 +203,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   totalCard: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
     padding: Spacing.three,
   },
 });

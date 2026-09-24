@@ -50,7 +50,7 @@ function DonutChart({ data, total }: ExpenseDonutChartProps) {
           cy={center}
           fill="none"
           r={radius}
-          stroke={theme.background}
+          stroke={theme.surface}
           strokeWidth={DONUT_CHART_STROKE_WIDTH}
         />
         <G transform={`rotate(-90 ${center} ${center})`}>

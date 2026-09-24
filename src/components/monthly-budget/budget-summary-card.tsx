@@ -3,7 +3,7 @@ import { useTranslation } from '@/i18n/localization-provider';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useLocalization } from '@/i18n/localization-provider';
 import type { MonthlyBudgetSummary } from '@/lib/database';
 
@@ -19,12 +19,12 @@ export function BudgetSummaryCard({ summary }: BudgetSummaryCardProps) {
 
   return (
     <View style={styles.summaryWrap}>
-      <ThemedView type="backgroundSelected" style={styles.summaryPanel}>
+      <ThemedView type="surfaceMuted" style={styles.summaryPanel}>
         <View style={styles.summaryMainRow}>
-          <ThemedText type="subtitle" style={styles.summaryTitle}>
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.summaryTitle}>
             {t('budget.available')}
           </ThemedText>
-          <ThemedText type="subtitle" style={styles.summaryAmount}>
+          <ThemedText type="display" style={styles.summaryAmount}>
             $ {formatBudgetMoney(summary.remaining_total, languageTag)}
           </ThemedText>
         </View>
@@ -54,24 +54,19 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   summaryPanel: {
-    borderRadius: Spacing.two,
-    gap: Spacing.half,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
+    borderRadius: Radius.card,
+    gap: Spacing.two,
+    padding: Spacing.three,
   },
   summaryMainRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: Spacing.one,
   },
   summaryTitle: {
-    fontSize: 18,
-    lineHeight: 22,
+    textTransform: 'uppercase',
   },
   summaryAmount: {
-    fontSize: 18,
-    lineHeight: 22,
-    textAlign: 'right',
+    alignSelf: 'stretch',
   },
   summaryDetailRow: {
     flexDirection: 'row',

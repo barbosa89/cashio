@@ -14,7 +14,7 @@ import { useTranslation } from "@/i18n/localization-provider";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxPhoneContentWidth, Spacing } from "@/constants/theme";
+import { BottomTabInset, MaxPhoneContentWidth, Radius, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
@@ -57,7 +57,7 @@ export function TagEditor({ tag }: { tag?: Tag }) {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView type="canvas" style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -72,7 +72,8 @@ export function TagEditor({ tag }: { tag?: Tag }) {
               style={({ pressed }) => pressed && styles.pressed}
             >
               <ThemedView
-                style={[styles.backButton, { borderColor: theme.text }]}
+                type="surface"
+                style={[styles.backButton, { borderColor: theme.border }]}
               >
                 <AppIcon color={theme.text} name="arrow-left" size={22} />
               </ThemedView>
@@ -82,7 +83,7 @@ export function TagEditor({ tag }: { tag?: Tag }) {
             </ThemedText>
           </View>
 
-          <ThemedView type="backgroundElement" style={styles.panel}>
+          <ThemedView type="surface" style={styles.panel}>
             <View style={styles.field}>
               <ThemedText type="smallBold">{t("tagEditor.name")}</ThemedText>
               <TextInput
@@ -92,7 +93,7 @@ export function TagEditor({ tag }: { tag?: Tag }) {
                 placeholderTextColor={theme.textSecondary}
                 style={[
                   styles.input,
-                  { borderColor: theme.backgroundSelected, color: theme.text },
+                  { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
                 ]}
                 value={description}
               />
@@ -114,8 +115,8 @@ export function TagEditor({ tag }: { tag?: Tag }) {
                 isLoading && styles.disabled,
               ]}
             >
-              <ThemedView type="backgroundSelected" style={styles.saveButton}>
-                <ThemedText type="smallBold">
+              <ThemedView type="primary" style={styles.saveButton}>
+                <ThemedText type="smallBold" themeColor="onPrimary">
                   {tag ? t("tagEditor.save") : t("tagEditor.create")}
                 </ThemedText>
               </ThemedView>
@@ -152,7 +153,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     height: 44,
     justifyContent: "center",
@@ -160,28 +161,26 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: 32,
-    lineHeight: 38,
   },
   panel: {
-    borderRadius: Spacing.two,
-    gap: Spacing.three,
-    padding: Spacing.three,
+    borderRadius: Radius.card,
+    gap: Spacing.four,
+    padding: Spacing.four,
   },
   field: {
     gap: Spacing.two,
   },
   input: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     fontSize: 16,
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
   saveButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     minHeight: 48,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,

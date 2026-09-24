@@ -14,7 +14,7 @@ import { useTranslation } from "@/i18n/localization-provider";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { AppPalette, BottomTabInset, Spacing } from "@/constants/theme";
+import { AppPalette, BottomTabInset, MaxContentWidth, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 export function AdminIndexShell({
@@ -43,33 +43,33 @@ export function AdminIndexShell({
   const { t } = useTranslation();
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView type="canvas" style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView
           style={[
             styles.phoneSurface,
-            { borderColor: theme.backgroundSelected },
+            { backgroundColor: theme.surface, borderColor: theme.border },
           ]}
         >
-          <ThemedView style={styles.header}>
+          <ThemedView type="surface" style={styles.header}>
             <Pressable
               accessibilityLabel={t("accessibility.openMenu")}
               accessibilityRole="button"
               onPress={() => navigation.openDrawer()}
               style={({ pressed }) => pressed && styles.pressed}
             >
-              <ThemedView style={styles.iconButton}>
-                <AppIcon color={theme.text} name="menu" size={30} />
+              <ThemedView type="surfaceMuted" style={styles.iconButton}>
+                <AppIcon color={theme.text} name="menu" size={26} />
               </ThemedView>
             </Pressable>
 
             <View style={styles.headerActions}>
-              <ThemedView type="backgroundSelected" style={styles.searchWrap}>
+              <ThemedView type="surfaceMuted" style={styles.searchWrap}>
                 <TextInput
                   accessibilityLabel={`${t("common.search")} ${title}`}
                   onChangeText={setSearch}
                   placeholder={t("common.search")}
-                  placeholderTextColor={theme.text}
+                  placeholderTextColor={theme.textSecondary}
                   style={[styles.searchInput, { color: theme.text }]}
                   value={search}
                 />
@@ -78,9 +78,10 @@ export function AdminIndexShell({
           </ThemedView>
 
           <ThemedView
+            type="surface"
             style={[
               styles.titleRow,
-              { borderBottomColor: theme.backgroundSelected },
+              { borderBottomColor: theme.border },
             ]}
           >
             <ThemedText type="subtitle" style={styles.title}>
@@ -93,19 +94,19 @@ export function AdminIndexShell({
             style={styles.list}
           >
             {isLoading ? (
-              <ThemedView style={styles.emptyState}>
+              <View style={styles.emptyState}>
                 <ThemedText type="smallBold" themeColor="textSecondary">
                   {t("common.loading")}
                 </ThemedText>
-              </ThemedView>
+              </View>
             ) : hasRows ? (
               children
             ) : (
-              <ThemedView style={styles.emptyState}>
+              <View style={styles.emptyState}>
                 <ThemedText type="smallBold" themeColor="textSecondary">
                   {emptyText}
                 </ThemedText>
-              </ThemedView>
+              </View>
             )}
           </ScrollView>
 
@@ -132,22 +133,26 @@ const styles = StyleSheet.create({
   safeArea: {
     alignItems: "center",
     flex: 1,
-    paddingHorizontal: Spacing.three,
+    minHeight: 0,
     paddingTop: Platform.OS === "web" ? Spacing.three : 0,
   },
   phoneSurface: {
     borderWidth: Platform.OS === "web" ? 1 : 0,
     flex: 1,
-    maxWidth: 430,
+    maxWidth: MaxContentWidth,
+    minHeight: 0,
+    overflow: "hidden",
     position: "relative",
     width: "100%",
   },
   header: {
     alignItems: "center",
     flexDirection: "row",
-    gap: Spacing.two,
+    flexShrink: 0,
+    gap: 12,
     justifyContent: "space-between",
-    paddingTop: Spacing.four,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
   },
   headerActions: {
     alignItems: "center",
@@ -159,16 +164,16 @@ const styles = StyleSheet.create({
   },
   searchWrap: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     flex: 1,
     justifyContent: "center",
-    minHeight: 44,
+    height: 48,
     minWidth: 0,
     paddingHorizontal: Spacing.three,
   },
   searchInput: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "600",
     minWidth: 0,
     paddingVertical: 0,
     textAlign: "center",
@@ -176,7 +181,7 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     height: 48,
     justifyContent: "center",
     width: 48,
@@ -187,8 +192,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: Spacing.two,
     marginHorizontal: Spacing.three,
+    marginTop: Spacing.three,
     paddingBottom: Spacing.two,
-    paddingTop: Spacing.three,
+    paddingTop: Spacing.two,
   },
   title: {
     fontSize: 24,
@@ -196,8 +202,10 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+    minHeight: 0,
   },
   listContent: {
+    flexGrow: 1,
     gap: Spacing.two,
     paddingBottom: BottomTabInset + 96,
     paddingHorizontal: Spacing.three,
@@ -212,7 +220,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: AppPalette.brandOrange,
     borderColor: "transparent",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
     borderWidth: 2,
     bottom: BottomTabInset + Spacing.three,
     height: 48,

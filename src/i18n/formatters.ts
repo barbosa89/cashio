@@ -60,6 +60,13 @@ export function formatDateTime(value: string, locale: string) {
   }).format(new Date(value));
 }
 
+export function formatDate(value: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+  }).format(new Date(`${value}T00:00:00`));
+}
+
 export function getNumberSeparators(locale: string) {
   const parts = new Intl.NumberFormat(locale).formatToParts(12345.6);
   return {
