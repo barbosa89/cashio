@@ -28,7 +28,7 @@ export function UnbudgetedExpensesList({ expenses }: UnbudgetedExpensesListProps
       </ThemedText>
       <View style={styles.rows}>
         {expenses.map((expense) => (
-          <ThemedView key={expense.category_id} type="backgroundSelected" style={styles.row}>
+          <ThemedView key={expense.category_id} type="surfaceMuted" style={styles.row}>
             <ThemedText type="smallBold" style={styles.categoryName} numberOfLines={1}>
               {expense.category_description}
             </ThemedText>

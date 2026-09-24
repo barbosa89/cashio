@@ -7,7 +7,7 @@ import { AdminIndexShell } from '@/components/admin-index-shell';
 import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useCashioData } from '@/hooks/use-cashio-data';
 import { useTheme } from '@/hooks/use-theme';
 import { translateError } from '@/i18n/errors';
@@ -82,7 +82,7 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
   const canDelete = tag.transaction_count === 0;
 
   return (
-    <ThemedView style={styles.row}>
+    <ThemedView type="surfaceMuted" style={styles.row}>
       <View style={styles.rowMain}>
         <ThemedText type="smallBold" style={styles.rowTitle}>
           {tag.description}
@@ -126,7 +126,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: Spacing.two,
-    minHeight: 44,
+    borderRadius: Radius.control,
+    minHeight: 64,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
   },
   rowMain: {
     flex: 1,
@@ -146,6 +149,7 @@ const styles = StyleSheet.create({
   },
   iconAction: {
     alignItems: 'center',
+    borderRadius: Radius.control,
     height: 44,
     justifyContent: 'center',
     width: 44,

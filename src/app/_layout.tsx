@@ -39,7 +39,7 @@ import { CashioLogo } from "@/components/cashio-logo";
 import { CalendarNotificationController } from "@/components/calendar-notification-controller";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Spacing } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
 import { LocalizationProvider, useLocalization } from "@/i18n/localization-provider";
@@ -96,12 +96,12 @@ function CashioNavigator() {
         drawerContent={(props) => <CashioDrawerContent {...props} />}
         screenOptions={{
           drawerStyle: {
-            backgroundColor: theme.background,
+            backgroundColor: theme.surface,
             width: 300,
           },
           drawerType: "front",
           headerShown: false,
-          overlayColor: "rgba(0, 0, 0, 0.45)",
+          overlayColor: "rgba(0, 0, 0, 0.32)",
         }}
       >
         <Drawer.Screen name="index" options={{ title: t("navigation.home") }} />
@@ -166,13 +166,13 @@ function CashioDrawerContent(
       contentContainerStyle={[
         styles.drawerContent,
         {
-          backgroundColor: theme.background,
+          backgroundColor: theme.surface,
           paddingBottom: Math.max(insets.bottom, Spacing.three),
           paddingTop: Math.max(insets.top + Spacing.two, Spacing.four),
         },
       ]}
     >
-      <ThemedView style={styles.drawerHeader}>
+      <ThemedView type="surface" style={styles.drawerHeader}>
         <CashioLogo />
       </ThemedView>
 
@@ -246,17 +246,17 @@ function DrawerMenuItem({
       ]}
     >
       <ThemedView
-        type={active ? "backgroundSelected" : "background"}
+        type={active ? "primaryContainer" : "surface"}
         style={styles.drawerItem}
       >
         <AppIcon
-          color={active ? theme.text : theme.textSecondary}
+          color={active ? theme.primary : theme.textSecondary}
           name={icon}
           size={22}
         />
         <ThemedText
           type="smallBold"
-          themeColor={active ? "text" : "textSecondary"}
+          themeColor={active ? "primary" : "textSecondary"}
         >
           {label}
         </ThemedText>
@@ -379,12 +379,12 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
   },
   drawerItemPressable: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     marginBottom: Spacing.two,
   },
   drawerItem: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     flexDirection: "row",
     gap: Spacing.three,
     paddingHorizontal: Spacing.three,

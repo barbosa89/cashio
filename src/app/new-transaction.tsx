@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from '@/i18n/localization-provider';
 
@@ -8,7 +8,7 @@ import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { TransactionForm, type TransactionFormHandle } from '@/components/transaction-form';
-import { BottomTabInset, MaxPhoneContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, MaxPhoneContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function NewTransactionScreen() {
@@ -28,26 +28,26 @@ export default function NewTransactionScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView type="canvas" style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         style={styles.scrollView}>
         <SafeAreaView style={styles.safeArea}>
-          <ThemedView style={styles.header}>
+          <View style={styles.header}>
             <Pressable
               accessibilityLabel={t('accessibility.backToTransactions')}
               accessibilityRole="button"
               onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
+              <ThemedView type="surface" style={[styles.backButton, { borderColor: theme.border }]}>
                 <AppIcon color={theme.text} name="arrow-left" size={22} />
               </ThemedView>
             </Pressable>
             <ThemedText type="title" style={styles.title}>
               {t('transaction.newRecord')}
             </ThemedText>
-          </ThemedView>
+          </View>
 
           <TransactionForm
             ref={formRef}
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: 'center',
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     height: 44,
     justifyContent: 'center',
@@ -93,8 +93,6 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: 32,
-    lineHeight: 38,
   },
   pressed: {
     opacity: 0.7,

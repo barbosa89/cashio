@@ -30,7 +30,7 @@ export function CalendarViewMenu({ onChange, value }: CalendarViewMenuProps) {
           accessibilityLabel={t("calendar.viewMenuTitle")}
           accessibilityRole="menu"
           style={styles.menu}
-          type="backgroundElement"
+          type="surfaceRaised"
         >
           {(["list", "calendar"] as const).map((mode) => (
             <Pressable

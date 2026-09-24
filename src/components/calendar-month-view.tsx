@@ -5,7 +5,7 @@ import { AppIcon } from "@/components/app-icon";
 import { CalendarEventCard } from "@/components/calendar-event-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { AppPalette, BottomTabInset, Spacing } from "@/constants/theme";
+import { AppPalette, BottomTabInset, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { capitalizeLocalized, formatMonthYear } from "@/i18n/formatters";
 import { useLocalization, useTranslation } from "@/i18n/localization-provider";
@@ -103,7 +103,7 @@ export function CalendarMonthView({
         />
       </View>
 
-      <ThemedView type="backgroundElement" style={styles.calendarPanel}>
+      <ThemedView type="surfaceMuted" style={styles.calendarPanel}>
         <View style={styles.weekdayRow}>
           {weekdayLabels.map((label, index) => (
             <View key={`${label}-${index}`} style={styles.daySlot}>
@@ -195,7 +195,7 @@ export function CalendarMonthView({
             />
           ))
         ) : (
-          <ThemedView style={styles.emptyAgenda}>
+          <ThemedView type="surfaceMuted" style={styles.emptyAgenda}>
             <AppIcon color={theme.textSecondary} name="calendar" size={30} />
             <ThemedText selectable type="small" themeColor="textSecondary">
               {t("calendar.noEventsForDay")}
@@ -225,7 +225,7 @@ function MonthButton({
       onPress={onPress}
       style={({ pressed }) => pressed && styles.pressed}
     >
-      <ThemedView type="backgroundElement" style={styles.monthButton}>
+      <ThemedView type="surfaceMuted" style={styles.monthButton}>
         <AppIcon color={theme.text} name={icon} size={24} />
       </ThemedView>
     </Pressable>
@@ -267,9 +267,11 @@ const styles = StyleSheet.create({
   },
   emptyAgenda: {
     alignItems: "center",
+    borderRadius: Radius.card,
     gap: Spacing.two,
     justifyContent: "center",
     minHeight: 120,
+    padding: Spacing.three,
   },
   monthButton: {
     alignItems: "center",

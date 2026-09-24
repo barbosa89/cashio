@@ -18,7 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxPhoneContentWidth, Spacing } from "@/constants/theme";
+import { BottomTabInset, MaxPhoneContentWidth, Radius, Spacing } from "@/constants/theme";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
@@ -92,10 +92,15 @@ function ChoiceButton({
       style={({ pressed }) => pressed && styles.pressed}
     >
       <ThemedView
-        type={selected ? "backgroundSelected" : "background"}
+        type={selected ? "primaryContainer" : "surfaceMuted"}
         style={styles.choice}
       >
-        <ThemedText type="smallBold">{label}</ThemedText>
+        <ThemedText
+          type="smallBold"
+          themeColor={selected ? "primary" : "textSecondary"}
+        >
+          {label}
+        </ThemedText>
       </ThemedView>
     </Pressable>
   );
@@ -120,7 +125,10 @@ function TimeField({
         maxLength={5}
         onChangeText={onChange}
         placeholder="HH:mm"
-        style={[styles.input, { borderColor: theme.backgroundSelected, color: theme.text }]}
+        style={[
+          styles.input,
+          { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
+        ]}
         value={value}
       />
     );
@@ -133,7 +141,12 @@ function TimeField({
       onPress={onPress}
       style={({ pressed }) => pressed && styles.pressed}
     >
-      <View style={[styles.dateInput, { borderColor: theme.backgroundSelected }]}>
+      <View
+        style={[
+          styles.dateInput,
+          { backgroundColor: theme.surfaceRaised, borderColor: theme.border },
+        ]}
+      >
         <ThemedText>{value}</ThemedText>
         <AppIcon color={theme.text} name="clock" size={20} />
       </View>
@@ -169,7 +182,10 @@ function OneTimeScheduleFields({
             onChangeText={onDateChange}
             placeholder="YYYY-MM-DD"
             placeholderTextColor={theme.textSecondary}
-            style={[styles.input, { borderColor: theme.backgroundSelected, color: theme.text }]}
+            style={[
+              styles.input,
+              { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
+            ]}
             value={eventDate}
           />
         ) : (
@@ -179,7 +195,12 @@ function OneTimeScheduleFields({
             onPress={onOpenDate}
             style={({ pressed }) => pressed && styles.pressed}
           >
-            <View style={[styles.dateInput, { borderColor: theme.backgroundSelected }]}>
+            <View
+              style={[
+                styles.dateInput,
+                { backgroundColor: theme.surfaceRaised, borderColor: theme.border },
+              ]}
+            >
               <ThemedText>{eventDate}</ThemedText>
               <AppIcon color={theme.text} name="calendar" size={20} />
             </View>
@@ -194,7 +215,10 @@ function OneTimeScheduleFields({
             onChangeText={onTimeChange}
             placeholder="HH:mm"
             placeholderTextColor={theme.textSecondary}
-            style={[styles.input, { borderColor: theme.backgroundSelected, color: theme.text }]}
+            style={[
+              styles.input,
+              { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
+            ]}
             value={notificationTime}
           />
         ) : (
@@ -273,7 +297,10 @@ function DayOfMonthField({ onChange, value }: { onChange: (value: number) => voi
         keyboardType="number-pad"
         maxLength={2}
         onChangeText={(text) => onChange(Number(text))}
-        style={[styles.input, { borderColor: theme.backgroundSelected, color: theme.text }]}
+        style={[
+          styles.input,
+          { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
+        ]}
         value={value ? String(value) : ""}
       />
     </Field>
@@ -476,7 +503,7 @@ function CalendarEventForm({
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView type="canvas" style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         contentInsetAdjustmentBehavior="automatic"
@@ -491,20 +518,26 @@ function CalendarEventForm({
               onPress={() => router.replace("/calendar")}
               style={({ pressed }) => pressed && styles.pressed}
             >
-              <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
+              <ThemedView
+                type="surface"
+                style={[styles.backButton, { borderColor: theme.border }]}
+              >
                 <AppIcon color={theme.text} name="arrow-left" size={22} />
               </ThemedView>
             </Pressable>
             <ThemedText type="title" style={styles.title}>{heading}</ThemedText>
           </View>
 
-          <ThemedView type="backgroundElement" style={styles.panel}>
+          <ThemedView type="surface" style={styles.panel}>
             <Field label={t("calendar.eventTitle")}>
               <TextInput
                 onChangeText={setTitle}
                 placeholder={t("calendar.eventTitlePlaceholder")}
                 placeholderTextColor={theme.textSecondary}
-                style={[styles.input, { borderColor: theme.backgroundSelected, color: theme.text }]}
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
+                ]}
                 value={title}
               />
             </Field>
@@ -514,7 +547,11 @@ function CalendarEventForm({
                 onChangeText={setNotes}
                 placeholder={t("calendar.notesPlaceholder")}
                 placeholderTextColor={theme.textSecondary}
-                style={[styles.input, styles.notesInput, { borderColor: theme.backgroundSelected, color: theme.text }]}
+                style={[
+                  styles.input,
+                  styles.notesInput,
+                  { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
+                ]}
                 textAlignVertical="top"
                 value={notes}
               />
@@ -530,7 +567,10 @@ function CalendarEventForm({
                 precision={0}
                 prefix="$ "
                 separator={separators.separator}
-                style={[styles.input, { borderColor: theme.backgroundSelected, color: theme.text }]}
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
+                ]}
                 value={amount}
               />
             </Field>
@@ -596,7 +636,7 @@ function CalendarEventForm({
             )}
 
             {pickerMode && Platform.OS === "ios" ? (
-              <ThemedView type="background" style={styles.pickerPanel}>
+              <ThemedView type="surfaceRaised" style={styles.pickerPanel}>
                 <DateTimePicker
                   display="spinner"
                   mode={pickerMode}
@@ -631,8 +671,8 @@ function CalendarEventForm({
               onPress={handleSave}
               style={({ pressed }) => [pressed && styles.pressed, isSaving && styles.disabled]}
             >
-              <ThemedView type="backgroundSelected" style={styles.saveButton}>
-                <ThemedText type="smallBold">
+              <ThemedView type="primary" style={styles.saveButton}>
+                <ThemedText type="smallBold" themeColor="onPrimary">
                   {isSaving ? t("common.saving") : submitLabel}
                 </ThemedText>
               </ThemedView>
@@ -671,22 +711,22 @@ export function EditCalendarEventEditor({ event }: { event: CalendarEvent }) {
 }
 
 const styles = StyleSheet.create({
-  backButton: { alignItems: "center", borderRadius: Spacing.two, borderWidth: 1, height: 44, justifyContent: "center", width: 44 },
-  choice: { borderRadius: Spacing.two, minHeight: 38, justifyContent: "center", paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
+  backButton: { alignItems: "center", borderRadius: Radius.control, borderWidth: 1, height: 44, justifyContent: "center", width: 44 },
+  choice: { borderRadius: Radius.control, minHeight: 44, justifyContent: "center", paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   choices: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.two },
   container: { flex: 1 },
-  dateInput: { alignItems: "center", borderRadius: Spacing.two, borderWidth: 1, flexDirection: "row", justifyContent: "space-between", minHeight: 44, paddingHorizontal: Spacing.three },
+  dateInput: { alignItems: "center", borderRadius: Radius.control, borderWidth: 1, flexDirection: "row", justifyContent: "space-between", minHeight: 48, paddingHorizontal: Spacing.three },
   disabled: { opacity: 0.45 },
   doneButton: { alignItems: "center", minHeight: 44, justifyContent: "center" },
   field: { gap: Spacing.two },
   header: { alignItems: "center", flexDirection: "row", gap: Spacing.two, paddingTop: Platform.OS === "web" ? Spacing.five : Spacing.three },
-  input: { borderRadius: Spacing.two, borderWidth: 1, fontSize: 16, minHeight: 44, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
+  input: { borderRadius: Radius.control, borderWidth: 1, fontSize: 16, minHeight: 48, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   notesInput: { minHeight: 96 },
-  panel: { borderRadius: Spacing.two, gap: Spacing.three, padding: Spacing.three },
-  pickerPanel: { borderRadius: Spacing.two, padding: Spacing.two },
+  panel: { borderRadius: Radius.card, gap: Spacing.four, padding: Spacing.four },
+  pickerPanel: { borderRadius: Radius.control, padding: Spacing.two },
   pressed: { opacity: 0.7 },
   safeArea: { gap: Spacing.four, maxWidth: MaxPhoneContentWidth, paddingHorizontal: Spacing.four, width: "100%" },
-  saveButton: { alignItems: "center", borderRadius: Spacing.two, minHeight: 48, justifyContent: "center", paddingHorizontal: Spacing.three },
+  saveButton: { alignItems: "center", borderRadius: Radius.control, minHeight: 48, justifyContent: "center", paddingHorizontal: Spacing.three },
   scrollContent: { alignItems: "center", paddingBottom: BottomTabInset + Spacing.five },
   scrollView: { flex: 1 },
   title: { flex: 1, fontSize: 32, lineHeight: 38 },

@@ -16,7 +16,7 @@ export function ScreenStatus({
   onAction,
 }: Readonly<ScreenStatusProps>) {
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView type="canvas" style={styles.container}>
       <ThemedText accessibilityRole="alert" type="smallBold" themeColor="textSecondary">
         {message}
       </ThemedText>

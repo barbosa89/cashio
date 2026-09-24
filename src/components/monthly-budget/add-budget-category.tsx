@@ -33,7 +33,7 @@ export function AddBudgetCategory({ availableCategories, onAddCategory }: AddBud
         onPress={() => setIsOpen(true)}
         style={({ pressed }) => [pressed && styles.pressed, !hasAvailableCategories && styles.disabled]}
       >
-        <ThemedView type="backgroundSelected" style={styles.addButton}>
+        <ThemedView type="surfaceMuted" style={styles.addButton}>
           <AppIcon color={hasAvailableCategories ? AppPalette.incomeGreen : theme.textSecondary} name="plus" size={18} />
           <ThemedText type="smallBold" themeColor={hasAvailableCategories ? 'text' : 'textSecondary'}>
             {t('budget.addCategory')}
@@ -43,7 +43,7 @@ export function AddBudgetCategory({ availableCategories, onAddCategory }: AddBud
 
       <Modal animationType="fade" transparent visible={isOpen} onRequestClose={() => setIsOpen(false)}>
         <View style={styles.modalBackdrop}>
-          <ThemedView type="background" style={styles.modalPanel}>
+          <ThemedView type="surfaceRaised" style={styles.modalPanel}>
             <View style={styles.modalHeader}>
               <ThemedText type="subtitle" style={styles.modalTitle}>
                 {t('budget.addCategory')}
@@ -54,7 +54,7 @@ export function AddBudgetCategory({ availableCategories, onAddCategory }: AddBud
                 onPress={() => setIsOpen(false)}
                 style={({ pressed }) => pressed && styles.pressed}
               >
-                <ThemedView type="backgroundSelected" style={styles.closeButton}>
+                <ThemedView type="surfaceMuted" style={styles.closeButton}>
                   <AppIcon color={theme.text} name="x" size={18} />
                 </ThemedView>
               </Pressable>
@@ -68,7 +68,7 @@ export function AddBudgetCategory({ availableCategories, onAddCategory }: AddBud
                   onPress={() => handleAddCategory(category.category_id)}
                   style={({ pressed }) => pressed && styles.pressed}
                 >
-                  <ThemedView type="backgroundSelected" style={styles.categoryOption}>
+                  <ThemedView type="surfaceMuted" style={styles.categoryOption}>
                     <ThemedText type="smallBold" style={styles.categoryName}>
                       {category.category_description}
                     </ThemedText>

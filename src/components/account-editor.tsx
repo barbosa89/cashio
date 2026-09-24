@@ -15,7 +15,7 @@ import { useTranslation } from "@/i18n/localization-provider";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxPhoneContentWidth, Spacing } from "@/constants/theme";
+import { BottomTabInset, MaxPhoneContentWidth, Radius, Spacing } from "@/constants/theme";
 import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
@@ -73,7 +73,7 @@ export function AccountEditor({ account }: { account?: Account }) {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView type="canvas" style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -87,7 +87,7 @@ export function AccountEditor({ account }: { account?: Account }) {
               onPress={handleBack}
               style={({ pressed }) => pressed && styles.pressed}
             >
-              <ThemedView style={[styles.backButton, { borderColor: theme.text }]}>
+              <ThemedView type="surface" style={[styles.backButton, { borderColor: theme.border }]}>
                 <AppIcon color={theme.text} name="arrow-left" size={22} />
               </ThemedView>
             </Pressable>
@@ -96,7 +96,7 @@ export function AccountEditor({ account }: { account?: Account }) {
             </ThemedText>
           </View>
 
-          <ThemedView type="backgroundElement" style={styles.panel}>
+          <ThemedView type="surface" style={styles.panel}>
             <View style={styles.field}>
               <ThemedText type="smallBold">{t("accountEditor.name")}</ThemedText>
               <TextInput
@@ -106,7 +106,7 @@ export function AccountEditor({ account }: { account?: Account }) {
                 placeholderTextColor={theme.textSecondary}
                 style={[
                   styles.input,
-                  { borderColor: theme.backgroundSelected, color: theme.text },
+                  { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
                 ]}
                 value={name}
               />
@@ -126,7 +126,7 @@ export function AccountEditor({ account }: { account?: Account }) {
                 separator={numberSeparators.separator}
                 style={[
                   styles.input,
-                  { borderColor: theme.backgroundSelected, color: theme.text },
+                  { backgroundColor: theme.surfaceRaised, borderColor: theme.border, color: theme.text },
                 ]}
                 value={initialBalance}
               />
@@ -148,8 +148,8 @@ export function AccountEditor({ account }: { account?: Account }) {
                 isLoading && styles.disabled,
               ]}
             >
-              <ThemedView type="backgroundSelected" style={styles.saveButton}>
-                <ThemedText type="smallBold">
+              <ThemedView type="primary" style={styles.saveButton}>
+                <ThemedText type="smallBold" themeColor="onPrimary">
                   {account ? t("accountEditor.save") : t("accountEditor.create")}
                 </ThemedText>
               </ThemedView>
@@ -164,7 +164,7 @@ export function AccountEditor({ account }: { account?: Account }) {
 const styles = StyleSheet.create({
   backButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     height: 44,
     justifyContent: "center",
@@ -186,17 +186,17 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "web" ? Spacing.five : Spacing.three,
   },
   input: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     fontSize: 16,
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
   panel: {
-    borderRadius: Spacing.two,
-    gap: Spacing.three,
-    padding: Spacing.three,
+    borderRadius: Radius.card,
+    gap: Spacing.four,
+    padding: Spacing.four,
   },
   pressed: {
     opacity: 0.7,
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     minHeight: 48,
     justifyContent: "center",
     paddingHorizontal: Spacing.three,
@@ -223,7 +223,5 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: 32,
-    lineHeight: 38,
   },
 });

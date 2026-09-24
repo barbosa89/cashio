@@ -7,7 +7,7 @@ import { AdminIndexShell } from '@/components/admin-index-shell';
 import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useCashioData } from '@/hooks/use-cashio-data';
 import { useTheme } from '@/hooks/use-theme';
 import { translateError } from '@/i18n/errors';
@@ -98,7 +98,7 @@ function AccountRow({
   const canDelete = account.has_transactions === 0 && account.is_default === 0;
 
   return (
-    <ThemedView style={styles.row}>
+    <ThemedView type="surfaceMuted" style={styles.row}>
       <View style={styles.rowMain}>
         <View style={styles.titleRow}>
           <ThemedText type="smallBold" style={styles.rowTitle}>
@@ -149,6 +149,7 @@ const styles = StyleSheet.create({
   },
   iconAction: {
     alignItems: 'center',
+    borderRadius: Radius.control,
     height: 44,
     justifyContent: 'center',
     width: 44,
@@ -163,7 +164,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: Spacing.two,
-    minHeight: 54,
+    minHeight: 72,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.control,
   },
   rowActions: {
     flexDirection: 'row',

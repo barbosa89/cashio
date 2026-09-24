@@ -109,7 +109,7 @@ function AnnualGrid() {
       {[0, 1, 2, 3].map((line) => (
         <View
           key={line}
-          style={[styles.gridLine, { backgroundColor: theme.background }]}
+          style={[styles.gridLine, { backgroundColor: theme.border }]}
         />
       ))}
     </View>

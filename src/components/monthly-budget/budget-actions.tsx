@@ -21,7 +21,7 @@ export function BudgetActions({ onCopyPreviousBudget }: BudgetActionsProps) {
         onPress={onCopyPreviousBudget}
         style={({ pressed }) => pressed && styles.pressed}
       >
-        <ThemedView type="backgroundSelected" style={styles.actionButton}>
+        <ThemedView type="surfaceMuted" style={styles.actionButton}>
           <AppIcon color={AppPalette.brandOrange} name="copy" size={18} />
           <ThemedText type="smallBold">{t('budget.copyPrevious')}</ThemedText>
         </ThemedView>

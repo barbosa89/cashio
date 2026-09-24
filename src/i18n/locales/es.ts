@@ -121,7 +121,7 @@ export const es = {
   },
   dashboard: {
     search: "Buscar", filter: "Filtrar", selectAccount: "Seleccionar cuenta",
-    list: "Listado de registros", charts: "Gráficas", balance: "Balance",
+    list: "Registros", charts: "Gráficas", balance: "Balance",
     budget: "Presupuesto", reports: "Reportes",
     balanceTitle: "Balance de cuentas", emptyTitle: "Sin registros",
     deleteTitle: "Eliminar registros",

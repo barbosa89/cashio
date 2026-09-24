@@ -15,7 +15,7 @@ import { useTranslation } from "@/i18n/localization-provider";
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { AppPalette, Spacing } from "@/constants/theme";
+import { AppPalette, MaxContentWidth, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError, translateErrorDescriptor } from "@/i18n/errors";
 import { formatDateTime } from "@/i18n/formatters";
@@ -122,29 +122,28 @@ export default function BackupScreen() {
   const isEnabled = Boolean(metadata?.enabled);
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView type="canvas" style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView
+          type="surface"
           style={[
             styles.phoneSurface,
-            { borderColor: theme.backgroundSelected },
+            { backgroundColor: theme.surface, borderColor: theme.border },
           ]}
         >
           <ScrollView contentContainerStyle={styles.content}>
-            <ThemedView style={styles.titleRow}>
+            <View style={styles.titleRow}>
               <Pressable
                 accessibilityLabel={t("accessibility.openMenu")}
                 accessibilityRole="button"
                 onPress={() => navigation.openDrawer()}
                 style={({ pressed }) => pressed && styles.pressed}
               >
-                <ThemedView
-                  style={styles.menuButton}
-                >
+                <ThemedView type="surfaceMuted" style={styles.menuButton}>
                   <AppIcon color={theme.text} name="menu" size={28} />
                 </ThemedView>
               </Pressable>
-              <ThemedView type="backgroundSelected" style={styles.titleIcon}>
+              <ThemedView type="primaryContainer" style={styles.titleIcon}>
                 <AppIcon color={theme.text} name="cloud" size={28} />
               </ThemedView>
               <View style={styles.titleCopy}>
@@ -155,9 +154,9 @@ export default function BackupScreen() {
                   {providerLabel}
                 </ThemedText>
               </View>
-            </ThemedView>
+            </View>
 
-            <ThemedView type="backgroundElement" style={styles.statusPanel}>
+            <ThemedView type="surfaceMuted" style={styles.statusPanel}>
               <StatusRow
                 label={t("backup.status")}
                 value={isConnected ? t("backup.connected") : t("backup.disconnected")}
@@ -177,7 +176,7 @@ export default function BackupScreen() {
             </ThemedView>
 
             {(message || metadata?.lastError) && (
-              <ThemedView type="backgroundSelected" style={styles.message}>
+              <ThemedView type="surfaceMuted" style={styles.message}>
                 <ThemedText type="smallBold">
                   {message ??
                     (metadata?.lastError
@@ -187,7 +186,7 @@ export default function BackupScreen() {
               </ThemedView>
             )}
 
-            <ThemedView style={styles.actions}>
+            <View style={styles.actions}>
               <ActionButton
                 disabled={isBusy}
                 icon={isConnected ? "log-out" : "log-in"}
@@ -241,7 +240,7 @@ export default function BackupScreen() {
                 }
                 variant="secondary"
               />
-            </ThemedView>
+            </View>
 
             <ThemedText
               type="small"
@@ -300,7 +299,7 @@ function ActionButton({
         {
           backgroundColor: isPrimary
             ? AppPalette.brandOrange
-            : theme.backgroundSelected,
+            : theme.surfaceMuted,
           opacity: disabled ? 0.45 : pressed ? 0.7 : 1,
         },
       ]}
@@ -326,7 +325,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     flexDirection: "row",
     gap: Spacing.two,
     minHeight: 48,
@@ -335,7 +334,7 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     height: 48,
     justifyContent: "center",
     width: 48,
@@ -349,7 +348,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.five,
   },
   message: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     padding: Spacing.three,
   },
   note: {
@@ -358,7 +357,7 @@ const styles = StyleSheet.create({
   phoneSurface: {
     borderWidth: Platform.OS === "web" ? 1 : 0,
     flex: 1,
-    maxWidth: 430,
+    maxWidth: MaxContentWidth,
     width: "100%",
   },
   primaryButtonText: {
@@ -374,7 +373,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "web" ? Spacing.three : 0,
   },
   statusPanel: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
     gap: Spacing.two,
     padding: Spacing.three,
   },
@@ -398,7 +397,7 @@ const styles = StyleSheet.create({
   },
   titleIcon: {
     alignItems: "center",
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
     height: 52,
     justifyContent: "center",
     width: 52,

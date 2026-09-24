@@ -16,7 +16,7 @@ import { CalendarMonthView } from "@/components/calendar-month-view";
 import { CalendarViewMenu } from "@/components/calendar-view-menu";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { AppPalette, BottomTabInset, Spacing } from "@/constants/theme";
+import { AppPalette, BottomTabInset, MaxContentWidth, Radius, Spacing } from "@/constants/theme";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useCalendarViewMode } from "@/hooks/use-calendar-view-mode";
 import { useTheme } from "@/hooks/use-theme";
@@ -110,20 +110,21 @@ export function CalendarIndex() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView type="canvas" style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView
+          type="surface"
           testID="calendar-phone-surface"
-          style={[styles.phoneSurface, { borderColor: theme.backgroundSelected }]}
+          style={[styles.phoneSurface, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
-          <ThemedView style={styles.header}>
+          <View style={styles.header}>
             <Pressable
               accessibilityLabel={t("accessibility.openMenu")}
               accessibilityRole="button"
               onPress={() => navigation.openDrawer()}
               style={({ pressed }) => pressed && styles.pressed}
             >
-              <ThemedView style={styles.menuButton}>
+              <ThemedView type="surfaceMuted" style={styles.menuButton}>
                 <AppIcon color={theme.text} name="menu" size={30} />
               </ThemedView>
             </Pressable>
@@ -137,10 +138,10 @@ export function CalendarIndex() {
               {t("calendar.title")}
             </ThemedText>
             <CalendarViewMenu onChange={setViewMode} value={viewMode} />
-          </ThemedView>
+          </View>
 
           {notificationStatus !== "scheduled" ? (
-            <ThemedView type="backgroundSelected" style={styles.notice}>
+            <ThemedView type="primaryContainer" style={styles.notice}>
               <View style={styles.noticeText}>
                 <ThemedText type="smallBold">
                   {notificationStatus === "web"
@@ -173,18 +174,18 @@ export function CalendarIndex() {
               style={styles.list}
             >
               {isLoading ? (
-                <ThemedView style={styles.emptyState}>
+                <View style={styles.emptyState}>
                   <ThemedText type="smallBold" themeColor="textSecondary">
                     {t("common.loading")}
                   </ThemedText>
-                </ThemedView>
+                </View>
               ) : events.length === 0 ? (
-                <ThemedView style={styles.emptyState}>
+                <View style={styles.emptyState}>
                   <AppIcon color={theme.textSecondary} name="calendar" size={42} />
                   <ThemedText type="smallBold" themeColor="textSecondary">
                     {t("calendar.empty")}
                   </ThemedText>
-                </ThemedView>
+                </View>
               ) : (
                 events.map((event) => (
                   <CalendarEventCard
@@ -226,16 +227,16 @@ export function CalendarIndex() {
 const styles = StyleSheet.create({
   container: { flex: 1, minHeight: 0 },
   emptyState: { alignItems: "center", gap: Spacing.two, justifyContent: "center", minHeight: 280 },
-  fab: { alignItems: "center", backgroundColor: AppPalette.brandOrange, borderRadius: Spacing.two, bottom: BottomTabInset + Spacing.three, boxShadow: "0 4px 12px rgba(0, 0, 0, 0.24)", height: 48, justifyContent: "center", position: "absolute", right: Spacing.three, width: 64, zIndex: 40 },
+  fab: { alignItems: "center", backgroundColor: AppPalette.brandOrange, borderRadius: Radius.card, bottom: BottomTabInset + Spacing.three, boxShadow: "0 4px 12px rgba(0, 0, 0, 0.24)", height: 48, justifyContent: "center", position: "absolute", right: Spacing.three, width: 64, zIndex: 40 },
   fabPressed: { backgroundColor: AppPalette.brandOrangeActive },
-  header: { alignItems: "center", flexDirection: "row", gap: Spacing.two, paddingBottom: Spacing.two, paddingTop: Spacing.four, zIndex: 30 },
+  header: { alignItems: "center", flexDirection: "row", gap: Spacing.two, paddingBottom: Spacing.two, paddingHorizontal: Spacing.three, paddingTop: Spacing.three, zIndex: 30 },
   list: { flex: 1, minHeight: 0 },
   listContent: { gap: Spacing.two, paddingBottom: BottomTabInset + 96, paddingHorizontal: Spacing.three, paddingTop: Spacing.three },
   menuButton: { alignItems: "center", height: 48, justifyContent: "center", width: 48 },
   message: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
-  notice: { alignItems: "center", borderRadius: Spacing.two, flexDirection: "row", gap: Spacing.two, justifyContent: "space-between", marginHorizontal: Spacing.three, padding: Spacing.three },
+  notice: { alignItems: "center", borderRadius: Radius.control, flexDirection: "row", gap: Spacing.two, justifyContent: "space-between", marginHorizontal: Spacing.three, padding: Spacing.three },
   noticeText: { flex: 1 },
-  phoneSurface: { borderWidth: Platform.OS === "web" ? 1 : 0, flex: 1, maxWidth: 430, minHeight: 0, overflow: "hidden", position: "relative", width: "100%" },
+  phoneSurface: { borderWidth: Platform.OS === "web" ? 1 : 0, flex: 1, maxWidth: MaxContentWidth, minHeight: 0, overflow: "hidden", position: "relative", width: "100%" },
   pressed: { opacity: 0.7 },
   safeArea: { alignItems: "center", flex: 1, minHeight: 0, paddingHorizontal: Spacing.three, paddingTop: Platform.OS === "web" ? Spacing.three : 0 },
   screenTitle: { flex: 1, fontSize: 24, lineHeight: 30 },

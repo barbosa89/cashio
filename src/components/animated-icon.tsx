@@ -12,7 +12,7 @@ const DURATION = 600;
 export function AnimatedSplashOverlay() {
   const [visible, setVisible] = useState(true);
   const colorScheme = useColorScheme();
-  const backgroundColor = Colors[colorScheme === 'dark' ? 'dark' : 'light'].background;
+  const backgroundColor = Colors[colorScheme === 'dark' ? 'dark' : 'light'].canvas;
 
   if (!visible) return null;
 

@@ -76,7 +76,7 @@ export function BudgetCategoryRow({
   }
 
   return (
-    <ThemedView type="backgroundSelected" style={styles.row}>
+    <ThemedView type="surfaceMuted" style={styles.row}>
       <View style={styles.header}>
         <View style={styles.categoryCopy}>
           <ThemedText
@@ -104,7 +104,7 @@ export function BudgetCategoryRow({
             onPress={() => onRemoveCategory(item)}
             style={({ pressed }) => pressed && styles.pressed}
           >
-            <ThemedView type="background" style={styles.iconButton}>
+            <ThemedView type="surfaceRaised" style={styles.iconButton}>
               <AppIcon color={theme.textSecondary} name="x" size={18} />
             </ThemedView>
           </Pressable>
@@ -131,9 +131,9 @@ export function BudgetCategoryRow({
               styles.input,
               {
                 backgroundColor: isEditing
-                  ? theme.background
-                  : theme.backgroundSelected,
-                borderColor: isEditing ? theme.textSecondary : theme.background,
+                  ? theme.surfaceRaised
+                  : theme.surface,
+                borderColor: isEditing ? theme.focus : theme.border,
                 color: theme.text,
               },
             ]}
@@ -149,7 +149,7 @@ export function BudgetCategoryRow({
             onPress={handleEditAmount}
             style={({ pressed }) => pressed && styles.pressed}
           >
-            <ThemedView type="background" style={styles.iconButton}>
+            <ThemedView type="surfaceRaised" style={styles.iconButton}>
               <AppIcon
                 color={isEditing ? status.color : theme.textSecondary}
                 name={isEditing ? "check" : "edit-3"}
@@ -175,7 +175,7 @@ export function BudgetCategoryRow({
         </ThemedText>
       </View>
 
-      <View style={[styles.track, { backgroundColor: theme.background }]}>
+      <View style={[styles.track, { backgroundColor: theme.surface }]}>
         <View
           style={[
             styles.bar,

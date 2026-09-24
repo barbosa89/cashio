@@ -13,11 +13,11 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
   const theme = useTheme();
 
   return (
-    <ThemedView>
+    <ThemedView type="surface">
       <Pressable
         style={({ pressed }) => [styles.heading, pressed && styles.pressedHeading]}
         onPress={() => setIsOpen((value) => !value)}>
-        <ThemedView type="backgroundElement" style={styles.button}>
+        <ThemedView type="surfaceMuted" style={styles.button}>
           <AppIcon
             color={theme.text}
             name="chevron-right"
@@ -30,7 +30,7 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
       </Pressable>
       {isOpen && (
         <Animated.View entering={FadeIn.duration(200)}>
-          <ThemedView type="backgroundElement" style={styles.content}>
+          <ThemedView type="surfaceMuted" style={styles.content}>
             {children}
           </ThemedView>
         </Animated.View>

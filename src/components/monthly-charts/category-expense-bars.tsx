@@ -52,7 +52,7 @@ export function CategoryExpenseBars({ data, total }: CategoryExpenseBarsProps) {
                   $ {formatMoney(item.amount, languageTag)}
                 </ThemedText>
               </View>
-              <View style={[styles.track, { backgroundColor: theme.background }]}>
+              <View style={[styles.track, { backgroundColor: theme.surface }]}>
                 <View
                   style={[
                     styles.bar,
