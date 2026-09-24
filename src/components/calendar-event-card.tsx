@@ -74,7 +74,7 @@ export function CalendarEventCard({
         : t("calendar.notificationDisabled");
 
   return (
-    <ThemedView type="backgroundElement" style={styles.row}>
+    <ThemedView type="surfaceMuted" style={styles.row}>
       <View style={styles.rowHeader}>
         <View style={styles.rowMain}>
           <ThemedText selectable type="smallBold" style={styles.rowTitle}>

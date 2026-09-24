@@ -841,6 +841,7 @@ export default function HomeScreen() {
     <ThemedView type="canvas" style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView
+          type="surface"
           style={[
             styles.phoneSurface,
             { backgroundColor: theme.surface, borderColor: theme.border },
@@ -1251,6 +1252,7 @@ function DashboardBottomBar({
 
   return (
     <ThemedView
+      type="surface"
       style={[
         styles.bottomBar,
         { backgroundColor: theme.surface, borderTopColor: theme.border },
@@ -1434,7 +1436,7 @@ function SelectionHeader({
   const label = t("dashboard.selectedCount", { count });
 
   return (
-    <ThemedView type="backgroundSelected" style={styles.selectionHeader}>
+    <ThemedView type="primaryContainer" style={styles.selectionHeader}>
       <FlatIconButton label={t("dashboard.cancelDeletion")} onPress={onCancel}>
         <AppIcon color={theme.text} name="arrow-left" size={28} />
       </FlatIconButton>

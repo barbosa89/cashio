@@ -20,7 +20,7 @@ export function AccountBalancePanel({ rows }: AccountBalancePanelProps) {
 
   if (rows.length === 0) {
     return (
-      <ThemedView style={styles.emptyState}>
+      <View style={styles.emptyState}>
         <ThemedText type="subtitle">{t("balance.noAccounts")}</ThemedText>
         <ThemedText
           type="small"
@@ -29,7 +29,7 @@ export function AccountBalancePanel({ rows }: AccountBalancePanelProps) {
         >
           {t("balance.noAccountsDescription")}
         </ThemedText>
-      </ThemedView>
+      </View>
     );
   }
 

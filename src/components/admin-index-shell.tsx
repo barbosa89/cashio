@@ -46,6 +46,7 @@ export function AdminIndexShell({
     <ThemedView type="canvas" style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView
+          type="surface"
           style={[
             styles.phoneSurface,
             { backgroundColor: theme.surface, borderColor: theme.border },

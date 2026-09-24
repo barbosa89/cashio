@@ -21,7 +21,7 @@ export function FilterSummaryBar({ summary }: FilterSummaryBarProps) {
   const hasTransfers = summary.transferIn > 0 || summary.transferOut > 0;
 
   return (
-    <ThemedView type="backgroundSelected" style={styles.container}>
+    <ThemedView type="primaryContainer" style={styles.container}>
       <View style={styles.headerRow}>
         <ThemedText type="smallBold" style={styles.title}>
           {t("filters.filteredResult")}

@@ -22,13 +22,13 @@ export function SettingSwitch({
     <Switch
       accessibilityLabel={accessibilityLabel}
       disabled={disabled}
-      ios_backgroundColor={theme.backgroundSelected}
+      ios_backgroundColor={theme.surfaceMuted}
       onValueChange={onValueChange}
       thumbColor={
         value ? AppPalette.foregroundOnBrand : AppPalette.foregroundInverse
       }
       trackColor={{
-        false: theme.backgroundSelected,
+        false: theme.surfaceMuted,
         true: AppPalette.brandOrange,
       }}
       value={value}

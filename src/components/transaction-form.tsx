@@ -138,13 +138,13 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
   const isCreatingCategoryRef = useRef(false);
   const isCreatingTagRef = useRef(false);
   const appliedInitialAccountIdRef = useRef<number | null | undefined>(undefined);
-  const selectedTagBadgeBackground = theme.text;
-  const selectedTagTextColor = theme.background;
+  const selectedTagBadgeBackground = theme.primaryContainer;
+  const selectedTagTextColor = theme.primary;
   const dropdownModalContentStyle = useMemo(
     () => [
       styles.dropdownModal,
       {
-        backgroundColor: theme.background,
+        backgroundColor: theme.surface,
         paddingBottom:
           Spacing.three +
           Math.max(
@@ -153,7 +153,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           ),
       },
     ],
-    [insets.bottom, theme.background],
+    [insets.bottom, theme.surface],
   );
 
   const accountItems = useMemo(

@@ -37,7 +37,7 @@ export function SettingSwitch({
           {
             backgroundColor: value
               ? AppPalette.brandOrange
-              : theme.backgroundSelected,
+              : theme.surfaceMuted,
             justifyContent: value ? "flex-end" : "flex-start",
           },
         ]}

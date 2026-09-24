@@ -113,6 +113,7 @@ export function CalendarIndex() {
     <ThemedView type="canvas" style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView
+          type="surface"
           testID="calendar-phone-surface"
           style={[styles.phoneSurface, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >

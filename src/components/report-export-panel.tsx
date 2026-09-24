@@ -5,7 +5,7 @@ import { useTranslation } from '@/i18n/localization-provider';
 import { AppIcon } from '@/components/app-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { AppPalette, MaxContentWidth, Spacing } from '@/constants/theme';
+import { AppPalette, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { translateError, translateErrorDescriptor } from '@/i18n/errors';
 import { capitalizeLocalized, formatMonthName } from '@/i18n/formatters';
@@ -126,7 +126,7 @@ export function ReportExportPanel({
 
   return (
     <View style={styles.container}>
-      <ThemedView type="backgroundElement" style={styles.panel}>
+      <ThemedView type="surfaceMuted" style={styles.panel}>
         <View style={styles.intro}>
           <ThemedText type="smallBold" style={styles.title}>
             {t('reports.exportMovements')}
@@ -171,7 +171,7 @@ export function ReportExportPanel({
       </ThemedView>
 
       {!!message && (
-        <ThemedView type="backgroundSelected" style={styles.message}>
+        <ThemedView type="surfaceMuted" style={styles.message}>
           <ThemedText type="smallBold">{message}</ThemedText>
         </ThemedView>
       )}
@@ -204,8 +204,8 @@ function MonthField({ label, onPress, value }: { label: string; onPress: () => v
         style={({ pressed }) => pressed && styles.pressed}
       >
         <ThemedView
-          type="background"
-          style={[styles.monthField, { borderColor: theme.backgroundSelected }]}
+          type="surfaceRaised"
+          style={[styles.monthField, { borderColor: theme.border }]}
         >
           <ThemedText type="smallBold">{value}</ThemedText>
           <AppIcon color={theme.text} name="calendar" size={20} />
@@ -263,8 +263,8 @@ function MonthPickerModal({
         />
         <View style={styles.modalCard}>
           <ThemedView
-            type="backgroundElement"
-            style={[styles.modalPanel, { borderColor: theme.backgroundSelected }]}
+            type="surfaceRaised"
+            style={[styles.modalPanel, { borderColor: theme.border }]}
           >
             <View style={styles.yearSelector}>
               <Pressable
@@ -318,10 +318,15 @@ function MonthPickerModal({
                     ]}
                   >
                     <ThemedView
-                      type={isSelected ? 'backgroundSelected' : 'background'}
-                      style={[styles.monthButton, { borderColor: theme.backgroundSelected }]}
+                      type={isSelected ? 'primaryContainer' : 'surfaceMuted'}
+                      style={[styles.monthButton, { borderColor: theme.border }]}
                     >
-                      <ThemedText type={isSelected ? 'smallBold' : 'small'}>{label}</ThemedText>
+                      <ThemedText
+                        type={isSelected ? 'smallBold' : 'small'}
+                        themeColor={isSelected ? 'primary' : 'text'}
+                      >
+                        {label}
+                      </ThemedText>
                     </ThemedView>
                   </Pressable>
                 );
@@ -333,7 +338,7 @@ function MonthPickerModal({
               onPress={onClose}
               style={({ pressed }) => pressed && styles.pressed}
             >
-              <ThemedView type="backgroundSelected" style={styles.closeButton}>
+              <ThemedView type="surfaceMuted" style={styles.closeButton}>
                 <ThemedText type="smallBold">{t('common.cancel')}</ThemedText>
               </ThemedView>
             </Pressable>
@@ -350,7 +355,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   panel: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
     gap: Spacing.three,
     padding: Spacing.three,
   },
@@ -366,7 +371,7 @@ const styles = StyleSheet.create({
   },
   monthField: {
     alignItems: 'center',
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -376,7 +381,7 @@ const styles = StyleSheet.create({
   exportButton: {
     alignItems: 'center',
     backgroundColor: AppPalette.brandOrange,
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     flexDirection: 'row',
     gap: Spacing.two,
     justifyContent: 'center',
@@ -387,7 +392,7 @@ const styles = StyleSheet.create({
     color: AppPalette.foregroundOnBrand,
   },
   message: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     padding: Spacing.three,
   },
   modalBackdrop: {
@@ -398,7 +403,7 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
   },
   modalPanel: {
-    borderRadius: Spacing.two,
+    borderRadius: Radius.card,
     borderWidth: 1,
     gap: Spacing.three,
     maxWidth: MaxContentWidth,
@@ -444,7 +449,7 @@ const styles = StyleSheet.create({
   },
   monthButton: {
     alignItems: 'center',
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     borderWidth: 1,
     justifyContent: 'center',
     minHeight: 44,
@@ -452,7 +457,7 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     alignItems: 'center',
-    borderRadius: Spacing.two,
+    borderRadius: Radius.control,
     minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: Spacing.three,
