@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from '@/i18n/localization-provider';
 
@@ -15,6 +15,7 @@ function todayDateValue() {
 export default function NewTransactionScreen() {
   const { t } = useTranslation();
   const { getTransactionForEditing } = useCashioData();
+  const isFocused = useIsFocused();
   const params = useLocalSearchParams<{ accountId?: string; duplicateOf?: string }>();
   const parsedAccountId = Number(params.accountId);
   const initialAccountId =
@@ -87,6 +88,9 @@ export default function NewTransactionScreen() {
   }
   if (duplicateTransaction === undefined) {
     return <ScreenStatus message={t('common.loading')} />;
+  }
+  if (!isFocused) {
+    return null;
   }
 
   return (
