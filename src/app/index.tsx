@@ -25,6 +25,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AccountBalancePanel } from "@/components/account-balance";
 import { AccountSelector, getAccountScopeLabel } from "@/components/accounts";
 import { AppIcon } from "@/components/app-icon";
+import { BalanceSummary } from "@/components/balance-summary";
 import { ModalSheet } from "@/components/modal-sheet";
 import {
   MonthChangeToast,
@@ -773,23 +774,34 @@ export default function HomeScreen() {
       />
     ),
   };
-  const balanceSummary = (
-    <BalanceSummary
-      balance={summary.balance}
-      expense={summary.expense}
-      income={summary.income}
-      openingBalance={summary.openingBalance}
-      openingBalanceLabel={summary.openingBalanceLabel}
-      showTransfers={selectedAccountScope !== "all"}
-      transferIn={summary.transferIn}
-      transferOut={summary.transferOut}
-    />
-  );
   const activeSummaries: Record<ActiveView, ReactNode> = {
     balance: null,
     budgets: <BudgetSummaryCard summary={budgetSummary} />,
-    charts: balanceSummary,
-    list: balanceSummary,
+    charts: (
+      <BalanceSummary
+        balance={summary.balance}
+        expense={summary.expense}
+        income={summary.income}
+        openingBalance={summary.openingBalance}
+        openingBalanceLabel={summary.openingBalanceLabel}
+        showTransfers={selectedAccountScope !== "all"}
+        transferIn={summary.transferIn}
+        transferOut={summary.transferOut}
+      />
+    ),
+    list: (
+      <BalanceSummary
+        balance={summary.balance}
+        expense={summary.expense}
+        income={summary.income}
+        openingBalance={summary.openingBalance}
+        openingBalanceLabel={summary.openingBalanceLabel}
+        showTransfers={selectedAccountScope !== "all"}
+        transferIn={summary.transferIn}
+        transferOut={summary.transferOut}
+        variant="compact"
+      />
+    ),
     reports: null,
   };
   const activeContent: Record<ActiveView, ReactElement> = {
@@ -1651,97 +1663,6 @@ function SelectionHeader({
   );
 }
 
-function BalanceSummary({
-  balance,
-  expense,
-  income,
-  openingBalance,
-  openingBalanceLabel,
-  showTransfers,
-  transferIn,
-  transferOut,
-}: Readonly<{
-  balance: number;
-  expense: number;
-  income: number;
-  openingBalance: number;
-  openingBalanceLabel: string;
-  showTransfers: boolean;
-  transferIn: number;
-  transferOut: number;
-}>) {
-  const theme = useTheme();
-  const { t } = useTranslation();
-  const { languageTag } = useLocalization();
-  const hasTransfers = showTransfers && (transferIn > 0 || transferOut > 0);
-
-  return (
-    <View style={styles.summaryWrap}>
-      <ThemedView type="surfaceMuted" style={styles.summaryPanel}>
-        <View style={styles.summaryMainRow}>
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.summaryTitle}>
-            {t("dashboard.balance")}
-          </ThemedText>
-          <ThemedText type="display" style={styles.summaryAmount}>
-            $ {formatMoney(balance, languageTag)}
-          </ThemedText>
-        </View>
-        <View
-          style={[
-            styles.summaryOpeningRow,
-            { borderTopColor: theme.border },
-          ]}
-        >
-          <ThemedText type="smallBold" style={styles.summaryDetail}>
-            {openingBalanceLabel}
-          </ThemedText>
-          <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
-            $ {formatMoney(openingBalance, languageTag)}
-          </ThemedText>
-        </View>
-        <View style={styles.summaryMetrics}>
-          <View style={styles.summaryMetric}>
-            <ThemedText type="caption" themeColor="textSecondary">
-              {t("balance.income")}
-            </ThemedText>
-            <ThemedText type="smallBold" themeColor="success">
-              +$ {formatMoney(income, languageTag)}
-            </ThemedText>
-          </View>
-          <View style={styles.summaryMetric}>
-            <ThemedText type="caption" themeColor="textSecondary">
-              {t("balance.expenses")}
-            </ThemedText>
-            <ThemedText type="smallBold" themeColor="danger">
-              -$ {formatMoney(expense, languageTag)}
-            </ThemedText>
-          </View>
-        </View>
-        {hasTransfers && transferIn > 0 && (
-          <View style={styles.summaryDetailRow}>
-            <ThemedText type="smallBold" style={styles.summaryDetail}>
-              {t("balance.incomingTransfers")}
-            </ThemedText>
-            <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
-              $ {formatMoney(transferIn, languageTag)}
-            </ThemedText>
-          </View>
-        )}
-        {hasTransfers && transferOut > 0 && (
-          <View style={styles.summaryDetailRow}>
-            <ThemedText type="smallBold" style={styles.summaryDetail}>
-              {t("balance.outgoingTransfers")}
-            </ThemedText>
-            <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
-              $ {formatMoney(transferOut, languageTag)}
-            </ThemedText>
-          </View>
-        )}
-      </ThemedView>
-    </View>
-  );
-}
-
 function IconButton({
   children,
   label,
@@ -2032,59 +1953,6 @@ const styles = StyleSheet.create({
   dateText: {
     minWidth: 56,
     textAlign: "right",
-  },
-  summaryWrap: {
-    flexShrink: 0,
-    gap: Spacing.one,
-    marginHorizontal: Spacing.three,
-    marginTop: Spacing.two,
-  },
-  summaryPanel: {
-    borderCurve: "continuous",
-    borderRadius: Radius.card,
-    gap: Spacing.two,
-    padding: Spacing.three,
-  },
-  summaryMainRow: {
-    alignItems: "flex-start",
-    gap: Spacing.one,
-  },
-  summaryTitle: {
-    textTransform: "uppercase",
-  },
-  summaryAmount: {
-    alignSelf: "stretch",
-  },
-  summaryDetailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: Spacing.two,
-  },
-  summaryOpeningRow: {
-    borderTopWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: Spacing.two,
-    paddingTop: Spacing.two,
-  },
-  summaryDetail: {
-    flexShrink: 1,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  summaryDetailAmount: {
-    flexShrink: 0,
-    fontSize: 12,
-    lineHeight: 16,
-    textAlign: "right",
-  },
-  summaryMetrics: {
-    flexDirection: "row",
-    gap: Spacing.two,
-  },
-  summaryMetric: {
-    flex: 1,
-    gap: Spacing.half,
   },
   bottomBar: {
     alignItems: "center",
