@@ -55,7 +55,12 @@ export type AppErrorCode =
   | "invalidCalendarAmount"
   | "invalidCalendarTime"
   | "invalidCalendarSchedule"
-  | "pastCalendarEvent";
+  | "pastCalendarEvent"
+  | "invalidTransactionDate"
+  | "transactionCategoryType"
+  | "invalidTag"
+  | "invalidTransfer"
+  | "transactionNotFound";
 
 export type AppErrorDescriptor = {
   code: AppErrorCode;

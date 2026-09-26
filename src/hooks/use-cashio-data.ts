@@ -14,6 +14,7 @@ import {
   deleteTag,
   deleteTransactions,
   getMonthlyBudgetData,
+  getEditableTransaction,
   listAccountBalances,
   listAccounts,
   listCategories,
@@ -25,6 +26,7 @@ import {
   updateMonthlyBudgetAmount,
   updateCategory,
   updateTag,
+  updateTransaction,
   type CreateTransactionInput,
   type SaveAccountInput,
   type SaveCategoryInput,
@@ -239,6 +241,19 @@ export function useCashioData() {
     [db, refresh]
   );
 
+  const getTransactionForEditing = useCallback(
+    (id: number) => getEditableTransaction(db, id),
+    [db]
+  );
+
+  const editTransaction = useCallback(
+    async (id: number, input: CreateTransactionInput) => {
+      await updateTransaction(db, id, input);
+      await refresh();
+    },
+    [db, refresh]
+  );
+
   const removeTransactions = useCallback(
     async (ids: number[]) => {
       await deleteTransactions(db, ids);
@@ -275,6 +290,8 @@ export function useCashioData() {
     removeCategoryFromMonthlyBudget,
     copyBudgetFromPreviousMonth,
     addTransaction,
+    editTransaction,
+    getTransactionForEditing,
     removeTransactions,
   };
 }

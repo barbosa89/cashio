@@ -25,6 +25,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AccountBalancePanel } from "@/components/account-balance";
 import { AccountSelector, getAccountScopeLabel } from "@/components/accounts";
 import { AppIcon } from "@/components/app-icon";
+import { ModalSheet } from "@/components/modal-sheet";
 import {
   MonthChangeToast,
   MonthNavigation,
@@ -271,6 +272,8 @@ export default function HomeScreen() {
   const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
   const [inlineMessage, setInlineMessage] = useState("");
   const [budgetMessage, setBudgetMessage] = useState("");
+  const [actionTransaction, setActionTransaction] =
+    useState<Transaction | null>(null);
   const autoCopiedBudgetKeys = useRef(new Set<string>());
   const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
   const visibleMonthKey = formatMonthKey(visibleMonth);
@@ -284,6 +287,12 @@ export default function HomeScreen() {
   );
   const selectedTransactionCount = selectedTransactionIds.length;
   const isSelectionMode = selectedTransactionCount > 0;
+  const selectedTransaction =
+    selectedTransactionCount === 1
+      ? transactions.find(
+          (transaction) => transaction.id === selectedTransactionIds[0],
+        ) ?? null
+      : null;
   const selectedAccountLabel = getAccountScopeLabel(
     accounts,
     selectedAccountScope,
@@ -564,6 +573,27 @@ export default function HomeScreen() {
     ]);
   }
 
+  function handleEditSelectedTransaction() {
+    if (!selectedTransaction) {
+      return;
+    }
+
+    cancelSelection();
+    router.push(`/transactions/${selectedTransaction.id}/edit` as never);
+  }
+
+  function handleDuplicateSelectedTransaction() {
+    if (!selectedTransaction) {
+      return;
+    }
+
+    cancelSelection();
+    router.push({
+      pathname: "/new-transaction",
+      params: { duplicateOf: String(selectedTransaction.id) },
+    });
+  }
+
   function handleViewPress(view: ActiveView) {
     if (isSelectionMode) {
       cancelSelection();
@@ -804,6 +834,7 @@ export default function HomeScreen() {
           isLoading={isLoading}
           isSelectionMode={isSelectionMode}
           onSelectTransaction={selectTransaction}
+          onOpenTransaction={setActionTransaction}
           onToggleTransactionSelection={toggleTransactionSelection}
           selectedTransactionIds={selectedTransactionIdSet}
           showFilterSummary={shouldShowFilterSummary}
@@ -851,6 +882,8 @@ export default function HomeScreen() {
             activeHeader={activeHeaders[activeView]}
             onCancelSelection={cancelSelection}
             onDeleteSelection={handleDeleteSelectedTransactions}
+            onDuplicateSelection={handleDuplicateSelectedTransaction}
+            onEditSelection={handleEditSelectedTransaction}
             selectedTransactionCount={selectedTransactionCount}
           />
           {activeView !== "reports" ? (
@@ -898,6 +931,10 @@ export default function HomeScreen() {
         }}
         selectedAccountScope={selectedAccountScope}
       />
+      <TransactionActionSheet
+        onClose={() => setActionTransaction(null)}
+        transaction={actionTransaction}
+      />
     </ThemedView>
   );
 }
@@ -906,11 +943,15 @@ function DashboardHeader({
   activeHeader,
   onCancelSelection,
   onDeleteSelection,
+  onDuplicateSelection,
+  onEditSelection,
   selectedTransactionCount,
 }: Readonly<{
   activeHeader: ReactElement;
   onCancelSelection: () => void;
   onDeleteSelection: () => void;
+  onDuplicateSelection: () => void;
+  onEditSelection: () => void;
   selectedTransactionCount: number;
 }>) {
   if (selectedTransactionCount > 0) {
@@ -919,6 +960,8 @@ function DashboardHeader({
         count={selectedTransactionCount}
         onCancel={onCancelSelection}
         onDelete={onDeleteSelection}
+        onDuplicate={onDuplicateSelection}
+        onEdit={onEditSelection}
       />
     );
   }
@@ -1052,6 +1095,7 @@ function TransactionListDashboardView({
   isLoading,
   isSelectionMode,
   onSelectTransaction,
+  onOpenTransaction,
   onToggleTransactionSelection,
   selectedTransactionIds,
   showFilterSummary,
@@ -1061,16 +1105,20 @@ function TransactionListDashboardView({
   isLoading: boolean;
   isSelectionMode: boolean;
   onSelectTransaction: (id: number) => void;
+  onOpenTransaction: (transaction: Transaction) => void;
   onToggleTransactionSelection: (id: number) => void;
   selectedTransactionIds: ReadonlySet<number>;
   showFilterSummary: boolean;
 }>) {
   const { t } = useTranslation();
 
-  function handleTransactionPress(id: number) {
+  function handleTransactionPress(transaction: Transaction) {
     if (isSelectionMode) {
-      onToggleTransactionSelection(id);
+      onToggleTransactionSelection(transaction.id);
+      return;
     }
+
+    onOpenTransaction(transaction);
   }
 
   return (
@@ -1101,7 +1149,7 @@ function TransactionListDashboardView({
           <TransactionRow
             key={transaction.id}
             onLongPress={() => onSelectTransaction(transaction.id)}
-            onPress={() => handleTransactionPress(transaction.id)}
+            onPress={() => handleTransactionPress(transaction)}
             selected={selectedTransactionIds.has(transaction.id)}
             selectionMode={isSelectionMode}
             showAccountName={accountScope === "all"}
@@ -1320,9 +1368,13 @@ function TransactionRow({
           ? t("accessibility.tapSelection")
           : t("accessibility.holdSelection")
       }
-      accessibilityLabel={t("accessibility.transaction", {
-        name: transaction.description || transaction.category_description,
-      })}
+      accessibilityLabel={t(
+        selectionMode
+          ? "accessibility.transaction"
+          : "accessibility.transactionActions",
+        { name: transaction.description || transaction.category_description },
+      )}
+      accessibilityRole="button"
       accessibilityState={{ selected }}
       delayLongPress={300}
       onLongPress={onLongPress}
@@ -1422,14 +1474,150 @@ function TransactionRow({
   );
 }
 
+function TransactionActionSheet({
+  onClose,
+  transaction,
+}: Readonly<{
+  onClose: () => void;
+  transaction: Transaction | null;
+}>) {
+  const { t } = useTranslation();
+  const { languageTag } = useLocalization();
+  const transactionName =
+    transaction?.description || transaction?.category_description || "";
+  const isTransfer = transaction?.is_transfer === 1;
+  const transferRoute = transaction
+    ? transaction.type === "expense"
+      ? `${transaction.account_name} → ${transaction.transfer_peer_account_name ?? t("dashboard.otherAccount")}`
+      : `${transaction.transfer_peer_account_name ?? t("dashboard.otherAccount")} → ${transaction.account_name}`
+    : "";
+
+  function navigateToEdit() {
+    if (!transaction) {
+      return;
+    }
+    const id = transaction.id;
+    onClose();
+    router.push(`/transactions/${id}/edit` as never);
+  }
+
+  function navigateToDuplicate() {
+    if (!transaction) {
+      return;
+    }
+    const id = transaction.id;
+    onClose();
+    router.push({
+      pathname: "/new-transaction",
+      params: { duplicateOf: String(id) },
+    });
+  }
+
+  return (
+    <ModalSheet
+      closeLabel={t("accessibility.closeTransactionActions")}
+      isVisible={transaction !== null}
+      onClose={onClose}
+      subtitle={t("transaction.actionsDescription")}
+      title={t("transaction.actionsTitle")}
+    >
+      {transaction ? (
+        <View style={styles.transactionActionContent}>
+          <ThemedView type="surfaceMuted" style={styles.transactionActionSummary}>
+            <View style={styles.transactionActionSummaryCopy}>
+              <ThemedText type="subtitle" numberOfLines={2}>
+                {transactionName}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {isTransfer ? transferRoute : transaction.account_name} · {formatDate(transaction.transaction_date, languageTag)}
+              </ThemedText>
+            </View>
+            <ThemedText
+              type="subtitle"
+              themeColor={
+                isTransfer
+                  ? "text"
+                  : transaction.type === "income"
+                    ? "success"
+                    : "danger"
+              }
+              style={styles.transactionActionAmount}
+            >
+              {isTransfer ? "" : transaction.type === "income" ? "+" : "-"}$ {formatMoney(transaction.amount, languageTag)}
+            </ThemedText>
+          </ThemedView>
+
+          <View style={styles.transactionActionList}>
+            <TransactionAction
+              icon="edit-3"
+              label={t("transaction.edit")}
+              onPress={navigateToEdit}
+            />
+            <TransactionAction
+              description={t("transaction.duplicateHint")}
+              icon="copy"
+              label={t("transaction.duplicate")}
+              onPress={navigateToDuplicate}
+            />
+          </View>
+        </View>
+      ) : null}
+    </ModalSheet>
+  );
+}
+
+function TransactionAction({
+  description,
+  icon,
+  label,
+  onPress,
+}: Readonly<{
+  description?: string;
+  icon: ComponentProps<typeof AppIcon>["name"];
+  label: string;
+  onPress: () => void;
+}>) {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <View
+        style={[styles.transactionActionRow, { borderBottomColor: theme.border }]}
+      >
+        <ThemedView type="primaryContainer" style={styles.transactionActionIcon}>
+          <AppIcon color={theme.primary} name={icon} size={21} />
+        </ThemedView>
+        <View style={styles.transactionActionCopy}>
+          <ThemedText type="smallBold">{label}</ThemedText>
+          {description ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {description}
+            </ThemedText>
+          ) : null}
+        </View>
+        <AppIcon color={theme.textSecondary} name="chevron-right" size={20} />
+      </View>
+    </Pressable>
+  );
+}
+
 function SelectionHeader({
   count,
   onCancel,
   onDelete,
+  onDuplicate,
+  onEdit,
 }: Readonly<{
   count: number;
   onCancel: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
+  onEdit: () => void;
 }>) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -1443,6 +1631,19 @@ function SelectionHeader({
       <ThemedText type="smallBold" style={styles.selectionTitle}>
         {label}
       </ThemedText>
+      {count === 1 ? (
+        <>
+          <FlatIconButton label={t("transaction.edit")} onPress={onEdit}>
+            <AppIcon color={theme.text} name="edit-3" size={24} />
+          </FlatIconButton>
+          <FlatIconButton
+            label={t("transaction.duplicate")}
+            onPress={onDuplicate}
+          >
+            <AppIcon color={theme.text} name="copy" size={24} />
+          </FlatIconButton>
+        </>
+      ) : null}
       <FlatIconButton label={t("dashboard.deleteSelection")} onPress={onDelete}>
         <AppIcon color={theme.text} name="trash-2" size={28} />
       </FlatIconButton>
@@ -1763,6 +1964,51 @@ const styles = StyleSheet.create({
   transactionBody: {
     flex: 1,
     gap: Spacing.half,
+  },
+  transactionActionAmount: {
+    flexShrink: 0,
+    fontVariant: ["tabular-nums"],
+    textAlign: "right",
+  },
+  transactionActionContent: {
+    gap: Spacing.three,
+  },
+  transactionActionCopy: {
+    flex: 1,
+    gap: Spacing.half,
+    minWidth: 0,
+  },
+  transactionActionIcon: {
+    alignItems: "center",
+    borderRadius: Radius.control,
+    height: 42,
+    justifyContent: "center",
+    width: 42,
+  },
+  transactionActionList: {
+    gap: 0,
+  },
+  transactionActionRow: {
+    alignItems: "center",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    gap: Spacing.three,
+    minHeight: 64,
+    paddingHorizontal: Spacing.one,
+    paddingVertical: Spacing.two,
+  },
+  transactionActionSummary: {
+    alignItems: "center",
+    borderCurve: "continuous",
+    borderRadius: Radius.card,
+    flexDirection: "row",
+    gap: Spacing.three,
+    padding: Spacing.three,
+  },
+  transactionActionSummaryCopy: {
+    flex: 1,
+    gap: Spacing.half,
+    minWidth: 0,
   },
   amount: {
     fontSize: 21,

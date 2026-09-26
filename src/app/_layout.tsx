@@ -140,6 +140,13 @@ function CashioNavigator() {
             title: t("navigation.newTransaction"),
           }}
         />
+        <Drawer.Screen
+          name="transactions/[id]/edit"
+          options={{
+            drawerItemStyle: { display: "none" },
+            title: t("transaction.editRecord"),
+          }}
+        />
       </Drawer>
     </>
   );
