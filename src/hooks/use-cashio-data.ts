@@ -69,6 +69,7 @@ export function useCashioData() {
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [dataRevision, setDataRevision] = useState(0);
+  const [hasLoadedTransactions, setHasLoadedTransactions] = useState(false);
   const [isReferenceDataLoading, setIsReferenceDataLoading] = useState(true);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const transactionQueryRequestId = useRef(0);
@@ -131,6 +132,7 @@ export function useCashioData() {
         if (transactionQueryRequestId.current === requestId) {
           setTransactions(nextTransactions);
           setFilteredTransactions(nextFilteredTransactions);
+          setHasLoadedTransactions(true);
           setIsTransactionsLoading(false);
         }
         return nextFilteredTransactions;
@@ -301,6 +303,7 @@ export function useCashioData() {
     categories,
     dataRevision,
     filteredTransactions,
+    hasLoadedTransactions,
     monthlyBudgetData,
     monthlySummaries,
     tags,

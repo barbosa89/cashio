@@ -44,6 +44,7 @@ import {
 import { ReportExportPanel } from "@/components/report-export-panel";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { TransactionListSkeleton } from "@/components/transaction-list-skeleton";
 import {
     FilterSummaryBar,
     buildTransactionFilterSummary,
@@ -236,6 +237,7 @@ export default function HomeScreen() {
     addCategoryToMonthlyBudget,
     copyBudgetFromPreviousMonth,
     filteredTransactions: queriedTransactions,
+    hasLoadedTransactions,
     isLoading: isReferenceDataLoading,
     isTransactionsLoading,
     monthlyBudgetData,
@@ -839,7 +841,8 @@ export default function HomeScreen() {
         <TransactionListDashboardView
           accountScope={selectedAccountScope}
           filteredTransactions={filteredTransactions}
-          isLoading={isLoading}
+          hasLoadedTransactions={hasLoadedTransactions}
+          isLoading={isTransactionsLoading}
           isSelectionMode={isSelectionMode}
           onSelectTransaction={selectTransaction}
           onOpenTransaction={setActionTransaction}
@@ -1105,6 +1108,7 @@ function SwipeableDashboardView({
 function TransactionListDashboardView({
   accountScope,
   filteredTransactions,
+  hasLoadedTransactions,
   isLoading,
   isSelectionMode,
   onSelectTransaction,
@@ -1115,6 +1119,7 @@ function TransactionListDashboardView({
 }: Readonly<{
   accountScope: AccountScope;
   filteredTransactions: readonly Transaction[];
+  hasLoadedTransactions: boolean;
   isLoading: boolean;
   isSelectionMode: boolean;
   onSelectTransaction: (id: number) => void;
@@ -1136,18 +1141,15 @@ function TransactionListDashboardView({
 
   return (
     <ScrollView
+      accessibilityState={{ busy: isLoading }}
       contentContainerStyle={[
         styles.listContent,
         showFilterSummary && styles.listContentWithFilterSummary,
       ]}
       style={styles.list}
     >
-      {isLoading ? (
-        <View style={styles.emptyState}>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            {t("common.loading")}
-          </ThemedText>
-        </View>
+      {isLoading && !hasLoadedTransactions ? (
+        <TransactionListSkeleton />
       ) : filteredTransactions.length === 0 ? (
         <View style={styles.emptyState}>
           <ThemedText type="subtitle" style={styles.emptyTitle}>
