@@ -38,11 +38,17 @@ import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
 import { getNumberSeparators } from "@/i18n/formatters";
 import { useLocalization } from "@/i18n/localization-provider";
-import type { Account, Category, TransactionType } from "@/lib/database";
+import type { CreateTransactionInput } from "@/lib/cashio-repository";
+import type { Category, TransactionType } from "@/lib/database";
 
 type TransactionFormProps = {
+  accountOptions?: { id: number; name: string }[];
   initialAccountId?: number | null;
+  initialValues?: CreateTransactionInput | null;
+  mode?: "create" | "edit";
+  onDirtyChange?: (isDirty: boolean) => void;
   onSaved?: () => void;
+  onSubmit?: (values: CreateTransactionInput) => Promise<void>;
 };
 
 type DropdownValue = number | string;
@@ -59,7 +65,10 @@ function normalizeLookup(value: string) {
   return value.trim().toLocaleLowerCase();
 }
 
-function canUseCategory(category: Category, transactionType: TransactionType) {
+function canUseCategory(
+  category: Category,
+  transactionType: TransactionType,
+) {
   return (
     category.type === null ||
     category.type === "both" ||
@@ -67,11 +76,16 @@ function canUseCategory(category: Category, transactionType: TransactionType) {
   );
 }
 
-function getDefaultAccountId(accounts: Account[]) {
+function getDefaultAccountId(
+  accounts: readonly { id: number; is_default?: number }[],
+) {
   return accounts.find((account) => account.is_default === 1)?.id ?? accounts[0]?.id ?? null;
 }
 
-function getPreferredAccountId(accounts: Account[], initialAccountId?: number | null) {
+function getPreferredAccountId(
+  accounts: readonly { id: number; is_default?: number }[],
+  initialAccountId?: number | null,
+) {
   if (
     initialAccountId &&
     accounts.some((account) => account.id === initialAccountId)
@@ -100,32 +114,51 @@ function parseDateValue(value: string) {
 }
 
 export const TransactionForm = forwardRef<TransactionFormHandle, TransactionFormProps>(
-function TransactionForm({ initialAccountId = null, onSaved }, ref) {
+function TransactionForm(
+  {
+    initialAccountId = null,
+    accountOptions = [],
+    initialValues = null,
+    mode = "create",
+    onDirtyChange,
+    onSaved,
+    onSubmit,
+  },
+  ref,
+) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { languageTag } = useLocalization();
   const { t } = useTranslation();
   const numberSeparators = getNumberSeparators(languageTag);
+  const initialTransactionDateRef = useRef(
+    initialValues?.transactionDate ?? formatDateValue(new Date()),
+  );
   const { accounts, categories, tags, isLoading, addCategory, addTag, addTransaction } =
     useCashioData();
   const [transactionType, setTransactionType] =
-    useState<TransactionType>("expense");
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
-  const [selectedDestinationAccountId, setSelectedDestinationAccountId] = useState<number | null>(null);
-  const [amount, setAmount] = useState<number | null>(null);
-  const [description, setDescription] = useState("");
+    useState<TransactionType>(initialValues?.type ?? "expense");
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(
+    initialValues?.accountId ?? null,
+  );
+  const [selectedDestinationAccountId, setSelectedDestinationAccountId] =
+    useState<number | null>(initialValues?.destinationAccountId ?? null);
+  const [amount, setAmount] = useState<number | null>(initialValues?.amount ?? null);
+  const [description, setDescription] = useState(initialValues?.description ?? "");
   const [transactionDate, setTransactionDate] = useState(() =>
-    formatDateValue(new Date()),
+    initialTransactionDateRef.current,
   );
   const [draftTransactionDate, setDraftTransactionDate] = useState(() =>
-    new Date(),
+    initialValues ? parseDateValue(initialValues.transactionDate) : new Date(),
   );
   const [categorySearch, setCategorySearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
-    null,
+    initialValues?.categoryId ?? null,
   );
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
+    initialValues?.tagIds ?? [],
+  );
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isDestinationAccountOpen, setIsDestinationAccountOpen] = useState(false);
@@ -156,24 +189,34 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
     [insets.bottom, theme.surface],
   );
 
+  const selectableAccounts = useMemo(
+    () => [
+      ...accountOptions.filter(
+        (option) => !accounts.some((account) => account.id === option.id),
+      ),
+      ...accounts,
+    ],
+    [accountOptions, accounts],
+  );
+
   const accountItems = useMemo(
     (): Array<ItemType<DropdownValue>> =>
-      accounts.map((account) => ({
+      selectableAccounts.map((account) => ({
         label: account.name,
         value: account.id,
       })),
-    [accounts],
+    [selectableAccounts],
   );
 
   const destinationAccountItems = useMemo(
     (): Array<ItemType<DropdownValue>> =>
-      accounts
+      selectableAccounts
         .filter((account) => account.id !== selectedAccountId)
         .map((account) => ({
           label: account.name,
           value: account.id,
         })),
-    [accounts, selectedAccountId],
+    [selectableAccounts, selectedAccountId],
   );
 
   const availableCategories = useMemo(
@@ -217,6 +260,26 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
       ),
     [tags, tagSearch],
   );
+  const baselineAccountId =
+    initialValues?.accountId ??
+    getPreferredAccountId(selectableAccounts, initialAccountId);
+  const isDirty =
+    transactionType !== (initialValues?.type ?? "expense") ||
+    selectedAccountId !== baselineAccountId ||
+    selectedDestinationAccountId !==
+      (initialValues?.destinationAccountId ?? null) ||
+    amount !== (initialValues?.amount ?? null) ||
+    description !== (initialValues?.description ?? "") ||
+    transactionDate !== initialTransactionDateRef.current ||
+    selectedCategoryId !== (initialValues?.categoryId ?? null) ||
+    [...selectedTagIds].sort((left, right) => left - right).join(",") !==
+      [...(initialValues?.tagIds ?? [])]
+        .sort((left, right) => left - right)
+        .join(",");
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   useEffect(() => {
     const selectedCategory = categories.find(
@@ -228,25 +291,43 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
     ) {
       setSelectedCategoryId(null);
     }
-  }, [categories, selectedCategoryId, transactionType]);
+  }, [
+    categories,
+    selectedCategoryId,
+    transactionType,
+  ]);
 
   useEffect(() => {
-    if (accounts.length === 0) {
+    if (selectableAccounts.length === 0) {
       return;
     }
 
     if (appliedInitialAccountIdRef.current !== initialAccountId) {
       appliedInitialAccountIdRef.current = initialAccountId;
-      setSelectedAccountId(getPreferredAccountId(accounts, initialAccountId));
+      setSelectedAccountId(
+        getPreferredAccountId(
+          selectableAccounts,
+          initialValues?.accountId ?? initialAccountId,
+        ),
+      );
       return;
     }
 
-    if (selectedAccountId && accounts.some((account) => account.id === selectedAccountId)) {
+    if (
+      selectedAccountId &&
+      selectableAccounts.some((account) => account.id === selectedAccountId)
+    ) {
       return;
     }
 
     setSelectedAccountId(getDefaultAccountId(accounts));
-  }, [accounts, initialAccountId, selectedAccountId]);
+  }, [
+    accounts,
+    initialAccountId,
+    initialValues?.accountId,
+    selectableAccounts,
+    selectedAccountId,
+  ]);
 
   useEffect(() => {
     if (transactionType === "income") {
@@ -257,24 +338,41 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
 
     if (
       selectedDestinationAccountId &&
-      selectedDestinationAccountId === selectedAccountId
+      (selectedDestinationAccountId === selectedAccountId ||
+        (accounts.length > 0 &&
+          !selectableAccounts.some(
+            (account) => account.id === selectedDestinationAccountId,
+          )))
     ) {
       setSelectedDestinationAccountId(null);
     }
-  }, [selectedAccountId, selectedDestinationAccountId, transactionType]);
+  }, [
+    accounts.length,
+    selectableAccounts,
+    selectedAccountId,
+    selectedDestinationAccountId,
+    transactionType,
+  ]);
 
   function handleError(error: unknown) {
     setMessage(translateError(error, t));
   }
 
   function resetForm() {
-    setTransactionType("expense");
-    setSelectedAccountId(getPreferredAccountId(accounts, initialAccountId));
-    setSelectedDestinationAccountId(null);
-    setAmount(null);
-    setDescription("");
-    setSelectedCategoryId(null);
-    setSelectedTagIds([]);
+    setTransactionType(initialValues?.type ?? "expense");
+    setSelectedAccountId(
+      getPreferredAccountId(
+        selectableAccounts,
+        initialValues?.accountId ?? initialAccountId,
+      ),
+    );
+    setSelectedDestinationAccountId(
+      initialValues?.destinationAccountId ?? null,
+    );
+    setAmount(initialValues?.amount ?? null);
+    setDescription(initialValues?.description ?? "");
+    setSelectedCategoryId(initialValues?.categoryId ?? null);
+    setSelectedTagIds(initialValues?.tagIds ?? []);
     setCategorySearch("");
     setTagSearch("");
     setIsAccountOpen(false);
@@ -288,9 +386,11 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
     setIsCreatingTag(false);
     isCreatingCategoryRef.current = false;
     isCreatingTagRef.current = false;
-    const today = new Date();
-    setDraftTransactionDate(today);
-    setTransactionDate(formatDateValue(today));
+    const resetDate = initialValues
+      ? parseDateValue(initialValues.transactionDate)
+      : new Date();
+    setDraftTransactionDate(resetDate);
+    setTransactionDate(formatDateValue(resetDate));
   }
 
   useImperativeHandle(ref, () => ({ reset: resetForm }));
@@ -473,7 +573,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
     setMessage("");
 
     try {
-      await addTransaction({
+      const values = {
         accountId: selectedAccountId ?? 0,
         type: transactionType,
         amount: amount ?? 0,
@@ -483,9 +583,12 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
         transactionDate,
         categoryId: selectedCategoryId ?? 0,
         tagIds: selectedTagIds,
-      });
+      } satisfies CreateTransactionInput;
+      await (onSubmit ?? addTransaction)(values);
       resetForm();
-      setMessage(t("transaction.saved"));
+      setMessage(
+        mode === "edit" ? t("transaction.updated") : t("transaction.saved"),
+      );
       onSaved?.();
     } catch (error) {
       handleError(error);
@@ -560,6 +663,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
         style={[styles.dropdownField, { zIndex: isAccountOpen ? 40 : 10 }]}
       >
         <DropDownPicker<DropdownValue>
+          props={{ accessibilityLabel: t("transaction.account") }}
           ArrowDownIconComponent={({ style }) => (
             <View style={style}>
               <AppIcon color={theme.text} name="chevron-down" size={22} />
@@ -624,6 +728,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
 
       <Field label={t("transaction.amount")}>
         <CurrencyInput
+          accessibilityLabel={t("transaction.amount")}
           delimiter={numberSeparators.delimiter}
           keyboardType="numeric"
           minValue={0}
@@ -708,6 +813,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
 
       <Field label={t("transaction.description")}>
         <TextInput
+          accessibilityLabel={t("transaction.description")}
           onChangeText={setDescription}
           placeholder={t("common.optional")}
           placeholderTextColor={theme.textSecondary}
@@ -724,6 +830,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
         style={[styles.dropdownField, { zIndex: isCategoryOpen ? 30 : 10 }]}
       >
         <DropDownPicker<DropdownValue>
+          props={{ accessibilityLabel: t("transaction.category") }}
           addCustomItem={!!categorySearch.trim() && !categorySearchMatchesExisting}
           ArrowDownIconComponent={({ style }) => (
             <View style={style}>
@@ -825,6 +932,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
           ]}
         >
           <DropDownPicker<DropdownValue>
+            props={{ accessibilityLabel: t("transaction.destinationAccount") }}
             ArrowDownIconComponent={({ style }) => (
               <View style={style}>
                 <AppIcon color={theme.text} name="chevron-down" size={22} />
@@ -893,6 +1001,7 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
         style={[styles.dropdownField, { zIndex: isTagsOpen ? 30 : 10 }]}
       >
         <DropDownPicker<DropdownValue>
+          props={{ accessibilityLabel: t("common.tags") }}
           addCustomItem={!!tagSearch.trim() && !tagSearchMatchesExisting}
           ArrowDownIconComponent={({ style }) => (
             <View style={style}>
@@ -1002,14 +1111,25 @@ function TransactionForm({ initialAccountId = null, onSaved }, ref) {
       </Field>
 
       {!!message && (
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText
+          accessibilityLiveRegion="assertive"
+          accessibilityRole="alert"
+          type="small"
+          themeColor="textSecondary"
+        >
           {message}
         </ThemedText>
       )}
 
       <ActionButton
         disabled={isSaving || isLoading}
-        label={isSaving ? t("common.saving") : t("transaction.save")}
+        label={
+          isSaving
+            ? t("common.saving")
+            : mode === "edit"
+              ? t("transaction.saveChanges")
+              : t("transaction.save")
+        }
         onPress={handleSaveTransaction}
         primary
       />
@@ -1245,7 +1365,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: Spacing.one,
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 48,
     paddingVertical: Spacing.two,
   },
   field: {
@@ -1317,7 +1437,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: Spacing.two,
-    minHeight: 44,
+    minHeight: 48,
   },
   dropdownListItemText: {
     flex: 1,

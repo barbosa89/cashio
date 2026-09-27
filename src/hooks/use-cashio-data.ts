@@ -14,6 +14,7 @@ import {
   deleteTag,
   deleteTransactions,
   getMonthlyBudgetData,
+  getEditableTransaction,
   listAccountBalances,
   listAccounts,
   listCategories,
@@ -25,6 +26,7 @@ import {
   updateMonthlyBudgetAmount,
   updateCategory,
   updateTag,
+  updateTransaction,
   type CreateTransactionInput,
   type SaveAccountInput,
   type SaveCategoryInput,
@@ -66,15 +68,17 @@ export function useCashioData() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [dataRevision, setDataRevision] = useState(0);
+  const [hasLoadedTransactions, setHasLoadedTransactions] = useState(false);
+  const [isReferenceDataLoading, setIsReferenceDataLoading] = useState(true);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const transactionQueryRequestId = useRef(0);
 
   const refresh = useCallback(async () => {
-    const [nextAccounts, nextCategories, nextTags, nextTransactions, nextMonthlySummaries] = await Promise.all([
+    const [nextAccounts, nextCategories, nextTags, nextMonthlySummaries] = await Promise.all([
       listAccounts(db),
       listCategories(db),
       listTags(db),
-      listTransactions(db),
       listMonthlySummaries(db),
     ]);
 
@@ -82,8 +86,8 @@ export function useCashioData() {
     setCategories(nextCategories);
     setMonthlySummaries(nextMonthlySummaries);
     setTags(nextTags);
-    setTransactions(nextTransactions);
-    setIsLoading(false);
+    setDataRevision((currentRevision) => currentRevision + 1);
+    setIsReferenceDataLoading(false);
   }, [db]);
 
   useFocusEffect(
@@ -105,12 +109,45 @@ export function useCashioData() {
     async (filters: TransactionQueryFilters = {}) => {
       const requestId = transactionQueryRequestId.current + 1;
       transactionQueryRequestId.current = requestId;
-      const nextTransactions = await listTransactions(db, filters);
-      if (transactionQueryRequestId.current === requestId) {
-        setFilteredTransactions(nextTransactions);
+      setIsTransactionsLoading(true);
+
+      const baseFilters: TransactionQueryFilters = {
+        accountScope: filters.accountScope,
+        month: filters.month,
+        monthRange: filters.monthRange,
+      };
+      const hasActiveFilters =
+        !!filters.descriptionSearch?.trim() || !!filters.categoryId || !!filters.tagId;
+
+      try {
+        const nextTransactions = await listTransactions(db, baseFilters);
+        if (transactionQueryRequestId.current !== requestId) {
+          return nextTransactions;
+        }
+
+        const nextFilteredTransactions = hasActiveFilters
+          ? await listTransactions(db, filters)
+          : nextTransactions;
+
+        if (transactionQueryRequestId.current === requestId) {
+          setTransactions(nextTransactions);
+          setFilteredTransactions(nextFilteredTransactions);
+          setHasLoadedTransactions(true);
+          setIsTransactionsLoading(false);
+        }
+        return nextFilteredTransactions;
+      } catch (error) {
+        if (transactionQueryRequestId.current === requestId) {
+          setIsTransactionsLoading(false);
+        }
+        throw error;
       }
-      return nextTransactions;
     },
+    [db]
+  );
+
+  const getTransactions = useCallback(
+    (filters: TransactionQueryFilters = {}) => listTransactions(db, filters),
     [db]
   );
 
@@ -239,6 +276,19 @@ export function useCashioData() {
     [db, refresh]
   );
 
+  const getTransactionForEditing = useCallback(
+    (id: number) => getEditableTransaction(db, id),
+    [db]
+  );
+
+  const editTransaction = useCallback(
+    async (id: number, input: CreateTransactionInput) => {
+      await updateTransaction(db, id, input);
+      await refresh();
+    },
+    [db, refresh]
+  );
+
   const removeTransactions = useCallback(
     async (ids: number[]) => {
       await deleteTransactions(db, ids);
@@ -251,15 +301,19 @@ export function useCashioData() {
     accountBalances,
     accounts,
     categories,
+    dataRevision,
     filteredTransactions,
+    hasLoadedTransactions,
     monthlyBudgetData,
     monthlySummaries,
     tags,
     transactions,
-    isLoading,
+    isLoading: isReferenceDataLoading,
+    isTransactionsLoading,
     refresh,
     refreshAccountBalances,
     refreshTransactions,
+    getTransactions,
     addAccount,
     editAccount,
     removeAccount,
@@ -275,6 +329,8 @@ export function useCashioData() {
     removeCategoryFromMonthlyBudget,
     copyBudgetFromPreviousMonth,
     addTransaction,
+    editTransaction,
+    getTransactionForEditing,
     removeTransactions,
   };
 }

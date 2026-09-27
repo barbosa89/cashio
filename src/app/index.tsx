@@ -25,6 +25,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AccountBalancePanel } from "@/components/account-balance";
 import { AccountSelector, getAccountScopeLabel } from "@/components/accounts";
 import { AppIcon } from "@/components/app-icon";
+import { BalanceSummary } from "@/components/balance-summary";
+import { ModalSheet } from "@/components/modal-sheet";
 import {
   MonthChangeToast,
   MonthNavigation,
@@ -42,6 +44,7 @@ import {
 import { ReportExportPanel } from "@/components/report-export-panel";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { TransactionListSkeleton } from "@/components/transaction-list-skeleton";
 import {
     FilterSummaryBar,
     buildTransactionFilterSummary,
@@ -156,13 +159,6 @@ function groupByCategory(
     }));
 }
 
-function accountMatchesScope(
-  transaction: Transaction,
-  accountScope: AccountScope,
-) {
-  return accountScope === "all" || transaction.account_id === accountScope;
-}
-
 function aggregateMonthlySummaries(
   monthlySummaries: MonthlySummaryRow[],
   accountScope: AccountScope,
@@ -237,12 +233,16 @@ export default function HomeScreen() {
     accountBalances,
     accounts,
     categories,
+    dataRevision,
     addCategoryToMonthlyBudget,
     copyBudgetFromPreviousMonth,
     filteredTransactions: queriedTransactions,
-    isLoading,
+    hasLoadedTransactions,
+    isLoading: isReferenceDataLoading,
+    isTransactionsLoading,
     monthlyBudgetData,
     monthlySummaries,
+    getTransactions,
     refreshAccountBalances,
     refreshMonthlyBudgetData,
     refreshTransactions,
@@ -252,6 +252,7 @@ export default function HomeScreen() {
     tags,
     transactions,
   } = useCashioData();
+  const isLoading = isReferenceDataLoading || isTransactionsLoading;
   const { settings } = useCashioSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [descriptionSearch, setDescriptionSearch] = useState("");
@@ -271,8 +272,9 @@ export default function HomeScreen() {
   const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
   const [inlineMessage, setInlineMessage] = useState("");
   const [budgetMessage, setBudgetMessage] = useState("");
+  const [actionTransaction, setActionTransaction] =
+    useState<Transaction | null>(null);
   const autoCopiedBudgetKeys = useRef(new Set<string>());
-  const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
   const visibleMonthKey = formatMonthKey(visibleMonth);
   const visibleMonthLabel = formatMonthLabel(visibleMonth, languageTag);
   const shouldAccumulatePreviousBalances = settings.accumulatePreviousBalances;
@@ -284,6 +286,12 @@ export default function HomeScreen() {
   );
   const selectedTransactionCount = selectedTransactionIds.length;
   const isSelectionMode = selectedTransactionCount > 0;
+  const selectedTransaction =
+    selectedTransactionCount === 1
+      ? transactions.find(
+          (transaction) => transaction.id === selectedTransactionIds[0],
+        ) ?? null
+      : null;
   const selectedAccountLabel = getAccountScopeLabel(
     accounts,
     selectedAccountScope,
@@ -312,24 +320,6 @@ export default function HomeScreen() {
   const selectedTag = useMemo(
     () => tags.find((tag) => tag.id === filters.tagId) ?? null,
     [filters.tagId, tags],
-  );
-
-  const accountScopedTransactions = useMemo(
-    () =>
-      transactions.filter((transaction) =>
-        accountMatchesScope(transaction, selectedAccountScope),
-      ),
-    [selectedAccountScope, transactions],
-  );
-
-  const visibleMonthTransactions = useMemo(
-    () =>
-      transactions.filter(
-        (transaction) =>
-          transaction.transaction_date.startsWith(visibleMonthPrefix) &&
-          accountMatchesScope(transaction, selectedAccountScope),
-      ),
-    [selectedAccountScope, transactions, visibleMonthPrefix],
   );
 
   const filteredTransactions = queriedTransactions;
@@ -397,8 +387,8 @@ export default function HomeScreen() {
   ]);
 
   const expenseCategoryData = useMemo(
-    () => groupByCategory(visibleMonthTransactions, "expense"),
-    [visibleMonthTransactions],
+    () => groupByCategory(transactions, "expense"),
+    [transactions],
   );
 
   const budgetSummary = monthlyBudgetData.summary;
@@ -430,6 +420,10 @@ export default function HomeScreen() {
   }, [accounts, selectedAccountScope]);
 
   useEffect(() => {
+    if (dataRevision === 0 || (activeView !== "list" && activeView !== "charts")) {
+      return;
+    }
+
     void refreshTransactions({
       accountScope: selectedAccountScope,
       categoryId: selectedCategory?.id ?? null,
@@ -438,22 +432,27 @@ export default function HomeScreen() {
       tagId: selectedTag?.id ?? null,
     });
   }, [
+    activeView,
+    dataRevision,
     descriptionSearch,
     refreshTransactions,
     selectedAccountScope,
     selectedCategory,
     selectedTag,
-    transactions,
     visibleMonthKey,
   ]);
 
   useEffect(() => {
+    if (activeView !== "budgets" || dataRevision === 0) {
+      return;
+    }
+
     void refreshMonthlyBudgetData(selectedAccountScope, visibleMonthKey);
   }, [
-    categories,
+    activeView,
+    dataRevision,
     refreshMonthlyBudgetData,
     selectedAccountScope,
-    transactions,
     visibleMonthKey,
   ]);
 
@@ -504,8 +503,17 @@ export default function HomeScreen() {
   ]);
 
   useEffect(() => {
+    if (activeView !== "balance" || dataRevision === 0) {
+      return;
+    }
+
     void refreshAccountBalances(visibleMonthKey);
-  }, [accounts, monthlySummaries, refreshAccountBalances, visibleMonthKey]);
+  }, [
+    activeView,
+    dataRevision,
+    refreshAccountBalances,
+    visibleMonthKey,
+  ]);
 
   function cancelSelection() {
     setSelectedTransactionIds([]);
@@ -562,6 +570,27 @@ export default function HomeScreen() {
         },
       },
     ]);
+  }
+
+  function handleEditSelectedTransaction() {
+    if (!selectedTransaction) {
+      return;
+    }
+
+    cancelSelection();
+    router.push(`/transactions/${selectedTransaction.id}/edit` as never);
+  }
+
+  function handleDuplicateSelectedTransaction() {
+    if (!selectedTransaction) {
+      return;
+    }
+
+    cancelSelection();
+    router.push({
+      pathname: "/new-transaction",
+      params: { duplicateOf: String(selectedTransaction.id) },
+    });
   }
 
   function handleViewPress(view: ActiveView) {
@@ -743,23 +772,34 @@ export default function HomeScreen() {
       />
     ),
   };
-  const balanceSummary = (
-    <BalanceSummary
-      balance={summary.balance}
-      expense={summary.expense}
-      income={summary.income}
-      openingBalance={summary.openingBalance}
-      openingBalanceLabel={summary.openingBalanceLabel}
-      showTransfers={selectedAccountScope !== "all"}
-      transferIn={summary.transferIn}
-      transferOut={summary.transferOut}
-    />
-  );
   const activeSummaries: Record<ActiveView, ReactNode> = {
     balance: null,
     budgets: <BudgetSummaryCard summary={budgetSummary} />,
-    charts: balanceSummary,
-    list: balanceSummary,
+    charts: (
+      <BalanceSummary
+        balance={summary.balance}
+        expense={summary.expense}
+        income={summary.income}
+        openingBalance={summary.openingBalance}
+        openingBalanceLabel={summary.openingBalanceLabel}
+        showTransfers={selectedAccountScope !== "all"}
+        transferIn={summary.transferIn}
+        transferOut={summary.transferOut}
+      />
+    ),
+    list: (
+      <BalanceSummary
+        balance={summary.balance}
+        expense={summary.expense}
+        income={summary.income}
+        openingBalance={summary.openingBalance}
+        openingBalanceLabel={summary.openingBalanceLabel}
+        showTransfers={selectedAccountScope !== "all"}
+        transferIn={summary.transferIn}
+        transferOut={summary.transferOut}
+        variant="compact"
+      />
+    ),
     reports: null,
   };
   const activeContent: Record<ActiveView, ReactElement> = {
@@ -801,9 +841,11 @@ export default function HomeScreen() {
         <TransactionListDashboardView
           accountScope={selectedAccountScope}
           filteredTransactions={filteredTransactions}
-          isLoading={isLoading}
+          hasLoadedTransactions={hasLoadedTransactions}
+          isLoading={isTransactionsLoading}
           isSelectionMode={isSelectionMode}
           onSelectTransaction={selectTransaction}
+          onOpenTransaction={setActionTransaction}
           onToggleTransactionSelection={toggleTransactionSelection}
           selectedTransactionIds={selectedTransactionIdSet}
           showFilterSummary={shouldShowFilterSummary}
@@ -815,8 +857,13 @@ export default function HomeScreen() {
         defaultMonth={visibleMonthKey}
         initialBalance={initialBalance}
         isLoading={isLoading}
+        loadTransactions={(range) =>
+          getTransactions({
+            accountScope: selectedAccountScope,
+            monthRange: range,
+          })
+        }
         monthlySummaries={visibleMonthlySummaries}
-        transactions={accountScopedTransactions}
       />
     ),
   };
@@ -851,6 +898,8 @@ export default function HomeScreen() {
             activeHeader={activeHeaders[activeView]}
             onCancelSelection={cancelSelection}
             onDeleteSelection={handleDeleteSelectedTransactions}
+            onDuplicateSelection={handleDuplicateSelectedTransaction}
+            onEditSelection={handleEditSelectedTransaction}
             selectedTransactionCount={selectedTransactionCount}
           />
           {activeView !== "reports" ? (
@@ -898,6 +947,10 @@ export default function HomeScreen() {
         }}
         selectedAccountScope={selectedAccountScope}
       />
+      <TransactionActionSheet
+        onClose={() => setActionTransaction(null)}
+        transaction={actionTransaction}
+      />
     </ThemedView>
   );
 }
@@ -906,11 +959,15 @@ function DashboardHeader({
   activeHeader,
   onCancelSelection,
   onDeleteSelection,
+  onDuplicateSelection,
+  onEditSelection,
   selectedTransactionCount,
 }: Readonly<{
   activeHeader: ReactElement;
   onCancelSelection: () => void;
   onDeleteSelection: () => void;
+  onDuplicateSelection: () => void;
+  onEditSelection: () => void;
   selectedTransactionCount: number;
 }>) {
   if (selectedTransactionCount > 0) {
@@ -919,6 +976,8 @@ function DashboardHeader({
         count={selectedTransactionCount}
         onCancel={onCancelSelection}
         onDelete={onDeleteSelection}
+        onDuplicate={onDuplicateSelection}
+        onEdit={onEditSelection}
       />
     );
   }
@@ -1049,44 +1108,48 @@ function SwipeableDashboardView({
 function TransactionListDashboardView({
   accountScope,
   filteredTransactions,
+  hasLoadedTransactions,
   isLoading,
   isSelectionMode,
   onSelectTransaction,
+  onOpenTransaction,
   onToggleTransactionSelection,
   selectedTransactionIds,
   showFilterSummary,
 }: Readonly<{
   accountScope: AccountScope;
   filteredTransactions: readonly Transaction[];
+  hasLoadedTransactions: boolean;
   isLoading: boolean;
   isSelectionMode: boolean;
   onSelectTransaction: (id: number) => void;
+  onOpenTransaction: (transaction: Transaction) => void;
   onToggleTransactionSelection: (id: number) => void;
   selectedTransactionIds: ReadonlySet<number>;
   showFilterSummary: boolean;
 }>) {
   const { t } = useTranslation();
 
-  function handleTransactionPress(id: number) {
+  function handleTransactionPress(transaction: Transaction) {
     if (isSelectionMode) {
-      onToggleTransactionSelection(id);
+      onToggleTransactionSelection(transaction.id);
+      return;
     }
+
+    onOpenTransaction(transaction);
   }
 
   return (
     <ScrollView
+      accessibilityState={{ busy: isLoading }}
       contentContainerStyle={[
         styles.listContent,
         showFilterSummary && styles.listContentWithFilterSummary,
       ]}
       style={styles.list}
     >
-      {isLoading ? (
-        <View style={styles.emptyState}>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            {t("common.loading")}
-          </ThemedText>
-        </View>
+      {isLoading && !hasLoadedTransactions ? (
+        <TransactionListSkeleton />
       ) : filteredTransactions.length === 0 ? (
         <View style={styles.emptyState}>
           <ThemedText type="subtitle" style={styles.emptyTitle}>
@@ -1101,7 +1164,7 @@ function TransactionListDashboardView({
           <TransactionRow
             key={transaction.id}
             onLongPress={() => onSelectTransaction(transaction.id)}
-            onPress={() => handleTransactionPress(transaction.id)}
+            onPress={() => handleTransactionPress(transaction)}
             selected={selectedTransactionIds.has(transaction.id)}
             selectionMode={isSelectionMode}
             showAccountName={accountScope === "all"}
@@ -1320,9 +1383,13 @@ function TransactionRow({
           ? t("accessibility.tapSelection")
           : t("accessibility.holdSelection")
       }
-      accessibilityLabel={t("accessibility.transaction", {
-        name: transaction.description || transaction.category_description,
-      })}
+      accessibilityLabel={t(
+        selectionMode
+          ? "accessibility.transaction"
+          : "accessibility.transactionActions",
+        { name: transaction.description || transaction.category_description },
+      )}
+      accessibilityRole="button"
       accessibilityState={{ selected }}
       delayLongPress={300}
       onLongPress={onLongPress}
@@ -1422,14 +1489,150 @@ function TransactionRow({
   );
 }
 
+function TransactionActionSheet({
+  onClose,
+  transaction,
+}: Readonly<{
+  onClose: () => void;
+  transaction: Transaction | null;
+}>) {
+  const { t } = useTranslation();
+  const { languageTag } = useLocalization();
+  const transactionName =
+    transaction?.description || transaction?.category_description || "";
+  const isTransfer = transaction?.is_transfer === 1;
+  const transferRoute = transaction
+    ? transaction.type === "expense"
+      ? `${transaction.account_name} → ${transaction.transfer_peer_account_name ?? t("dashboard.otherAccount")}`
+      : `${transaction.transfer_peer_account_name ?? t("dashboard.otherAccount")} → ${transaction.account_name}`
+    : "";
+
+  function navigateToEdit() {
+    if (!transaction) {
+      return;
+    }
+    const id = transaction.id;
+    onClose();
+    router.push(`/transactions/${id}/edit` as never);
+  }
+
+  function navigateToDuplicate() {
+    if (!transaction) {
+      return;
+    }
+    const id = transaction.id;
+    onClose();
+    router.push({
+      pathname: "/new-transaction",
+      params: { duplicateOf: String(id) },
+    });
+  }
+
+  return (
+    <ModalSheet
+      closeLabel={t("accessibility.closeTransactionActions")}
+      isVisible={transaction !== null}
+      onClose={onClose}
+      subtitle={t("transaction.actionsDescription")}
+      title={t("transaction.actionsTitle")}
+    >
+      {transaction ? (
+        <View style={styles.transactionActionContent}>
+          <ThemedView type="surfaceMuted" style={styles.transactionActionSummary}>
+            <View style={styles.transactionActionSummaryCopy}>
+              <ThemedText type="subtitle" numberOfLines={2}>
+                {transactionName}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {isTransfer ? transferRoute : transaction.account_name} · {formatDate(transaction.transaction_date, languageTag)}
+              </ThemedText>
+            </View>
+            <ThemedText
+              type="subtitle"
+              themeColor={
+                isTransfer
+                  ? "text"
+                  : transaction.type === "income"
+                    ? "success"
+                    : "danger"
+              }
+              style={styles.transactionActionAmount}
+            >
+              {isTransfer ? "" : transaction.type === "income" ? "+" : "-"}$ {formatMoney(transaction.amount, languageTag)}
+            </ThemedText>
+          </ThemedView>
+
+          <View style={styles.transactionActionList}>
+            <TransactionAction
+              icon="edit-3"
+              label={t("transaction.edit")}
+              onPress={navigateToEdit}
+            />
+            <TransactionAction
+              description={t("transaction.duplicateHint")}
+              icon="copy"
+              label={t("transaction.duplicate")}
+              onPress={navigateToDuplicate}
+            />
+          </View>
+        </View>
+      ) : null}
+    </ModalSheet>
+  );
+}
+
+function TransactionAction({
+  description,
+  icon,
+  label,
+  onPress,
+}: Readonly<{
+  description?: string;
+  icon: ComponentProps<typeof AppIcon>["name"];
+  label: string;
+  onPress: () => void;
+}>) {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <View
+        style={[styles.transactionActionRow, { borderBottomColor: theme.border }]}
+      >
+        <ThemedView type="primaryContainer" style={styles.transactionActionIcon}>
+          <AppIcon color={theme.primary} name={icon} size={21} />
+        </ThemedView>
+        <View style={styles.transactionActionCopy}>
+          <ThemedText type="smallBold">{label}</ThemedText>
+          {description ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {description}
+            </ThemedText>
+          ) : null}
+        </View>
+        <AppIcon color={theme.textSecondary} name="chevron-right" size={20} />
+      </View>
+    </Pressable>
+  );
+}
+
 function SelectionHeader({
   count,
   onCancel,
   onDelete,
+  onDuplicate,
+  onEdit,
 }: Readonly<{
   count: number;
   onCancel: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
+  onEdit: () => void;
 }>) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -1443,101 +1646,23 @@ function SelectionHeader({
       <ThemedText type="smallBold" style={styles.selectionTitle}>
         {label}
       </ThemedText>
+      {count === 1 ? (
+        <>
+          <FlatIconButton label={t("transaction.edit")} onPress={onEdit}>
+            <AppIcon color={theme.text} name="edit-3" size={24} />
+          </FlatIconButton>
+          <FlatIconButton
+            label={t("transaction.duplicate")}
+            onPress={onDuplicate}
+          >
+            <AppIcon color={theme.text} name="copy" size={24} />
+          </FlatIconButton>
+        </>
+      ) : null}
       <FlatIconButton label={t("dashboard.deleteSelection")} onPress={onDelete}>
         <AppIcon color={theme.text} name="trash-2" size={28} />
       </FlatIconButton>
     </ThemedView>
-  );
-}
-
-function BalanceSummary({
-  balance,
-  expense,
-  income,
-  openingBalance,
-  openingBalanceLabel,
-  showTransfers,
-  transferIn,
-  transferOut,
-}: Readonly<{
-  balance: number;
-  expense: number;
-  income: number;
-  openingBalance: number;
-  openingBalanceLabel: string;
-  showTransfers: boolean;
-  transferIn: number;
-  transferOut: number;
-}>) {
-  const theme = useTheme();
-  const { t } = useTranslation();
-  const { languageTag } = useLocalization();
-  const hasTransfers = showTransfers && (transferIn > 0 || transferOut > 0);
-
-  return (
-    <View style={styles.summaryWrap}>
-      <ThemedView type="surfaceMuted" style={styles.summaryPanel}>
-        <View style={styles.summaryMainRow}>
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.summaryTitle}>
-            {t("dashboard.balance")}
-          </ThemedText>
-          <ThemedText type="display" style={styles.summaryAmount}>
-            $ {formatMoney(balance, languageTag)}
-          </ThemedText>
-        </View>
-        <View
-          style={[
-            styles.summaryOpeningRow,
-            { borderTopColor: theme.border },
-          ]}
-        >
-          <ThemedText type="smallBold" style={styles.summaryDetail}>
-            {openingBalanceLabel}
-          </ThemedText>
-          <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
-            $ {formatMoney(openingBalance, languageTag)}
-          </ThemedText>
-        </View>
-        <View style={styles.summaryMetrics}>
-          <View style={styles.summaryMetric}>
-            <ThemedText type="caption" themeColor="textSecondary">
-              {t("balance.income")}
-            </ThemedText>
-            <ThemedText type="smallBold" themeColor="success">
-              +$ {formatMoney(income, languageTag)}
-            </ThemedText>
-          </View>
-          <View style={styles.summaryMetric}>
-            <ThemedText type="caption" themeColor="textSecondary">
-              {t("balance.expenses")}
-            </ThemedText>
-            <ThemedText type="smallBold" themeColor="danger">
-              -$ {formatMoney(expense, languageTag)}
-            </ThemedText>
-          </View>
-        </View>
-        {hasTransfers && transferIn > 0 && (
-          <View style={styles.summaryDetailRow}>
-            <ThemedText type="smallBold" style={styles.summaryDetail}>
-              {t("balance.incomingTransfers")}
-            </ThemedText>
-            <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
-              $ {formatMoney(transferIn, languageTag)}
-            </ThemedText>
-          </View>
-        )}
-        {hasTransfers && transferOut > 0 && (
-          <View style={styles.summaryDetailRow}>
-            <ThemedText type="smallBold" style={styles.summaryDetail}>
-              {t("balance.outgoingTransfers")}
-            </ThemedText>
-            <ThemedText type="smallBold" style={styles.summaryDetailAmount}>
-              $ {formatMoney(transferOut, languageTag)}
-            </ThemedText>
-          </View>
-        )}
-      </ThemedView>
-    </View>
   );
 }
 
@@ -1764,6 +1889,51 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.half,
   },
+  transactionActionAmount: {
+    flexShrink: 0,
+    fontVariant: ["tabular-nums"],
+    textAlign: "right",
+  },
+  transactionActionContent: {
+    gap: Spacing.three,
+  },
+  transactionActionCopy: {
+    flex: 1,
+    gap: Spacing.half,
+    minWidth: 0,
+  },
+  transactionActionIcon: {
+    alignItems: "center",
+    borderRadius: Radius.control,
+    height: 42,
+    justifyContent: "center",
+    width: 42,
+  },
+  transactionActionList: {
+    gap: 0,
+  },
+  transactionActionRow: {
+    alignItems: "center",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    gap: Spacing.three,
+    minHeight: 64,
+    paddingHorizontal: Spacing.one,
+    paddingVertical: Spacing.two,
+  },
+  transactionActionSummary: {
+    alignItems: "center",
+    borderCurve: "continuous",
+    borderRadius: Radius.card,
+    flexDirection: "row",
+    gap: Spacing.three,
+    padding: Spacing.three,
+  },
+  transactionActionSummaryCopy: {
+    flex: 1,
+    gap: Spacing.half,
+    minWidth: 0,
+  },
   amount: {
     fontSize: 21,
     lineHeight: 25,
@@ -1786,59 +1956,6 @@ const styles = StyleSheet.create({
   dateText: {
     minWidth: 56,
     textAlign: "right",
-  },
-  summaryWrap: {
-    flexShrink: 0,
-    gap: Spacing.one,
-    marginHorizontal: Spacing.three,
-    marginTop: Spacing.two,
-  },
-  summaryPanel: {
-    borderCurve: "continuous",
-    borderRadius: Radius.card,
-    gap: Spacing.two,
-    padding: Spacing.three,
-  },
-  summaryMainRow: {
-    alignItems: "flex-start",
-    gap: Spacing.one,
-  },
-  summaryTitle: {
-    textTransform: "uppercase",
-  },
-  summaryAmount: {
-    alignSelf: "stretch",
-  },
-  summaryDetailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: Spacing.two,
-  },
-  summaryOpeningRow: {
-    borderTopWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: Spacing.two,
-    paddingTop: Spacing.two,
-  },
-  summaryDetail: {
-    flexShrink: 1,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  summaryDetailAmount: {
-    flexShrink: 0,
-    fontSize: 12,
-    lineHeight: 16,
-    textAlign: "right",
-  },
-  summaryMetrics: {
-    flexDirection: "row",
-    gap: Spacing.two,
-  },
-  summaryMetric: {
-    flex: 1,
-    gap: Spacing.half,
   },
   bottomBar: {
     alignItems: "center",

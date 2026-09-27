@@ -43,11 +43,23 @@ export type CreateTransactionInput = {
   type: TransactionType;
 };
 
+export type EditableTransaction = {
+  accountOptions: { id: number; name: string }[];
+  createdAt: string;
+  id: number;
+  isTransfer: boolean;
+  values: CreateTransactionInput;
+};
+
 export type TransactionQueryFilters = {
   accountScope?: AccountScope;
   categoryId?: number | null;
   descriptionSearch?: string;
   month?: string | null;
+  monthRange?: {
+    endMonth: string;
+    startMonth: string;
+  };
   tagId?: number | null;
 };
 
@@ -101,6 +113,27 @@ function getTransactionMonth(transactionDate: string) {
   return transactionDate.slice(0, 7);
 }
 
+function assertTransactionDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) {
+    throw new CashioValidationError({ code: 'invalidTransactionDate' });
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    throw new CashioValidationError({ code: 'invalidTransactionDate' });
+  }
+
+  return value;
+}
+
 function getNextMonth(month: string) {
   const year = Number(month.slice(0, 4));
   const monthIndex = Number(month.slice(5, 7)) - 1;
@@ -135,13 +168,20 @@ function createTransferGroupId() {
   return `transfer-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-async function assertAccountExists(db: SQLiteDatabase, accountId: number) {
+async function assertAccountExists(
+  db: SQLiteDatabase,
+  accountId: number,
+  allowedArchivedAccountIds: ReadonlySet<number> = new Set()
+) {
   const account = await db.getFirstAsync<{ id: number; is_archived: number }>(
     'SELECT id, is_archived FROM accounts WHERE id = ?',
     accountId
   );
 
-  if (!account || account.is_archived === 1) {
+  if (
+    !account ||
+    (account.is_archived === 1 && !allowedArchivedAccountIds.has(accountId))
+  ) {
     throw new CashioValidationError({ code: 'invalidAccount' });
   }
 }
@@ -159,6 +199,88 @@ async function assertBudgetableCategory(db: SQLiteDatabase, categoryId: number) 
   if (!canBudgetCategory(category.type)) {
     throw new CashioValidationError({ code: 'budgetCategoryType' });
   }
+}
+
+async function assertTransactionCategory(
+  db: SQLiteDatabase,
+  categoryId: number,
+  type: TransactionType
+) {
+  const category = await db.getFirstAsync<{ id: number; type: CategoryType | null }>(
+    'SELECT id, type FROM categories WHERE id = ?',
+    categoryId
+  );
+  if (!category) {
+    throw new CashioValidationError({ code: 'invalidCategory' });
+  }
+
+  const isCompatible =
+    category.type === null || category.type === 'both' || category.type === type;
+  if (!isCompatible) {
+    throw new CashioValidationError({ code: 'transactionCategoryType' });
+  }
+}
+
+async function assertTagsExist(db: SQLiteDatabase, tagIds: number[]) {
+  const uniqueTagIds = Array.from(
+    new Set(tagIds.filter((id) => Number.isInteger(id) && id > 0))
+  );
+  if (uniqueTagIds.length !== tagIds.length) {
+    throw new CashioValidationError({ code: 'invalidTag' });
+  }
+  if (uniqueTagIds.length === 0) {
+    return uniqueTagIds;
+  }
+
+  const placeholders = uniqueTagIds.map(() => '?').join(', ');
+  const result = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) AS count FROM tags WHERE id IN (${placeholders})`,
+    ...uniqueTagIds
+  );
+  if ((result?.count ?? 0) !== uniqueTagIds.length) {
+    throw new CashioValidationError({ code: 'invalidTag' });
+  }
+  return uniqueTagIds;
+}
+
+async function validateTransactionInput(
+  db: SQLiteDatabase,
+  input: CreateTransactionInput,
+  allowedArchivedAccountIds: ReadonlySet<number> = new Set()
+) {
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new CashioValidationError({ code: 'invalidAmount' });
+  }
+  if (!input.categoryId) {
+    throw new CashioValidationError({ code: 'categoryRequired' });
+  }
+
+  assertTransactionDate(input.transactionDate);
+  await assertAccountExists(db, input.accountId, allowedArchivedAccountIds);
+
+  const isTransfer = input.destinationAccountId != null;
+  if (isTransfer) {
+    if (input.type !== 'expense') {
+      throw new CashioValidationError({ code: 'transferMustBeExpense' });
+    }
+    if (input.destinationAccountId === input.accountId) {
+      throw new CashioValidationError({ code: 'sameDestinationAccount' });
+    }
+    await assertAccountExists(
+      db,
+      input.destinationAccountId as number,
+      allowedArchivedAccountIds
+    );
+  }
+
+  await assertTransactionCategory(db, input.categoryId, input.type);
+  const tagIds = await assertTagsExist(db, input.tagIds);
+  return {
+    ...input,
+    description: normalizeDescription(input.description),
+    destinationAccountId: input.destinationAccountId ?? null,
+    tagIds,
+  };
 }
 
 export async function recalculateMonthlySummary(
@@ -193,10 +315,12 @@ export async function recalculateMonthlySummary(
         COUNT(*) AS transaction_count
       FROM transactions
       WHERE account_id = ?
-        AND substr(transaction_date, 1, 7) = ?
+        AND transaction_date >= ?
+        AND transaction_date < ?
     `,
     accountId,
-    month
+    `${month}-01`,
+    `${getNextMonth(month)}-01`
   );
 
   if (!summary || summary.transaction_count === 0) {
@@ -583,32 +707,13 @@ async function insertTransactionTags(db: SQLiteDatabase, transactionId: number, 
 }
 
 export async function createTransaction(db: SQLiteDatabase, input: CreateTransactionInput) {
-  const description = normalizeDescription(input.description);
-
-  if (!Number.isFinite(input.amount) || input.amount <= 0) {
-    throw new CashioValidationError({ code: 'invalidAmount' });
-  }
-
-  if (!input.categoryId) {
-    throw new CashioValidationError({ code: 'categoryRequired' });
-  }
-
-  await assertAccountExists(db, input.accountId);
-
-  if (input.destinationAccountId != null) {
-    if (input.type !== 'expense') {
-      throw new CashioValidationError({ code: 'transferMustBeExpense' });
-    }
-    if (input.destinationAccountId === input.accountId) {
-      throw new CashioValidationError({ code: 'sameDestinationAccount' });
-    }
-    await assertAccountExists(db, input.destinationAccountId);
-  }
+  const validatedInput = await validateTransactionInput(db, input);
+  const description = validatedInput.description;
 
   const timestamp = nowIso();
 
   await db.withTransactionAsync(async () => {
-    if (input.destinationAccountId != null) {
+    if (validatedInput.destinationAccountId != null) {
       const transferGroupId = createTransferGroupId();
       const origin = await db.runAsync(
         `INSERT INTO transactions
@@ -626,13 +731,13 @@ export async function createTransaction(db: SQLiteDatabase, input: CreateTransac
             updated_at
           )
          VALUES ('expense', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
-        input.amount,
+        validatedInput.amount,
         description || null,
-        input.transactionDate,
-        input.accountId,
-        input.categoryId,
+        validatedInput.transactionDate,
+        validatedInput.accountId,
+        validatedInput.categoryId,
         transferGroupId,
-        input.destinationAccountId,
+        validatedInput.destinationAccountId,
         timestamp,
         timestamp
       );
@@ -652,24 +757,28 @@ export async function createTransaction(db: SQLiteDatabase, input: CreateTransac
             updated_at
           )
          VALUES ('income', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
-        input.amount,
+        validatedInput.amount,
         description || null,
-        input.transactionDate,
-        input.destinationAccountId,
-        input.categoryId,
+        validatedInput.transactionDate,
+        validatedInput.destinationAccountId,
+        validatedInput.categoryId,
         transferGroupId,
-        input.accountId,
+        validatedInput.accountId,
         timestamp,
         timestamp
       );
 
-      await insertTransactionTags(db, origin.lastInsertRowId, input.tagIds);
-      await insertTransactionTags(db, destination.lastInsertRowId, input.tagIds);
-      await recalculateMonthlySummary(db, input.accountId, getTransactionMonth(input.transactionDate));
+      await insertTransactionTags(db, origin.lastInsertRowId, validatedInput.tagIds);
+      await insertTransactionTags(db, destination.lastInsertRowId, validatedInput.tagIds);
       await recalculateMonthlySummary(
         db,
-        input.destinationAccountId,
-        getTransactionMonth(input.transactionDate)
+        validatedInput.accountId,
+        getTransactionMonth(validatedInput.transactionDate)
+      );
+      await recalculateMonthlySummary(
+        db,
+        validatedInput.destinationAccountId,
+        getTransactionMonth(validatedInput.transactionDate)
       );
       return;
     }
@@ -690,18 +799,225 @@ export async function createTransaction(db: SQLiteDatabase, input: CreateTransac
           updated_at
         )
        VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?, ?)`,
-      input.type,
-      input.amount,
+      validatedInput.type,
+      validatedInput.amount,
       description || null,
-      input.transactionDate,
-      input.accountId,
-      input.categoryId,
+      validatedInput.transactionDate,
+      validatedInput.accountId,
+      validatedInput.categoryId,
       timestamp,
       timestamp
     );
 
-    await insertTransactionTags(db, result.lastInsertRowId, input.tagIds);
-    await recalculateMonthlySummary(db, input.accountId, getTransactionMonth(input.transactionDate));
+    await insertTransactionTags(db, result.lastInsertRowId, validatedInput.tagIds);
+    await recalculateMonthlySummary(
+      db,
+      validatedInput.accountId,
+      getTransactionMonth(validatedInput.transactionDate)
+    );
+  });
+}
+
+type TransactionOperationRow = {
+  account_id: number;
+  amount: number;
+  category_id: number;
+  created_at: string;
+  description: string | null;
+  id: number;
+  is_transfer: number;
+  transaction_date: string;
+  transfer_group_id: string | null;
+  transfer_peer_account_id: number | null;
+  type: TransactionType;
+};
+
+async function getTransactionOperationRows(db: SQLiteDatabase, id: number) {
+  const selected = await db.getFirstAsync<TransactionOperationRow>(
+    'SELECT * FROM transactions WHERE id = ?',
+    id
+  );
+  if (!selected) {
+    return [];
+  }
+  if (!selected.transfer_group_id) {
+    return [selected];
+  }
+
+  return db.getAllAsync<TransactionOperationRow>(
+    `SELECT * FROM transactions
+     WHERE transfer_group_id = ?
+     ORDER BY CASE WHEN type = 'expense' THEN 0 ELSE 1 END, id ASC`,
+    selected.transfer_group_id
+  );
+}
+
+function resolveTransactionOperation(rows: TransactionOperationRow[]) {
+  if (rows.length === 0) {
+    return null;
+  }
+  if (rows[0].is_transfer === 0) {
+    return { destination: null, origin: rows[0] };
+  }
+
+  const origin = rows.find((row) => row.type === 'expense');
+  const destination = rows.find((row) => row.type === 'income');
+  if (!origin || !destination || rows.length !== 2) {
+    throw new CashioValidationError({ code: 'invalidTransfer' });
+  }
+  return { destination, origin };
+}
+
+async function listTransactionTagIds(db: SQLiteDatabase, transactionId: number) {
+  const rows = await db.getAllAsync<{ tag_id: number }>(
+    'SELECT tag_id FROM transaction_tags WHERE transaction_id = ? ORDER BY tag_id ASC',
+    transactionId
+  );
+  return rows.map((row) => row.tag_id);
+}
+
+export async function getEditableTransaction(
+  db: SQLiteDatabase,
+  id: number
+): Promise<EditableTransaction | null> {
+  const operation = resolveTransactionOperation(await getTransactionOperationRows(db, id));
+  if (!operation) {
+    return null;
+  }
+
+  const { origin, destination } = operation;
+  const accountIds = Array.from(
+    new Set([origin.account_id, destination?.account_id].filter((value): value is number => !!value))
+  );
+  const accountPlaceholders = accountIds.map(() => '?').join(', ');
+  const accountOptions = await db.getAllAsync<{ id: number; name: string }>(
+    `SELECT id, name FROM accounts WHERE id IN (${accountPlaceholders})`,
+    ...accountIds
+  );
+  return {
+    accountOptions,
+    createdAt: origin.created_at,
+    id: origin.id,
+    isTransfer: destination !== null,
+    values: {
+      accountId: origin.account_id,
+      amount: origin.amount,
+      categoryId: origin.category_id,
+      description: origin.description ?? '',
+      destinationAccountId: destination?.account_id ?? null,
+      tagIds: await listTransactionTagIds(db, origin.id),
+      transactionDate: origin.transaction_date,
+      type: destination ? 'expense' : origin.type,
+    },
+  };
+}
+
+export async function updateTransaction(
+  db: SQLiteDatabase,
+  id: number,
+  rawInput: CreateTransactionInput
+) {
+  assertTransactionDate(rawInput.transactionDate);
+  const existingRows = await getTransactionOperationRows(db, id);
+  const allowedArchivedAccountIds = new Set(existingRows.map((row) => row.account_id));
+  const input = await validateTransactionInput(db, rawInput, allowedArchivedAccountIds);
+
+  await db.withTransactionAsync(async () => {
+    const rows = await getTransactionOperationRows(db, id);
+    const operation = resolveTransactionOperation(rows);
+    if (!operation) {
+      throw new CashioValidationError({ code: 'transactionNotFound' });
+    }
+
+    const affectedAccountMonths = new Set(
+      rows.map((row) => `${row.account_id}:${getTransactionMonth(row.transaction_date)}`)
+    );
+    const timestamp = nowIso();
+    const isTransfer = input.destinationAccountId != null;
+    const transferGroupId = isTransfer
+      ? operation.origin.transfer_group_id ?? createTransferGroupId()
+      : null;
+
+    await db.runAsync(
+      `UPDATE transactions
+       SET type = ?, amount = ?, description = ?, transaction_date = ?, account_id = ?,
+         category_id = ?, is_transfer = ?, transfer_group_id = ?, transfer_peer_account_id = ?,
+         updated_at = ?
+       WHERE id = ?`,
+      isTransfer ? 'expense' : input.type,
+      input.amount,
+      input.description || null,
+      input.transactionDate,
+      input.accountId,
+      input.categoryId,
+      isTransfer ? 1 : 0,
+      transferGroupId,
+      isTransfer ? input.destinationAccountId : null,
+      timestamp,
+      operation.origin.id
+    );
+
+    let destinationId: number | null = null;
+    if (isTransfer) {
+      if (operation.destination) {
+        destinationId = operation.destination.id;
+        await db.runAsync(
+          `UPDATE transactions
+           SET type = 'income', amount = ?, description = ?, transaction_date = ?, account_id = ?,
+             category_id = ?, is_transfer = 1, transfer_group_id = ?, transfer_peer_account_id = ?,
+             updated_at = ?
+           WHERE id = ?`,
+          input.amount,
+          input.description || null,
+          input.transactionDate,
+          input.destinationAccountId,
+          input.categoryId,
+          transferGroupId,
+          input.accountId,
+          timestamp,
+          destinationId
+        );
+      } else {
+        const result = await db.runAsync(
+          `INSERT INTO transactions
+            (type, amount, description, transaction_date, account_id, category_id, is_transfer,
+             transfer_group_id, transfer_peer_account_id, created_at, updated_at)
+           VALUES ('income', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+          input.amount,
+          input.description || null,
+          input.transactionDate,
+          input.destinationAccountId,
+          input.categoryId,
+          transferGroupId,
+          input.accountId,
+          timestamp,
+          timestamp
+        );
+        destinationId = result.lastInsertRowId;
+      }
+    } else if (operation.destination) {
+      await db.runAsync('DELETE FROM transactions WHERE id = ?', operation.destination.id);
+    }
+
+    for (const row of rows) {
+      await db.runAsync('DELETE FROM transaction_tags WHERE transaction_id = ?', row.id);
+    }
+    await insertTransactionTags(db, operation.origin.id, input.tagIds);
+    if (destinationId !== null) {
+      await insertTransactionTags(db, destinationId, input.tagIds);
+    }
+
+    affectedAccountMonths.add(`${input.accountId}:${getTransactionMonth(input.transactionDate)}`);
+    if (input.destinationAccountId != null) {
+      affectedAccountMonths.add(
+        `${input.destinationAccountId}:${getTransactionMonth(input.transactionDate)}`
+      );
+    }
+
+    for (const accountMonth of affectedAccountMonths) {
+      const [accountId, month] = accountMonth.split(':');
+      await recalculateMonthlySummary(db, Number(accountId), month);
+    }
   });
 }
 
@@ -804,6 +1120,8 @@ export async function getMonthlyBudgetData(
   month: string
 ): Promise<MonthlyBudgetData> {
   const budgetMonth = assertMonth(month);
+  const monthStart = `${budgetMonth}-01`;
+  const nextMonthStart = `${getNextMonth(budgetMonth)}-01`;
 
   if (accountScope === 'all') {
     const [items, unbudgetedExpenses] = await Promise.all([
@@ -816,7 +1134,8 @@ export async function getMonthlyBudgetData(
             FROM transactions
             WHERE type = 'expense'
               AND is_transfer = 0
-              AND substr(transaction_date, 1, 7) = ?
+              AND transaction_date >= ?
+              AND transaction_date < ?
             GROUP BY category_id
           ),
           budgeted AS (
@@ -843,7 +1162,8 @@ export async function getMonthlyBudgetData(
           WHERE categories.type IS NULL OR categories.type IN ('expense', 'both')
           ORDER BY categories.description COLLATE NOCASE ASC
         `,
-        budgetMonth,
+        monthStart,
+        nextMonthStart,
         budgetMonth
       ),
       db.getAllAsync<MonthlyBudgetUnbudgetedExpense>(
@@ -855,7 +1175,8 @@ export async function getMonthlyBudgetData(
             FROM transactions
             WHERE type = 'expense'
               AND is_transfer = 0
-              AND substr(transaction_date, 1, 7) = ?
+              AND transaction_date >= ?
+              AND transaction_date < ?
             GROUP BY category_id
           )
           SELECT
@@ -874,7 +1195,8 @@ export async function getMonthlyBudgetData(
             AND monthly_spending.spent_amount > 0
           ORDER BY monthly_spending.spent_amount DESC, categories.description COLLATE NOCASE ASC
         `,
-        budgetMonth,
+        monthStart,
+        nextMonthStart,
         budgetMonth
       ),
     ]);
@@ -899,7 +1221,8 @@ export async function getMonthlyBudgetData(
           WHERE account_id = ?
             AND type = 'expense'
             AND is_transfer = 0
-            AND substr(transaction_date, 1, 7) = ?
+            AND transaction_date >= ?
+            AND transaction_date < ?
           GROUP BY category_id
         )
         SELECT
@@ -920,7 +1243,8 @@ export async function getMonthlyBudgetData(
         ORDER BY categories.description COLLATE NOCASE ASC
       `,
       accountScope,
-      budgetMonth,
+      monthStart,
+      nextMonthStart,
       accountScope,
       budgetMonth
     ),
@@ -952,7 +1276,8 @@ export async function getMonthlyBudgetData(
           WHERE account_id = ?
             AND type = 'expense'
             AND is_transfer = 0
-            AND substr(transaction_date, 1, 7) = ?
+            AND transaction_date >= ?
+            AND transaction_date < ?
           GROUP BY category_id
         )
         SELECT
@@ -971,7 +1296,8 @@ export async function getMonthlyBudgetData(
         ORDER BY monthly_spending.spent_amount DESC, categories.description COLLATE NOCASE ASC
       `,
       accountScope,
-      budgetMonth,
+      monthStart,
+      nextMonthStart,
       accountScope,
       budgetMonth
     ),
@@ -1147,7 +1473,15 @@ export async function listTransactions(db: SQLiteDatabase, filters: TransactionQ
     params.push(filters.accountScope);
   }
 
-  if (filters.month) {
+  if (filters.monthRange) {
+    const startMonth = assertMonth(filters.monthRange.startMonth);
+    const endMonth = assertMonth(filters.monthRange.endMonth);
+    if (startMonth > endMonth) {
+      throw new CashioValidationError({ code: 'invalidMonth' });
+    }
+    where.push('transactions.transaction_date >= ? AND transactions.transaction_date < ?');
+    params.push(`${startMonth}-01`, `${getNextMonth(endMonth)}-01`);
+  } else if (filters.month) {
     const month = assertMonth(filters.month);
     where.push('transactions.transaction_date >= ? AND transactions.transaction_date < ?');
     params.push(`${month}-01`, `${getNextMonth(month)}-01`);
@@ -1194,17 +1528,19 @@ export async function listTransactions(db: SQLiteDatabase, filters: TransactionQ
       transactions.transfer_group_id,
       transactions.transfer_peer_account_id,
       peer_accounts.name AS transfer_peer_account_name,
-      COALESCE(GROUP_CONCAT(tags.description, ', '), '') AS tags,
+      COALESCE((
+        SELECT GROUP_CONCAT(tags.description, ', ')
+        FROM transaction_tags
+        INNER JOIN tags ON tags.id = transaction_tags.tag_id
+        WHERE transaction_tags.transaction_id = transactions.id
+      ), '') AS tags,
       transactions.created_at,
       transactions.updated_at
     FROM transactions
     INNER JOIN accounts ON accounts.id = transactions.account_id
     INNER JOIN categories ON categories.id = transactions.category_id
     LEFT JOIN accounts AS peer_accounts ON peer_accounts.id = transactions.transfer_peer_account_id
-    LEFT JOIN transaction_tags ON transaction_tags.transaction_id = transactions.id
-    LEFT JOIN tags ON tags.id = transaction_tags.tag_id
     ${whereClause}
-    GROUP BY transactions.id
     ORDER BY transactions.transaction_date DESC, transactions.id DESC
   `,
     ...params
