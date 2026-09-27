@@ -56,6 +56,10 @@ export type TransactionQueryFilters = {
   categoryId?: number | null;
   descriptionSearch?: string;
   month?: string | null;
+  monthRange?: {
+    endMonth: string;
+    startMonth: string;
+  };
   tagId?: number | null;
 };
 
@@ -311,10 +315,12 @@ export async function recalculateMonthlySummary(
         COUNT(*) AS transaction_count
       FROM transactions
       WHERE account_id = ?
-        AND substr(transaction_date, 1, 7) = ?
+        AND transaction_date >= ?
+        AND transaction_date < ?
     `,
     accountId,
-    month
+    `${month}-01`,
+    `${getNextMonth(month)}-01`
   );
 
   if (!summary || summary.transaction_count === 0) {
@@ -1114,6 +1120,8 @@ export async function getMonthlyBudgetData(
   month: string
 ): Promise<MonthlyBudgetData> {
   const budgetMonth = assertMonth(month);
+  const monthStart = `${budgetMonth}-01`;
+  const nextMonthStart = `${getNextMonth(budgetMonth)}-01`;
 
   if (accountScope === 'all') {
     const [items, unbudgetedExpenses] = await Promise.all([
@@ -1126,7 +1134,8 @@ export async function getMonthlyBudgetData(
             FROM transactions
             WHERE type = 'expense'
               AND is_transfer = 0
-              AND substr(transaction_date, 1, 7) = ?
+              AND transaction_date >= ?
+              AND transaction_date < ?
             GROUP BY category_id
           ),
           budgeted AS (
@@ -1153,7 +1162,8 @@ export async function getMonthlyBudgetData(
           WHERE categories.type IS NULL OR categories.type IN ('expense', 'both')
           ORDER BY categories.description COLLATE NOCASE ASC
         `,
-        budgetMonth,
+        monthStart,
+        nextMonthStart,
         budgetMonth
       ),
       db.getAllAsync<MonthlyBudgetUnbudgetedExpense>(
@@ -1165,7 +1175,8 @@ export async function getMonthlyBudgetData(
             FROM transactions
             WHERE type = 'expense'
               AND is_transfer = 0
-              AND substr(transaction_date, 1, 7) = ?
+              AND transaction_date >= ?
+              AND transaction_date < ?
             GROUP BY category_id
           )
           SELECT
@@ -1184,7 +1195,8 @@ export async function getMonthlyBudgetData(
             AND monthly_spending.spent_amount > 0
           ORDER BY monthly_spending.spent_amount DESC, categories.description COLLATE NOCASE ASC
         `,
-        budgetMonth,
+        monthStart,
+        nextMonthStart,
         budgetMonth
       ),
     ]);
@@ -1209,7 +1221,8 @@ export async function getMonthlyBudgetData(
           WHERE account_id = ?
             AND type = 'expense'
             AND is_transfer = 0
-            AND substr(transaction_date, 1, 7) = ?
+            AND transaction_date >= ?
+            AND transaction_date < ?
           GROUP BY category_id
         )
         SELECT
@@ -1230,7 +1243,8 @@ export async function getMonthlyBudgetData(
         ORDER BY categories.description COLLATE NOCASE ASC
       `,
       accountScope,
-      budgetMonth,
+      monthStart,
+      nextMonthStart,
       accountScope,
       budgetMonth
     ),
@@ -1262,7 +1276,8 @@ export async function getMonthlyBudgetData(
           WHERE account_id = ?
             AND type = 'expense'
             AND is_transfer = 0
-            AND substr(transaction_date, 1, 7) = ?
+            AND transaction_date >= ?
+            AND transaction_date < ?
           GROUP BY category_id
         )
         SELECT
@@ -1281,7 +1296,8 @@ export async function getMonthlyBudgetData(
         ORDER BY monthly_spending.spent_amount DESC, categories.description COLLATE NOCASE ASC
       `,
       accountScope,
-      budgetMonth,
+      monthStart,
+      nextMonthStart,
       accountScope,
       budgetMonth
     ),
@@ -1457,7 +1473,15 @@ export async function listTransactions(db: SQLiteDatabase, filters: TransactionQ
     params.push(filters.accountScope);
   }
 
-  if (filters.month) {
+  if (filters.monthRange) {
+    const startMonth = assertMonth(filters.monthRange.startMonth);
+    const endMonth = assertMonth(filters.monthRange.endMonth);
+    if (startMonth > endMonth) {
+      throw new CashioValidationError({ code: 'invalidMonth' });
+    }
+    where.push('transactions.transaction_date >= ? AND transactions.transaction_date < ?');
+    params.push(`${startMonth}-01`, `${getNextMonth(endMonth)}-01`);
+  } else if (filters.month) {
     const month = assertMonth(filters.month);
     where.push('transactions.transaction_date >= ? AND transactions.transaction_date < ?');
     params.push(`${month}-01`, `${getNextMonth(month)}-01`);
@@ -1504,17 +1528,19 @@ export async function listTransactions(db: SQLiteDatabase, filters: TransactionQ
       transactions.transfer_group_id,
       transactions.transfer_peer_account_id,
       peer_accounts.name AS transfer_peer_account_name,
-      COALESCE(GROUP_CONCAT(tags.description, ', '), '') AS tags,
+      COALESCE((
+        SELECT GROUP_CONCAT(tags.description, ', ')
+        FROM transaction_tags
+        INNER JOIN tags ON tags.id = transaction_tags.tag_id
+        WHERE transaction_tags.transaction_id = transactions.id
+      ), '') AS tags,
       transactions.created_at,
       transactions.updated_at
     FROM transactions
     INNER JOIN accounts ON accounts.id = transactions.account_id
     INNER JOIN categories ON categories.id = transactions.category_id
     LEFT JOIN accounts AS peer_accounts ON peer_accounts.id = transactions.transfer_peer_account_id
-    LEFT JOIN transaction_tags ON transaction_tags.transaction_id = transactions.id
-    LEFT JOIN tags ON tags.id = transaction_tags.tag_id
     ${whereClause}
-    GROUP BY transactions.id
     ORDER BY transactions.transaction_date DESC, transactions.id DESC
   `,
     ...params

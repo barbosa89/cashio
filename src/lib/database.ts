@@ -141,7 +141,7 @@ export type SettingRow = {
   updated_at: string;
 };
 
-export const DATABASE_VERSION = 7;
+export const DATABASE_VERSION = 8;
 
 const seedTranslations = { en: en.seeds, es: es.seeds, pt: pt.seeds };
 
@@ -586,6 +586,18 @@ export async function migrateDatabase(
     `);
 
     currentDbVersion = 7;
+  }
+
+  if (currentDbVersion === 7) {
+    await db.execAsync(`
+      CREATE INDEX IF NOT EXISTS idx_transactions_account_date_id
+        ON transactions(account_id, transaction_date DESC, id DESC);
+      CREATE INDEX IF NOT EXISTS idx_transactions_date_id
+        ON transactions(transaction_date DESC, id DESC);
+      DROP INDEX IF EXISTS idx_transactions_month_account;
+    `);
+
+    currentDbVersion = 8;
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

@@ -158,13 +158,6 @@ function groupByCategory(
     }));
 }
 
-function accountMatchesScope(
-  transaction: Transaction,
-  accountScope: AccountScope,
-) {
-  return accountScope === "all" || transaction.account_id === accountScope;
-}
-
 function aggregateMonthlySummaries(
   monthlySummaries: MonthlySummaryRow[],
   accountScope: AccountScope,
@@ -239,12 +232,15 @@ export default function HomeScreen() {
     accountBalances,
     accounts,
     categories,
+    dataRevision,
     addCategoryToMonthlyBudget,
     copyBudgetFromPreviousMonth,
     filteredTransactions: queriedTransactions,
-    isLoading,
+    isLoading: isReferenceDataLoading,
+    isTransactionsLoading,
     monthlyBudgetData,
     monthlySummaries,
+    getTransactions,
     refreshAccountBalances,
     refreshMonthlyBudgetData,
     refreshTransactions,
@@ -254,6 +250,7 @@ export default function HomeScreen() {
     tags,
     transactions,
   } = useCashioData();
+  const isLoading = isReferenceDataLoading || isTransactionsLoading;
   const { settings } = useCashioSettings();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [descriptionSearch, setDescriptionSearch] = useState("");
@@ -276,7 +273,6 @@ export default function HomeScreen() {
   const [actionTransaction, setActionTransaction] =
     useState<Transaction | null>(null);
   const autoCopiedBudgetKeys = useRef(new Set<string>());
-  const visibleMonthPrefix = formatMonthPrefix(visibleMonth);
   const visibleMonthKey = formatMonthKey(visibleMonth);
   const visibleMonthLabel = formatMonthLabel(visibleMonth, languageTag);
   const shouldAccumulatePreviousBalances = settings.accumulatePreviousBalances;
@@ -322,24 +318,6 @@ export default function HomeScreen() {
   const selectedTag = useMemo(
     () => tags.find((tag) => tag.id === filters.tagId) ?? null,
     [filters.tagId, tags],
-  );
-
-  const accountScopedTransactions = useMemo(
-    () =>
-      transactions.filter((transaction) =>
-        accountMatchesScope(transaction, selectedAccountScope),
-      ),
-    [selectedAccountScope, transactions],
-  );
-
-  const visibleMonthTransactions = useMemo(
-    () =>
-      transactions.filter(
-        (transaction) =>
-          transaction.transaction_date.startsWith(visibleMonthPrefix) &&
-          accountMatchesScope(transaction, selectedAccountScope),
-      ),
-    [selectedAccountScope, transactions, visibleMonthPrefix],
   );
 
   const filteredTransactions = queriedTransactions;
@@ -407,8 +385,8 @@ export default function HomeScreen() {
   ]);
 
   const expenseCategoryData = useMemo(
-    () => groupByCategory(visibleMonthTransactions, "expense"),
-    [visibleMonthTransactions],
+    () => groupByCategory(transactions, "expense"),
+    [transactions],
   );
 
   const budgetSummary = monthlyBudgetData.summary;
@@ -440,6 +418,10 @@ export default function HomeScreen() {
   }, [accounts, selectedAccountScope]);
 
   useEffect(() => {
+    if (dataRevision === 0 || (activeView !== "list" && activeView !== "charts")) {
+      return;
+    }
+
     void refreshTransactions({
       accountScope: selectedAccountScope,
       categoryId: selectedCategory?.id ?? null,
@@ -448,22 +430,27 @@ export default function HomeScreen() {
       tagId: selectedTag?.id ?? null,
     });
   }, [
+    activeView,
+    dataRevision,
     descriptionSearch,
     refreshTransactions,
     selectedAccountScope,
     selectedCategory,
     selectedTag,
-    transactions,
     visibleMonthKey,
   ]);
 
   useEffect(() => {
+    if (activeView !== "budgets" || dataRevision === 0) {
+      return;
+    }
+
     void refreshMonthlyBudgetData(selectedAccountScope, visibleMonthKey);
   }, [
-    categories,
+    activeView,
+    dataRevision,
     refreshMonthlyBudgetData,
     selectedAccountScope,
-    transactions,
     visibleMonthKey,
   ]);
 
@@ -514,8 +501,17 @@ export default function HomeScreen() {
   ]);
 
   useEffect(() => {
+    if (activeView !== "balance" || dataRevision === 0) {
+      return;
+    }
+
     void refreshAccountBalances(visibleMonthKey);
-  }, [accounts, monthlySummaries, refreshAccountBalances, visibleMonthKey]);
+  }, [
+    activeView,
+    dataRevision,
+    refreshAccountBalances,
+    visibleMonthKey,
+  ]);
 
   function cancelSelection() {
     setSelectedTransactionIds([]);
@@ -858,8 +854,13 @@ export default function HomeScreen() {
         defaultMonth={visibleMonthKey}
         initialBalance={initialBalance}
         isLoading={isLoading}
+        loadTransactions={(range) =>
+          getTransactions({
+            accountScope: selectedAccountScope,
+            monthRange: range,
+          })
+        }
         monthlySummaries={visibleMonthlySummaries}
-        transactions={accountScopedTransactions}
       />
     ),
   };

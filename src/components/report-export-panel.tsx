@@ -24,8 +24,8 @@ type ReportExportPanelProps = {
   defaultMonth: string;
   initialBalance: number;
   isLoading: boolean;
+  loadTransactions: (range: MonthlyReportRange) => Promise<Transaction[]>;
   monthlySummaries: MonthlySummaryRow[];
-  transactions: Transaction[];
 };
 
 type RangeBoundary = keyof MonthlyReportRange;
@@ -38,8 +38,8 @@ export function ReportExportPanel({
   defaultMonth,
   initialBalance,
   isLoading,
+  loadTransactions,
   monthlySummaries,
-  transactions,
 }: ReportExportPanelProps) {
   const { languageTag } = useLocalization();
   const { t } = useTranslation();
@@ -65,13 +65,13 @@ export function ReportExportPanel({
       : t('reports.export');
   const minimumYear = useMemo(
     () =>
-      transactions.reduce((earliestYear, transaction) => {
-        const transactionYear = Number(transaction.transaction_date.slice(0, 4));
-        return Number.isInteger(transactionYear)
-          ? Math.min(earliestYear, transactionYear)
+      monthlySummaries.reduce((earliestYear, summary) => {
+        const summaryYear = Number(summary.month.slice(0, 4));
+        return Number.isInteger(summaryYear)
+          ? Math.min(earliestYear, summaryYear)
           : earliestYear;
       }, currentYear),
-    [currentYear, transactions]
+    [currentYear, monthlySummaries]
   );
 
   function openMonthPicker(boundary: RangeBoundary) {
@@ -107,6 +107,7 @@ export function ReportExportPanel({
     setMessage('');
 
     try {
+      const transactions = await loadTransactions(range);
       const report = buildMonthlyReportCsv({
         currentMonth,
         initialBalance,

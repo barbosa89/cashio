@@ -36,3 +36,18 @@ describe("calendar_events migration", () => {
     );
   });
 });
+
+describe("transaction query indexes migration", () => {
+  test("upgrades an existing production database from version 7 to 8", async () => {
+    const db = databaseAtVersion(7);
+
+    await migrateDatabase(db as never);
+
+    const sql = db.execAsync.mock.calls.flat().join("\n");
+    expect(sql).toContain("idx_transactions_account_date_id");
+    expect(sql).toContain("idx_transactions_date_id");
+    expect(sql).toContain("DROP INDEX IF EXISTS idx_transactions_month_account");
+    expect(sql).not.toMatch(/DROP TABLE (accounts|transactions|monthly_summaries)/);
+    expect(sql).toContain(`PRAGMA user_version = ${DATABASE_VERSION}`);
+  });
+});
