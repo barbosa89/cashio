@@ -27,7 +27,10 @@ import DropDownPicker, {
   type RenderListItemPropsInterface,
 } from "react-native-dropdown-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "@/i18n/localization-provider";
+import {
+  useLocalization,
+  useTranslation,
+} from "@/i18n/localization-provider";
 
 import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
@@ -37,7 +40,6 @@ import { useCashioData } from "@/hooks/use-cashio-data";
 import { useTheme } from "@/hooks/use-theme";
 import { translateError } from "@/i18n/errors";
 import { getNumberSeparators } from "@/i18n/formatters";
-import { useLocalization } from "@/i18n/localization-provider";
 import type { CreateTransactionInput } from "@/lib/cashio-repository";
 import type { Category, TransactionType } from "@/lib/database";
 
@@ -52,6 +54,7 @@ type TransactionFormProps = {
 };
 
 type DropdownValue = number | string;
+type TransactionMode = TransactionType | "transfer";
 
 const SEARCHABLE_DROPDOWN_FLAT_LIST_PROPS = {
   keyboardShouldPersistTaps: "always" as const,
@@ -113,6 +116,14 @@ function parseDateValue(value: string) {
   return new Date(year, month - 1, day);
 }
 
+function getTransactionMode(
+  values: CreateTransactionInput | null,
+): TransactionMode {
+  return values?.destinationAccountId != null
+    ? "transfer"
+    : (values?.type ?? "expense");
+}
+
 export const TransactionForm = forwardRef<TransactionFormHandle, TransactionFormProps>(
 function TransactionForm(
   {
@@ -136,8 +147,11 @@ function TransactionForm(
   );
   const { accounts, categories, tags, isLoading, addCategory, addTag, addTransaction } =
     useCashioData();
-  const [transactionType, setTransactionType] =
-    useState<TransactionType>(initialValues?.type ?? "expense");
+  const [transactionMode, setTransactionMode] = useState<TransactionMode>(() =>
+    getTransactionMode(initialValues),
+  );
+  const transactionType: TransactionType =
+    transactionMode === "transfer" ? "expense" : transactionMode;
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(
     initialValues?.accountId ?? null,
   );
@@ -218,6 +232,8 @@ function TransactionForm(
         })),
     [selectableAccounts, selectedAccountId],
   );
+  const canSelectTransfer =
+    selectableAccounts.length >= 2 || transactionMode === "transfer";
 
   const availableCategories = useMemo(
     () =>
@@ -264,7 +280,7 @@ function TransactionForm(
     initialValues?.accountId ??
     getPreferredAccountId(selectableAccounts, initialAccountId);
   const isDirty =
-    transactionType !== (initialValues?.type ?? "expense") ||
+    transactionMode !== getTransactionMode(initialValues) ||
     selectedAccountId !== baselineAccountId ||
     selectedDestinationAccountId !==
       (initialValues?.destinationAccountId ?? null) ||
@@ -330,9 +346,7 @@ function TransactionForm(
   ]);
 
   useEffect(() => {
-    if (transactionType === "income") {
-      setSelectedDestinationAccountId(null);
-      setIsDestinationAccountOpen(false);
+    if (transactionMode !== "transfer") {
       return;
     }
 
@@ -351,7 +365,7 @@ function TransactionForm(
     selectableAccounts,
     selectedAccountId,
     selectedDestinationAccountId,
-    transactionType,
+    transactionMode,
   ]);
 
   function handleError(error: unknown) {
@@ -359,7 +373,7 @@ function TransactionForm(
   }
 
   function resetForm() {
-    setTransactionType(initialValues?.type ?? "expense");
+    setTransactionMode(getTransactionMode(initialValues));
     setSelectedAccountId(
       getPreferredAccountId(
         selectableAccounts,
@@ -426,6 +440,7 @@ function TransactionForm(
   function setDestinationAccountDropdownValue(
     nextValue: (currentValue: DropdownValue | null) => DropdownValue | null,
   ) {
+    setMessage("");
     setSelectedDestinationAccountId((currentValue) => {
       const next = nextValue(currentValue);
 
@@ -569,8 +584,13 @@ function TransactionForm(
   }
 
   async function handleSaveTransaction() {
-    setIsSaving(true);
     setMessage("");
+    if (transactionMode === "transfer" && selectedDestinationAccountId == null) {
+      setMessage(t("transaction.destinationRequired"));
+      return;
+    }
+
+    setIsSaving(true);
 
     try {
       const values = {
@@ -579,7 +599,7 @@ function TransactionForm(
         amount: amount ?? 0,
         description,
         destinationAccountId:
-          transactionType === "expense" ? selectedDestinationAccountId : null,
+          transactionMode === "transfer" ? selectedDestinationAccountId : null,
         transactionDate,
         categoryId: selectedCategoryId ?? 0,
         tagIds: selectedTagIds,
@@ -602,6 +622,24 @@ function TransactionForm(
     setIsCategoryOpen(false);
     setIsDestinationAccountOpen(false);
     setIsTagsOpen(false);
+  }
+
+  function handleTransactionModeChange(nextMode: TransactionMode) {
+    closeDropdowns();
+    setMessage("");
+    if (nextMode !== "transfer") {
+      setSelectedDestinationAccountId(null);
+    }
+    setTransactionMode(nextMode);
+  }
+
+  function swapTransferAccounts() {
+    if (selectedAccountId == null || selectedDestinationAccountId == null) {
+      return;
+    }
+
+    setSelectedAccountId(selectedDestinationAccountId);
+    setSelectedDestinationAccountId(selectedAccountId);
   }
 
   function openDatePicker() {
@@ -631,6 +669,16 @@ function TransactionForm(
     setIsDatePickerOpen(false);
   }
 
+  const saveLabel = isSaving
+    ? t("common.saving")
+    : mode === "edit"
+      ? t("transaction.saveChanges")
+      : transactionMode === "transfer"
+        ? t("transaction.saveTransfer")
+        : transactionMode === "income"
+          ? t("transaction.saveIncome")
+          : t("transaction.saveExpense");
+
   return (
     <ThemedView type="surface" style={styles.panel}>
       {(isAccountOpen || isCategoryOpen || isDestinationAccountOpen || isTagsOpen) && (
@@ -643,88 +691,34 @@ function TransactionForm(
 
       <ThemedView type="surfaceMuted" style={styles.segmentedControl}>
         <SegmentButton
-          active={transactionType === "expense"}
+          active={transactionMode === "expense"}
           icon="arrow-up-right"
           label={t("common.expense")}
-          onPress={() => setTransactionType("expense")}
+          onPress={() => handleTransactionModeChange("expense")}
           tone="expense"
         />
         <SegmentButton
-          active={transactionType === "income"}
+          active={transactionMode === "income"}
           icon="arrow-down-left"
           label={t("common.income")}
-          onPress={() => setTransactionType("income")}
+          onPress={() => handleTransactionModeChange("income")}
           tone="income"
+        />
+        <SegmentButton
+          active={transactionMode === "transfer"}
+          disabled={!canSelectTransfer}
+          icon="repeat"
+          label={t("transaction.transfer")}
+          onPress={() => handleTransactionModeChange("transfer")}
+          tone="transfer"
         />
       </ThemedView>
 
-      <Field
-        label={t("transaction.account")}
-        style={[styles.dropdownField, { zIndex: isAccountOpen ? 40 : 10 }]}
-      >
-        <DropDownPicker<DropdownValue>
-          props={{ accessibilityLabel: t("transaction.account") }}
-          ArrowDownIconComponent={({ style }) => (
-            <View style={style}>
-              <AppIcon color={theme.text} name="chevron-down" size={22} />
-            </View>
-          )}
-          ArrowUpIconComponent={({ style }) => (
-            <View style={style}>
-              <AppIcon color={theme.text} name="chevron-up" size={22} />
-            </View>
-          )}
-          CloseIconComponent={({ style }) => (
-            <View style={style}>
-              <AppIcon color={theme.text} name="x" size={24} />
-            </View>
-          )}
-          TickIconComponent={({ style }) => (
-            <View style={style}>
-              <AppIcon color={theme.text} name="check" size={20} />
-            </View>
-          )}
-          dropDownContainerStyle={[
-            styles.dropdownMenu,
-            {
-              backgroundColor: theme.surfaceRaised,
-              borderColor: theme.border,
-            },
-          ]}
-          items={accountItems}
-          labelStyle={styles.dropdownLabel}
-          listItemContainerStyle={styles.dropdownItem}
-          listItemLabelStyle={{ color: theme.text }}
-          listMode={DROPDOWN_LIST_MODE}
-          modalAnimationType="slide"
-          modalContentContainerStyle={dropdownModalContentStyle}
-          onOpen={() => {
-            setIsCategoryOpen(false);
-            setIsDestinationAccountOpen(false);
-            setIsTagsOpen(false);
-          }}
-          open={isAccountOpen}
-          placeholder={t("transaction.selectAccount")}
-          placeholderStyle={{ color: theme.textSecondary }}
-          selectedItemContainerStyle={{
-            backgroundColor: theme.primaryContainer,
-          }}
-          selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
-          setOpen={setIsAccountOpen}
-          setValue={setAccountDropdownValue}
-          style={[
-            styles.dropdown,
-            {
-              backgroundColor: theme.surfaceRaised,
-              borderColor: theme.border,
-            },
-          ]}
-          textStyle={{ color: theme.text }}
-          value={selectedAccountId}
-          zIndex={isAccountOpen ? 4000 : 1000}
-          zIndexInverse={1000}
-        />
-      </Field>
+      {!isLoading && !canSelectTransfer && (
+        <ThemedText type="caption" themeColor="textSecondary">
+          {t("transaction.transferNeedsTwoAccounts")}
+        </ThemedText>
+      )}
 
       <Field label={t("transaction.amount")}>
         <CurrencyInput
@@ -746,6 +740,109 @@ function TransactionForm(
           value={amount}
         />
       </Field>
+
+      {transactionMode !== "transfer" && (
+        <Field
+          label={t("transaction.account")}
+          style={[styles.dropdownField, { zIndex: isAccountOpen ? 40 : 10 }]}
+        >
+          <AccountPicker
+            accessibilityLabel={t("transaction.account")}
+            dropdownModalContentStyle={dropdownModalContentStyle}
+            items={accountItems}
+            onOpen={() => {
+              setIsCategoryOpen(false);
+              setIsDestinationAccountOpen(false);
+              setIsTagsOpen(false);
+            }}
+            open={isAccountOpen}
+            setOpen={setIsAccountOpen}
+            setValue={setAccountDropdownValue}
+            value={selectedAccountId}
+            zIndex={isAccountOpen ? 4000 : 1000}
+          />
+        </Field>
+      )}
+
+      {transactionMode === "transfer" && (
+        <ThemedView type="surfaceMuted" style={styles.transferFlow}>
+          <Field
+            label={t("transaction.fromAccount")}
+            style={[styles.dropdownField, { zIndex: isAccountOpen ? 40 : 10 }]}
+          >
+            <AccountPicker
+              accessibilityLabel={t("transaction.fromAccount")}
+              dropdownModalContentStyle={dropdownModalContentStyle}
+              items={accountItems}
+              onOpen={() => {
+                setIsCategoryOpen(false);
+                setIsDestinationAccountOpen(false);
+                setIsTagsOpen(false);
+              }}
+              open={isAccountOpen}
+              setOpen={setIsAccountOpen}
+              setValue={setAccountDropdownValue}
+              value={selectedAccountId}
+              zIndex={isAccountOpen ? 4000 : 1000}
+            />
+          </Field>
+
+          <View style={styles.transferConnector}>
+            <View style={[styles.transferLine, { backgroundColor: theme.border }]} />
+            <Pressable
+              accessibilityLabel={t("transaction.swapAccounts")}
+              accessibilityRole="button"
+              accessibilityState={{
+                disabled:
+                  selectedAccountId == null || selectedDestinationAccountId == null,
+              }}
+              disabled={
+                selectedAccountId == null || selectedDestinationAccountId == null
+              }
+              onPress={swapTransferAccounts}
+              style={({ pressed }) => [
+                styles.swapButton,
+                { backgroundColor: theme.surfaceRaised, borderColor: theme.border },
+                pressed && styles.pressed,
+                (selectedAccountId == null ||
+                  selectedDestinationAccountId == null) &&
+                  styles.disabled,
+              ]}
+            >
+              <AppIcon color={theme.primary} name="repeat" size={18} />
+              <ThemedText type="smallBold" themeColor="primary">
+                {t("transaction.swap")}
+              </ThemedText>
+            </Pressable>
+            <View style={[styles.transferLine, { backgroundColor: theme.border }]} />
+          </View>
+
+          <Field
+            label={t("transaction.toAccount")}
+            style={[
+              styles.dropdownField,
+              { zIndex: isDestinationAccountOpen ? 30 : 10 },
+            ]}
+          >
+            <AccountPicker
+              accessibilityLabel={t("transaction.toAccount")}
+              dropdownModalContentStyle={dropdownModalContentStyle}
+              items={destinationAccountItems}
+              onOpen={() => {
+                setIsAccountOpen(false);
+                setIsCategoryOpen(false);
+                setIsTagsOpen(false);
+              }}
+              open={isDestinationAccountOpen}
+              placeholder={t("transaction.selectDestinationAccount")}
+              setOpen={setIsDestinationAccountOpen}
+              setValue={setDestinationAccountDropdownValue}
+              value={selectedDestinationAccountId}
+              zIndex={isDestinationAccountOpen ? 3000 : 1000}
+            />
+          </Field>
+        </ThemedView>
+      )}
 
       <Field label={t("transaction.date")}>
         {Platform.OS === "web" ? (
@@ -923,79 +1020,6 @@ function TransactionForm(
         />
       </Field>
 
-      {transactionType === "expense" && (
-        <Field
-          label={t("transaction.destinationAccount")}
-          style={[
-            styles.dropdownField,
-            { zIndex: isDestinationAccountOpen ? 30 : 10 },
-          ]}
-        >
-          <DropDownPicker<DropdownValue>
-            props={{ accessibilityLabel: t("transaction.destinationAccount") }}
-            ArrowDownIconComponent={({ style }) => (
-              <View style={style}>
-                <AppIcon color={theme.text} name="chevron-down" size={22} />
-              </View>
-            )}
-            ArrowUpIconComponent={({ style }) => (
-              <View style={style}>
-                <AppIcon color={theme.text} name="chevron-up" size={22} />
-              </View>
-            )}
-            CloseIconComponent={({ style }) => (
-              <View style={style}>
-                <AppIcon color={theme.text} name="x" size={24} />
-              </View>
-            )}
-            TickIconComponent={({ style }) => (
-              <View style={style}>
-                <AppIcon color={theme.text} name="check" size={20} />
-              </View>
-            )}
-            dropDownContainerStyle={[
-              styles.dropdownMenu,
-              {
-                backgroundColor: theme.surfaceRaised,
-                borderColor: theme.border,
-              },
-            ]}
-            items={destinationAccountItems}
-            labelStyle={styles.dropdownLabel}
-            listItemContainerStyle={styles.dropdownItem}
-            listItemLabelStyle={{ color: theme.text }}
-            listMode={DROPDOWN_LIST_MODE}
-            modalAnimationType="slide"
-            modalContentContainerStyle={dropdownModalContentStyle}
-            onOpen={() => {
-              setIsAccountOpen(false);
-              setIsCategoryOpen(false);
-              setIsTagsOpen(false);
-            }}
-            open={isDestinationAccountOpen}
-            placeholder={t("transaction.optionalTransfer")}
-            placeholderStyle={{ color: theme.textSecondary }}
-            selectedItemContainerStyle={{
-              backgroundColor: theme.primaryContainer,
-            }}
-            selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
-            setOpen={setIsDestinationAccountOpen}
-            setValue={setDestinationAccountDropdownValue}
-            style={[
-              styles.dropdown,
-              {
-                backgroundColor: theme.surfaceRaised,
-                borderColor: theme.border,
-              },
-            ]}
-            textStyle={{ color: theme.text }}
-            value={selectedDestinationAccountId}
-            zIndex={isDestinationAccountOpen ? 3000 : 1000}
-            zIndexInverse={1000}
-          />
-        </Field>
-      )}
-
       <Field
         label={t("common.tags")}
         style={[styles.dropdownField, { zIndex: isTagsOpen ? 30 : 10 }]}
@@ -1123,19 +1147,101 @@ function TransactionForm(
 
       <ActionButton
         disabled={isSaving || isLoading}
-        label={
-          isSaving
-            ? t("common.saving")
-            : mode === "edit"
-              ? t("transaction.saveChanges")
-              : t("transaction.save")
-        }
+        label={saveLabel}
         onPress={handleSaveTransaction}
         primary
       />
     </ThemedView>
   );
 });
+
+function AccountPicker({
+  accessibilityLabel,
+  dropdownModalContentStyle,
+  items,
+  onOpen,
+  open,
+  placeholder,
+  setOpen,
+  setValue,
+  value,
+  zIndex,
+}: {
+  accessibilityLabel: string;
+  dropdownModalContentStyle: StyleProp<ViewStyle>;
+  items: ItemType<DropdownValue>[];
+  onOpen: () => void;
+  open: boolean;
+  placeholder?: string;
+  setOpen: (next: boolean | ((current: boolean) => boolean)) => void;
+  setValue: (
+    next: (currentValue: DropdownValue | null) => DropdownValue | null,
+  ) => void;
+  value: number | null;
+  zIndex: number;
+}) {
+  const theme = useTheme();
+  const { t } = useTranslation();
+
+  return (
+    <DropDownPicker<DropdownValue>
+      props={{ accessibilityLabel }}
+      ArrowDownIconComponent={({ style }) => (
+        <View style={style}>
+          <AppIcon color={theme.text} name="chevron-down" size={22} />
+        </View>
+      )}
+      ArrowUpIconComponent={({ style }) => (
+        <View style={style}>
+          <AppIcon color={theme.text} name="chevron-up" size={22} />
+        </View>
+      )}
+      CloseIconComponent={({ style }) => (
+        <View style={style}>
+          <AppIcon color={theme.text} name="x" size={24} />
+        </View>
+      )}
+      TickIconComponent={({ style }) => (
+        <View style={style}>
+          <AppIcon color={theme.text} name="check" size={20} />
+        </View>
+      )}
+      dropDownContainerStyle={[
+        styles.dropdownMenu,
+        {
+          backgroundColor: theme.surfaceRaised,
+          borderColor: theme.border,
+        },
+      ]}
+      items={items}
+      labelStyle={styles.dropdownLabel}
+      listItemContainerStyle={styles.dropdownItem}
+      listItemLabelStyle={{ color: theme.text }}
+      listMode={DROPDOWN_LIST_MODE}
+      modalAnimationType="slide"
+      modalContentContainerStyle={dropdownModalContentStyle}
+      onOpen={onOpen}
+      open={open}
+      placeholder={placeholder ?? t("transaction.selectAccount")}
+      placeholderStyle={{ color: theme.textSecondary }}
+      selectedItemContainerStyle={{ backgroundColor: theme.primaryContainer }}
+      selectedItemLabelStyle={{ color: theme.text, fontWeight: "700" }}
+      setOpen={setOpen}
+      setValue={setValue}
+      style={[
+        styles.dropdown,
+        {
+          backgroundColor: theme.surfaceRaised,
+          borderColor: theme.border,
+        },
+      ]}
+      textStyle={{ color: theme.text }}
+      value={value}
+      zIndex={zIndex}
+      zIndexInverse={1000}
+    />
+  );
+}
 
 function DropdownListItem({
   createLabel,
@@ -1250,26 +1356,38 @@ function Field({
 
 function SegmentButton({
   active,
+  disabled,
   icon,
   label,
   onPress,
   tone,
 }: {
   active: boolean;
+  disabled?: boolean;
   icon: ComponentProps<typeof AppIcon>["name"];
   label: string;
   onPress: () => void;
-  tone: "expense" | "income";
+  tone: TransactionMode;
 }) {
   const theme = useTheme();
-  const color = tone === "expense" ? theme.danger : theme.success;
+  const color =
+    tone === "expense"
+      ? theme.danger
+      : tone === "income"
+        ? theme.success
+        : theme.primary;
 
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityState={{ checked: active }}
+      accessibilityState={{ checked: active, disabled }}
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.segmentButton, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.segmentButton,
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}
     >
       <ThemedView
         type="surfaceRaised"
@@ -1311,6 +1429,8 @@ function ActionButton({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -1362,10 +1482,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderRadius: Radius.control,
-    flexDirection: "row",
+    flexDirection: "column",
     gap: Spacing.one,
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 64,
+    paddingHorizontal: Spacing.one,
     paddingVertical: Spacing.two,
   },
   field: {
@@ -1383,10 +1504,35 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   amountInput: {
-    fontSize: 28,
+    fontSize: 32,
     fontVariant: ["tabular-nums"],
-    fontWeight: "700",
-    minHeight: 64,
+    fontWeight: "600",
+    minHeight: 72,
+  },
+  transferFlow: {
+    borderCurve: "continuous",
+    borderRadius: Radius.card,
+    gap: Spacing.three,
+    padding: Spacing.three,
+  },
+  transferConnector: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.two,
+  },
+  transferLine: {
+    flex: 1,
+    height: 1,
+  },
+  swapButton: {
+    alignItems: "center",
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.two,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: Spacing.three,
   },
   dateInput: {
     alignItems: "center",
