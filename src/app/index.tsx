@@ -66,6 +66,7 @@ import { useCashioSettings } from "@/hooks/use-cashio-settings";
 import { useTheme } from "@/hooks/use-theme";
 import { capitalizeLocalized, formatDate, formatMonthYear } from "@/i18n/formatters";
 import { useLocalization } from "@/i18n/localization-provider";
+import { isVoiceTransactionEnabled } from "@/lib/ai/feature-flags";
 import type {
     Account,
     AccountScope,
@@ -1254,10 +1255,18 @@ function TransactionDashboardOverlays({
       )}
       {showFilterSummary && <FilterSummaryBar summary={filteredSummary} />}
       {!isSelectionMode && (
-        <AddTransactionButton
-          accountId={accountIdForNewTransaction}
-          raisedForFilterSummary={showFilterSummary}
-        />
+        <>
+          {Platform.OS !== "web" && isVoiceTransactionEnabled() ? (
+            <VoiceTransactionButton
+              accountId={accountIdForNewTransaction}
+              raisedForFilterSummary={showFilterSummary}
+            />
+          ) : null}
+          <AddTransactionButton
+            accountId={accountIdForNewTransaction}
+            raisedForFilterSummary={showFilterSummary}
+          />
+        </>
       )}
     </>
   );
@@ -1299,6 +1308,40 @@ function AddTransactionButton({
           name="plus"
         size={36}
       />
+    </Pressable>
+  );
+}
+
+function VoiceTransactionButton({
+  accountId,
+  raisedForFilterSummary,
+}: Readonly<{
+  accountId: number | null;
+  raisedForFilterSummary: boolean;
+}>) {
+  const theme = useTheme();
+  const { t } = useTranslation();
+
+  function handlePress() {
+    router.push({
+      pathname: "/voice-transaction",
+      params: accountId ? { accountId: String(accountId) } : {},
+    });
+  }
+
+  return (
+    <Pressable
+      accessibilityLabel={t("voiceTransaction.title")}
+      accessibilityRole="button"
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.voiceButton,
+        { backgroundColor: theme.surfaceRaised, borderColor: theme.border },
+        raisedForFilterSummary && styles.fabWithFilterSummary,
+        pressed && { backgroundColor: theme.surfaceMuted },
+      ]}
+    >
+      <AppIcon color={theme.primary} name="mic" size={22} />
     </Pressable>
   );
 }
@@ -2014,6 +2057,18 @@ const styles = StyleSheet.create({
       BOTTOM_BAR_ESTIMATED_HEIGHT +
       FILTER_SUMMARY_ESTIMATED_HEIGHT +
       FILTER_SUMMARY_GAP * 2,
+  },
+  voiceButton: {
+    alignItems: "center",
+    borderRadius: Radius.control,
+    borderWidth: 1,
+    bottom: BottomTabInset + 104,
+    height: 48,
+    justifyContent: "center",
+    position: "absolute",
+    right: Spacing.three + 72,
+    width: 48,
+    zIndex: 2,
   },
   inlineMessage: {
     paddingHorizontal: Spacing.three,

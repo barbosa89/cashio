@@ -200,6 +200,25 @@ describe("transaction form transfer flow", () => {
     });
   });
 
+  test("does not silently default an account for an unresolved draft", async () => {
+    await render(
+      <TransactionForm
+        initialValues={{
+          amount: 250,
+          categoryId: 10,
+          description: "Unresolved account",
+          tagIds: [],
+          transactionDate: "2026-09-28",
+          type: "expense",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Account" })).toHaveTextContent(
+      "Select account",
+    );
+  });
+
   test("clears the destination when changing a transfer to income", async () => {
     const user = userEvent.setup();
     await render(
@@ -224,6 +243,27 @@ describe("transaction form transfer flow", () => {
     await render(<TransactionForm initialValues={expenseValues} />);
 
     await user.press(screen.getByRole("radio", { name: "Transfer" }));
+    await user.press(screen.getByRole("button", { name: "Save transfer" }));
+
+    expect(mockAddTransaction).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Select a destination account to save this transfer.",
+    );
+  });
+
+  test("preserves an unresolved voice transfer until a destination is selected", async () => {
+    const user = userEvent.setup();
+    await render(
+      <TransactionForm
+        initialValues={{
+          ...expenseValues,
+          destinationAccountId: null,
+          transactionMode: "transfer",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("radio", { name: "Transfer" })).toBeChecked();
     await user.press(screen.getByRole("button", { name: "Save transfer" }));
 
     expect(mockAddTransaction).not.toHaveBeenCalled();

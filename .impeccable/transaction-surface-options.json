@@ -1,0 +1,76 @@
+{
+  "title": "Elige la estructura del formulario",
+  "question": "Las tres opciones conservan la identidad de Cash IO y hacen del traslado un tipo explicito. Elige la composicion que mejor represente un registro rapido y confiable.",
+  "options": [
+    {
+      "id": "movement-sentence",
+      "label": "Frase de movimiento",
+      "kicker": "THE ROLL",
+      "thesis": "El formulario se lee como una frase financiera: tipo, monto, origen y destino.",
+      "palette": ["#F7F7F5", "#FFFFFF", "#F97316", "#047857", "#C2413A"],
+      "materials": ["superficies tonales", "trayecto conectado"],
+      "viewport": "Tipo y monto abren la pantalla; un bloque Origen → Destino visualiza el traslado antes de los detalles.",
+      "risk": "La frase pierde fuerza si las cuentas no se perciben como un unico trayecto.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 16,
+        "regions": [
+          {"label": "tipo: egreso / ingreso / traslado", "x": 0, "y": 0, "w": 12, "h": 2, "accent": true},
+          {"label": "monto", "x": 0, "y": 2, "w": 12, "h": 3},
+          {"label": "origen", "x": 0, "y": 5, "w": 5, "h": 3},
+          {"label": "flecha", "x": 5, "y": 5, "w": 2, "h": 3, "accent": true},
+          {"label": "destino", "x": 7, "y": 5, "w": 5, "h": 3},
+          {"label": "fecha y nota", "x": 0, "y": 8, "w": 12, "h": 3},
+          {"label": "categoria y etiquetas", "x": 0, "y": 11, "w": 12, "h": 3},
+          {"label": "guardar traslado", "x": 0, "y": 14, "w": 12, "h": 2, "accent": true}
+        ]
+      }
+    },
+    {
+      "id": "amount-first",
+      "label": "Monto primero",
+      "thesis": "La cifra domina y el resto del formulario se adapta inmediatamente a la intencion elegida.",
+      "palette": ["#F7F7F5", "#FFFFFF", "#F97316", "#047857", "#C2413A"],
+      "materials": ["numeros tabulares", "grupos compactos"],
+      "viewport": "Un monto grande ocupa el primer bloque, seguido por el selector de tipo y las cuentas contextuales.",
+      "risk": "Priorizar la cifra puede retrasar la comprension del sentido del movimiento.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 16,
+        "regions": [
+          {"label": "monto", "x": 0, "y": 0, "w": 12, "h": 4, "accent": true},
+          {"label": "tipo: egreso / ingreso / traslado", "x": 0, "y": 4, "w": 12, "h": 2},
+          {"label": "cuenta origen", "x": 0, "y": 6, "w": 12, "h": 2},
+          {"label": "cuenta destino", "x": 0, "y": 8, "w": 12, "h": 2},
+          {"label": "fecha y nota", "x": 0, "y": 10, "w": 12, "h": 2},
+          {"label": "categoria y etiquetas", "x": 0, "y": 12, "w": 12, "h": 2},
+          {"label": "guardar", "x": 0, "y": 14, "w": 12, "h": 2, "accent": true}
+        ]
+      }
+    },
+    {
+      "id": "essential-details",
+      "label": "Esencial + detalles",
+      "thesis": "La decision principal queda completa arriba y los datos de organizacion viven en un segundo grupo.",
+      "palette": ["#F7F7F5", "#FFFFFF", "#F97316", "#047857", "#C2413A"],
+      "materials": ["secciones agrupadas", "jerarquia progresiva"],
+      "viewport": "Tipo, trayecto y monto forman el bloque esencial; fecha, nota, categoria y etiquetas siguen como detalles visibles.",
+      "risk": "La separacion debe evitar que los detalles parezcan prescindibles cuando son importantes para el usuario.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 16,
+        "regions": [
+          {"label": "tipo: egreso / ingreso / traslado", "x": 0, "y": 0, "w": 12, "h": 2, "accent": true},
+          {"label": "trayecto", "x": 0, "y": 2, "w": 12, "h": 4},
+          {"label": "monto", "x": 0, "y": 6, "w": 12, "h": 3},
+          {"label": "detalles", "x": 0, "y": 9, "w": 12, "h": 1},
+          {"label": "fecha / nota / categoria / etiquetas", "x": 0, "y": 10, "w": 12, "h": 4},
+          {"label": "guardar", "x": 0, "y": 14, "w": 12, "h": 2, "accent": true}
+        ]
+      }
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": false},
+  "steer": true
+}

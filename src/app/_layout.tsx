@@ -141,6 +141,20 @@ function CashioNavigator() {
           }}
         />
         <Drawer.Screen
+          name="ai-spike"
+          options={{
+            drawerItemStyle: { display: "none" },
+            title: t("aiSpike.title"),
+          }}
+        />
+        <Drawer.Screen
+          name="voice-transaction"
+          options={{
+            drawerItemStyle: { display: "none" },
+            title: t("voiceTransaction.title"),
+          }}
+        />
+        <Drawer.Screen
           name="transactions/[id]/edit"
           options={{
             drawerItemStyle: { display: "none" },

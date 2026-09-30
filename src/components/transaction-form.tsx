@@ -46,11 +46,17 @@ import type { Category, TransactionType } from "@/lib/database";
 type TransactionFormProps = {
   accountOptions?: { id: number; name: string }[];
   initialAccountId?: number | null;
-  initialValues?: CreateTransactionInput | null;
+  initialValues?: TransactionFormInitialValues | null;
   mode?: "create" | "edit";
   onDirtyChange?: (isDirty: boolean) => void;
   onSaved?: () => void;
   onSubmit?: (values: CreateTransactionInput) => Promise<void>;
+};
+
+export type TransactionFormInitialValues = Partial<CreateTransactionInput> & {
+  destinationAccountId?: number | null;
+  tagIds?: number[];
+  transactionMode?: TransactionMode;
 };
 
 type DropdownValue = number | string;
@@ -117,11 +123,11 @@ function parseDateValue(value: string) {
 }
 
 function getTransactionMode(
-  values: CreateTransactionInput | null,
+  values: TransactionFormInitialValues | null,
 ): TransactionMode {
-  return values?.destinationAccountId != null
+  return values?.transactionMode ?? (values?.destinationAccountId != null
     ? "transfer"
-    : (values?.type ?? "expense");
+    : (values?.type ?? "expense"));
 }
 
 export const TransactionForm = forwardRef<TransactionFormHandle, TransactionFormProps>(
@@ -163,7 +169,9 @@ function TransactionForm(
     initialTransactionDateRef.current,
   );
   const [draftTransactionDate, setDraftTransactionDate] = useState(() =>
-    initialValues ? parseDateValue(initialValues.transactionDate) : new Date(),
+    initialValues?.transactionDate
+      ? parseDateValue(initialValues.transactionDate)
+      : new Date(),
   );
   const [categorySearch, setCategorySearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
@@ -320,6 +328,14 @@ function TransactionForm(
 
     if (appliedInitialAccountIdRef.current !== initialAccountId) {
       appliedInitialAccountIdRef.current = initialAccountId;
+      if (
+        initialValues !== null &&
+        initialValues.accountId == null &&
+        initialAccountId == null
+      ) {
+        setSelectedAccountId(null);
+        return;
+      }
       setSelectedAccountId(
         getPreferredAccountId(
           selectableAccounts,
@@ -332,6 +348,14 @@ function TransactionForm(
     if (
       selectedAccountId &&
       selectableAccounts.some((account) => account.id === selectedAccountId)
+    ) {
+      return;
+    }
+
+    if (
+      initialValues !== null &&
+      initialValues.accountId == null &&
+      initialAccountId == null
     ) {
       return;
     }
@@ -400,7 +424,7 @@ function TransactionForm(
     setIsCreatingTag(false);
     isCreatingCategoryRef.current = false;
     isCreatingTagRef.current = false;
-    const resetDate = initialValues
+    const resetDate = initialValues?.transactionDate
       ? parseDateValue(initialValues.transactionDate)
       : new Date();
     setDraftTransactionDate(resetDate);

@@ -7,9 +7,22 @@
     "icon": "./assets/images/icon.png",
     "scheme": "cashio",
     "userInterfaceStyle": "automatic",
+    "locales": {
+      "en": "./locales/en.json",
+      "es": "./locales/es.json",
+      "pt-BR": "./locales/pt-BR.json"
+    },
     "ios": {
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.omarbarbosa.cashio"
+      "bundleIdentifier": "com.omarbarbosa.cashio",
+      "infoPlist": {
+        "CFBundleLocalizations": [
+          "en",
+          "es",
+          "pt-BR"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "permissions": [
@@ -98,7 +111,44 @@
             ]
           }
         }
-      ]
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Cash IO to record a transaction for private processing on this device.",
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Cash IO to select an image for the on-device AI compatibility test.",
+          "cameraPermission": false
+        }
+      ],
+      [
+        "llama.rn",
+        {
+          "enableEntitlements": true,
+          "entitlementsProfile": [
+            "development",
+            "ai-spike",
+            "voice-mvp"
+          ],
+          "forceCxx20": true,
+          "enableOpenCLAndHexagon": true
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

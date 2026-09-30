@@ -14,6 +14,18 @@
         "buildType": "apk"
       }
     },
+    "ai-spike": {
+      "extends": "preview",
+      "env": {
+        "EXPO_PUBLIC_ENABLE_AI_SPIKE": "true"
+      }
+    },
+    "voice-mvp": {
+      "extends": "preview",
+      "env": {
+        "EXPO_PUBLIC_ENABLE_VOICE_TRANSACTIONS": "true"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "credentialsSource": "remote",

@@ -248,7 +248,7 @@ async function validateTransactionInput(
   input: CreateTransactionInput,
   allowedArchivedAccountIds: ReadonlySet<number> = new Set()
 ) {
-  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+  if (!Number.isInteger(input.amount) || input.amount <= 0) {
     throw new CashioValidationError({ code: 'invalidAmount' });
   }
   if (!input.categoryId) {

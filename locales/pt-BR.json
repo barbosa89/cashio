@@ -1,0 +1,4 @@
+{
+  "NSMicrophoneUsageDescription": "Permita que o Cash IO grave uma transação para processamento privado neste dispositivo.",
+  "NSPhotoLibraryUsageDescription": "Permita que o Cash IO selecione uma imagem para o teste de compatibilidade de IA no dispositivo."
+}

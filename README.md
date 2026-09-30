@@ -48,6 +48,12 @@ npx tsc --noEmit
 
 Native backup libraries require a development/native build; Expo Go is insufficient.
 
+Local AI requires a native development or internal build; Expo Go is insufficient. The compatibility
+harness is documented in `AI_SPIKE.md`. The voice-transaction candidate is documented in
+`VOICE_TRANSACTIONS.md` and is enabled only in development or the internal `voice-mvp` profile while
+physical-device and license gates remain open.
+`app.config.js` excludes the AI plugins and blocks microphone permissions for normal builds.
+
 ### EAS builds
 
 This project uses [Expo Application Services (EAS)](https://docs.expo.dev/build/introduction/) for cloud builds. Install the CLI and authenticate before creating a build:
@@ -64,6 +70,8 @@ The build profiles are defined in `eas.json`:
 | --- | --- | --- |
 | `development` | Development client for testing native functionality | Internal |
 | `preview` | Installable preview; Android produces an APK | Internal |
+| `ai-spike` | Internal local-model compatibility harness | Internal |
+| `voice-mvp` | Internal voice-transaction candidate | Internal |
 | `production` | Store release; Android produces an AAB | App Store / Google Play |
 
 Create development builds:
@@ -102,15 +110,3 @@ eas submit --profile internal --platform android --latest
 ```
 
 EAS manages production build numbers remotely and increments them automatically according to `eas.json`. Store credentials are also managed remotely.
-
-### Temporary Metro patch
-
-Expo SDK 56 contains a known `@expo/metro-config` regression that can produce this error when `expo-sqlite` creates its web worker in development:
-
-```text
-Worker chunk not found for: node_modules/expo-sqlite/web/worker.ts
-```
-
-The project applies Expo's upstream fix from [expo/expo#50244](https://github.com/expo/expo/pull/50244) through `patch-package`. The `postinstall` script applies `patches/@expo+metro-config+56.0.19.patch` automatically after `npm install`.
-
-Do not update `@expo/metro-config` independently to a different Expo SDK version. Once the fix is included in a compatible stable Expo release, upgrade the Expo dependencies together with `npx expo install --fix`, verify web and native builds, and then remove the patch, the `postinstall` script, and the `patch-package` dependency.

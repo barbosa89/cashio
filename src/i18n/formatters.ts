@@ -68,7 +68,16 @@ export function formatDate(value: string, locale: string) {
 }
 
 export function getNumberSeparators(locale: string) {
-  const parts = new Intl.NumberFormat(locale).formatToParts(12345.6);
+  const formatter = new Intl.NumberFormat(locale);
+
+  if (typeof formatter.formatToParts !== "function") {
+    return {
+      delimiter: formatter.format(10000).replace(/\d/g, "")[0] ?? ",",
+      separator: formatter.format(1.1).replace(/\d/g, "")[0] ?? ".",
+    };
+  }
+
+  const parts = formatter.formatToParts(12345.6);
   return {
     delimiter: parts.find((part) => part.type === "group")?.value ?? ",",
     separator: parts.find((part) => part.type === "decimal")?.value ?? ".",

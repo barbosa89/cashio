@@ -11,7 +11,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppIcon } from "@/components/app-icon";
-import { TransactionForm } from "@/components/transaction-form";
+import {
+  TransactionForm,
+  type TransactionFormInitialValues,
+} from "@/components/transaction-form";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import {
@@ -28,10 +31,11 @@ type TransactionEditorScreenProps = {
   accountOptions?: { id: number; name: string }[];
   formKey?: string | number;
   initialAccountId?: number | null;
-  initialValues?: CreateTransactionInput | null;
+  initialValues?: TransactionFormInitialValues | null;
   mode?: "create" | "edit";
   onSaved?: () => void;
   onSubmit?: (values: CreateTransactionInput) => Promise<void>;
+  reviewNotice?: string;
   title: string;
 };
 
@@ -43,6 +47,7 @@ export function TransactionEditorScreen({
   mode = "create",
   onSaved,
   onSubmit,
+  reviewNotice,
   title,
 }: Readonly<TransactionEditorScreenProps>) {
   const theme = useTheme();
@@ -129,6 +134,15 @@ export function TransactionEditorScreen({
             </ThemedText>
           </View>
 
+          {reviewNotice ? (
+            <ThemedView type="primaryContainer" style={styles.reviewNotice}>
+              <AppIcon color={theme.primary} name="mic" size={20} />
+              <ThemedText type="small" style={styles.reviewNoticeText}>
+                {reviewNotice}
+              </ThemedText>
+            </ThemedView>
+          ) : null}
+
           <TransactionForm
             accountOptions={accountOptions}
             key={formKey}
@@ -165,6 +179,16 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  reviewNotice: {
+    alignItems: "flex-start",
+    borderRadius: Radius.control,
+    flexDirection: "row",
+    gap: Spacing.two,
+    padding: Spacing.three,
+  },
+  reviewNoticeText: {
+    flex: 1,
   },
   safeArea: {
     gap: Spacing.four,

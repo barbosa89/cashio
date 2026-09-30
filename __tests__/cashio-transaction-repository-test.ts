@@ -1,4 +1,5 @@
 import {
+  createTransaction,
   getEditableTransaction,
   updateTransaction,
   type CreateTransactionInput,
@@ -154,7 +155,7 @@ describe("transaction editing repository", () => {
     };
 
     await expect(
-      updateTransaction(db as never, 8, {
+      createTransaction(db as never, {
         accountId: 1,
         amount: 100,
         categoryId: 4,
@@ -165,6 +166,27 @@ describe("transaction editing repository", () => {
         type: "expense",
       }),
     ).rejects.toThrow("invalidTransactionDate");
+    expect(db.withTransactionAsync).not.toHaveBeenCalled();
+  });
+
+  test("rejects fractional amounts before writing", async () => {
+    const db = {
+      runAsync: jest.fn(),
+      withTransactionAsync: jest.fn(),
+    };
+
+    await expect(
+      createTransaction(db as never, {
+        accountId: 1,
+        amount: 10.5,
+        categoryId: 4,
+        description: "Fractional amount",
+        destinationAccountId: null,
+        tagIds: [],
+        transactionDate: "2026-09-28",
+        type: "expense",
+      }),
+    ).rejects.toThrow("invalidAmount");
     expect(db.withTransactionAsync).not.toHaveBeenCalled();
   });
 });
